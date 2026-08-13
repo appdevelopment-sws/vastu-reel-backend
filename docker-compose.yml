@@ -1,0 +1,89 @@
+services:
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: vastu_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${DB_DATABASE:-vastu_reel_db}
+      MYSQL_USER: ${DB_USERNAME:-vastu_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root_password}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vastu_network
+
+  # Database Management GUI (PhpMyAdmin)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: vastu_phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root_password}
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    networks:
+      - vastu_network
+
+  # NestJS Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vastu_backend
+    restart: always
+    ports:
+      - "${PORT:-8008}:8008"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-8008}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: ${DB_USERNAME:-vastu_user}
+      DB_PASSWORD: ${DB_PASSWORD:-root_password}
+      DB_DATABASE: ${DB_DATABASE:-vastu_reel_db}
+      DB_SYNCHRONIZE: "true"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - vastu_network
+
+  # Future React Admin Frontend Service (Uncomment & configure when adding frontend)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: vastu_frontend
+  #   restart: always
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     REACT_APP_API_URL: http://localhost:8008/api/v1
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - vastu_network
+
+networks:
+  vastu_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
