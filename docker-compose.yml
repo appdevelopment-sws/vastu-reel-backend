@@ -2,7 +2,7 @@ services:
   # MySQL Database Service
   mysql:
     image: mysql:8.0
-    container_name: vastu_mysql
+    container_name: vastu_reel_mysql
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root_password}
@@ -10,7 +10,7 @@ services:
       MYSQL_USER: ${DB_USERNAME:-vastu_user}
       MYSQL_PASSWORD: ${DB_PASSWORD:-root_password}
     ports:
-      - "${DB_PORT:-3306}:3306"
+      - "${DB_HOST_PORT:-3307}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -21,17 +21,13 @@ services:
     networks:
       - vastu_network
 
-  # Database Management GUI (PhpMyAdmin)
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: vastu_phpmyadmin
+  # Database Management GUI (Adminer)
+  adminer:
+    image: adminer:latest
+    container_name: vastu_reel_adminer
     restart: always
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root_password}
     ports:
-      - "8081:80"
+      - "8081:8080"
     depends_on:
       - mysql
     networks:
@@ -42,7 +38,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: vastu_backend
+      target: development
+    container_name: vastu_reel_backend
     restart: always
     ports:
       - "${PORT:-8008}:8008"
@@ -52,8 +49,10 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USERNAME: ${DB_USERNAME:-vastu_user}
+      DB_USER: ${DB_USERNAME:-vastu_user}
       DB_PASSWORD: ${DB_PASSWORD:-root_password}
       DB_DATABASE: ${DB_DATABASE:-vastu_reel_db}
+      DB_NAME: ${DB_DATABASE:-vastu_reel_db}
       DB_SYNCHRONIZE: "true"
     depends_on:
       mysql:

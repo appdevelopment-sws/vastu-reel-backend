@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -17,16 +18,23 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
-        host: configService.get<string>('DB_HOST'),
-        port: configService.get<number>('DB_PORT'),
-        username: configService.get<string>('DB_USER'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_NAME'),
+        host: configService.get<string>('DB_HOST', 'localhost'),
+        port: configService.get<number>('DB_PORT', 3306),
+        username:
+          configService.get<string>('DB_USERNAME') ||
+          configService.get<string>('DB_USER', 'root'),
+        password: configService.get<string>('DB_PASSWORD', 'root_password'),
+        database:
+          configService.get<string>('DB_DATABASE') ||
+          configService.get<string>('DB_NAME', 'vastu_reel_db'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true,
+        synchronize:
+          configService.get<string>('DB_SYNCHRONIZE') === 'true' ||
+          configService.get<boolean>('DB_SYNCHRONIZE') === true,
       }),
     }),
     AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

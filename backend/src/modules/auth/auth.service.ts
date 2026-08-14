@@ -22,9 +22,6 @@ import { CreatePermissionDto } from './dto/create-permission.dto';
 import { AssignUserRolesDto } from './dto/assign-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
-import { Driver, DriverStatus } from '../driver/entities/driver.entity';
-import { Operator } from '../operator/entities/operator.entity';
-
 @Injectable()
 export class AuthService implements OnModuleInit {
   constructor(
@@ -34,10 +31,6 @@ export class AuthService implements OnModuleInit {
     private readonly roleRepository: Repository<Role>,
     @InjectRepository(Permission)
     private readonly permissionRepository: Repository<Permission>,
-    @InjectRepository(Driver)
-    private readonly driverRepository: Repository<Driver>,
-    @InjectRepository(Operator)
-    private readonly operatorRepository: Repository<Operator>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -100,43 +93,6 @@ export class AuthService implements OnModuleInit {
     });
 
     await this.userRepository.save(user);
-
-    // Auto-sync Driver entity creation if registering as a DRIVER
-    if (targetRoleName === 'DRIVER') {
-      let operator = await this.operatorRepository.findOne({ where: {} });
-      if (!operator) {
-        operator = await this.operatorRepository.save(
-          this.operatorRepository.create({
-            name: 'QuickBus Operations',
-            code: 'QB-001',
-            contactEmail: 'ops@quickbus.com',
-            contactPhone: '+919876543210',
-          }),
-        );
-      }
-
-      const existingDriver = await this.driverRepository.findOne({
-        where: [
-          { userId: user.id },
-          ...(user.phone ? [{ phone: user.phone }] : []),
-        ],
-      });
-
-      if (!existingDriver) {
-        await this.driverRepository.save(
-          this.driverRepository.create({
-            userId: user.id,
-            operatorId: operator.id,
-            name: user.name,
-            phone: user.phone || '+919876543211',
-            licenseNumber: `CDL-${Date.now().toString().slice(-8)}`,
-            experienceYears: 5,
-            rating: 5.0,
-            status: DriverStatus.ACTIVE,
-          }),
-        );
-      }
-    }
 
     return this.generateAuthResponse(user);
   }

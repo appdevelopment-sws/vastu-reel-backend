@@ -109,6 +109,136 @@ export class UsersService {
   }
 
   /**
+   * Get all users with optional filtering
+   */
+  async findAll(params?: {
+    search?: string;
+    status?: string;
+    role?: string;
+  }): Promise<FormattedPassengerUser[]> {
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'roles');
+
+    if (params?.search && params.search.trim().length > 0) {
+      const search = `%${params.search.trim().toLowerCase()}%`;
+      qb.andWhere(
+        '(LOWER(user.name) LIKE :search OR LOWER(user.email) LIKE :search OR user.phone LIKE :search)',
+        { search },
+      );
+    }
+
+    if (params?.status && params.status.trim().length > 0) {
+      const statusUpper = params.status.trim().toUpperCase();
+      if (statusUpper === 'ACTIVE') {
+        qb.andWhere('user.isActive = :isActive', { isActive: true });
+      } else if (statusUpper === 'INACTIVE') {
+        qb.andWhere('user.isActive = :isActive', { isActive: false });
+      }
+    }
+
+    if (params?.role && params.role.trim().length > 0) {
+      const roleUpper = params.role.trim().toUpperCase();
+      qb.andWhere('UPPER(roles.name) = :roleName', { roleName: roleUpper });
+    }
+
+    qb.orderBy('user.createdAt', 'DESC');
+
+    const users = await qb.getMany();
+    return users.map((u) => this.formatUser(u, 0));
+  }
+
+  /**
+   * Find single user by ID
+   */
+  async findOne(id: string): Promise<FormattedPassengerUser> {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: { roles: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found.`);
+    }
+
+    return this.formatUser(user, 0);
+  }
+
+  /**
+   * Update passenger user details by ID
+   */
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<FormattedPassengerUser> {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: { roles: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found.`);
+    }
+
+    if (updateUserDto.email) {
+      const emailNormalized = updateUserDto.email.toLowerCase().trim();
+      if (emailNormalized !== user.email) {
+        const existing = await this.userRepository.findOne({
+          where: { email: emailNormalized },
+        });
+        if (existing && existing.id !== id) {
+          throw new ConflictException(
+            `Email address '${emailNormalized}' is already registered by another account.`,
+          );
+        }
+        user.email = emailNormalized;
+      }
+    }
+
+    if (updateUserDto.name !== undefined) {
+      user.name = updateUserDto.name.trim();
+    }
+    if (updateUserDto.phone !== undefined) {
+      user.phone = updateUserDto.phone ? updateUserDto.phone.trim() : (null as any);
+    }
+    if (updateUserDto.age !== undefined) {
+      user.age = updateUserDto.age;
+    }
+    if (updateUserDto.address !== undefined) {
+      user.address = updateUserDto.address ? updateUserDto.address.trim() : (null as any);
+    }
+    if (updateUserDto.emergencyContact !== undefined) {
+      user.emergencyContact = updateUserDto.emergencyContact
+        ? updateUserDto.emergencyContact.trim()
+        : (null as any);
+    }
+    if (updateUserDto.isActive !== undefined) {
+      user.isActive = updateUserDto.isActive;
+    }
+    if (updateUserDto.password && updateUserDto.password.trim().length > 0) {
+      user.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+
+    if (updateUserDto.roleName) {
+      const targetRoleName = updateUserDto.roleName.trim().toUpperCase();
+      let role = await this.roleRepository.findOne({
+        where: { name: targetRoleName },
+      });
+      if (!role) {
+        role = this.roleRepository.create({
+          name: targetRoleName,
+          description: `${targetRoleName} role`,
+        });
+        await this.roleRepository.save(role);
+      }
+      user.roles = [role];
+    }
+
+    const updatedUser = await this.userRepository.save(user);
+    return this.formatUser(updatedUser, 0);
+  }
+
+  /**
    * Delete or deactivate passenger user by ID
    */
   async remove(id: string): Promise<{ success: boolean; message: string }> {
