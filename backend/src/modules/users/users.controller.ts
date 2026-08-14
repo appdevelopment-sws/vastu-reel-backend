@@ -25,7 +25,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new passenger account' })
+  @ApiOperation({ summary: 'Create a new user account' })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
@@ -44,19 +44,19 @@ export class UsersController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get passenger account details by ID' })
+  @ApiOperation({ summary: 'Get user account details by ID' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update passenger account details by ID' })
+  @ApiOperation({ summary: 'Update user account details by ID' })
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete passenger account by ID' })
+  @ApiOperation({ summary: 'Delete user account by ID' })
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }

@@ -11,7 +11,7 @@ import { Role } from '../roles/entities/role.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
-export interface FormattedPassengerUser {
+export interface FormattedUserResponse {
   id: string;
   name: string;
   email: string;
@@ -21,8 +21,6 @@ export interface FormattedPassengerUser {
   emergencyContact?: string;
   isActive: boolean;
   status: 'ACTIVE' | 'INACTIVE';
-  totalTripsCount: number;
-  walletBalance: number;
   roles?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -38,9 +36,9 @@ export class UsersService {
   ) {}
 
   /**
-   * Helper to format user entity into passenger user response format
+   * Helper to format user entity into API user response format
    */
-  private formatUser(user: User, bookingCount = 0): FormattedPassengerUser {
+  private formatUser(user: User): FormattedUserResponse {
     return {
       id: user.id,
       name: user.name,
@@ -51,8 +49,6 @@ export class UsersService {
       emergencyContact: user.emergencyContact || undefined,
       isActive: user.isActive,
       status: user.isActive ? 'ACTIVE' : 'INACTIVE',
-      totalTripsCount: Number(bookingCount || 0),
-      walletBalance: 0.0,
       roles: user.roles ? user.roles.map((r) => r.name) : [],
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -60,9 +56,9 @@ export class UsersService {
   }
 
   /**
-   * Create a new passenger user account
+   * Create a new user account
    */
-  async create(createUserDto: CreateUserDto): Promise<FormattedPassengerUser> {
+  async create(createUserDto: CreateUserDto): Promise<FormattedUserResponse> {
     const emailNormalized = createUserDto.email.toLowerCase().trim();
     const existing = await this.userRepository.findOne({
       where: { email: emailNormalized },
@@ -105,7 +101,7 @@ export class UsersService {
     });
 
     const savedUser = await this.userRepository.save(user);
-    return this.formatUser(savedUser, 0);
+    return this.formatUser(savedUser);
   }
 
   /**
@@ -115,7 +111,7 @@ export class UsersService {
     search?: string;
     status?: string;
     role?: string;
-  }): Promise<FormattedPassengerUser[]> {
+  }): Promise<FormattedUserResponse[]> {
     const qb = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.roles', 'roles');
@@ -145,13 +141,13 @@ export class UsersService {
     qb.orderBy('user.createdAt', 'DESC');
 
     const users = await qb.getMany();
-    return users.map((u) => this.formatUser(u, 0));
+    return users.map((u) => this.formatUser(u));
   }
 
   /**
    * Find single user by ID
    */
-  async findOne(id: string): Promise<FormattedPassengerUser> {
+  async findOne(id: string): Promise<FormattedUserResponse> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: { roles: true },
@@ -161,16 +157,16 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found.`);
     }
 
-    return this.formatUser(user, 0);
+    return this.formatUser(user);
   }
 
   /**
-   * Update passenger user details by ID
+   * Update user details by ID
    */
   async update(
     id: string,
     updateUserDto: UpdateUserDto,
-  ): Promise<FormattedPassengerUser> {
+  ): Promise<FormattedUserResponse> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: { roles: true },
@@ -235,7 +231,7 @@ export class UsersService {
     }
 
     const updatedUser = await this.userRepository.save(user);
-    return this.formatUser(updatedUser, 0);
+    return this.formatUser(updatedUser);
   }
 
   /**

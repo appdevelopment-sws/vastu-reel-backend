@@ -339,15 +339,17 @@ export class AuthService implements OnModuleInit {
    * Seed Default Roles, Permissions, and Super Admin
    */
   async seedDefaults() {
-    // 1. Create Default Permissions
+    // 1. Create Default Permissions for Vastu Reel Platform
     const defaultPermissions = [
-      { name: 'buses:manage', resource: 'buses', action: 'manage' },
-      { name: 'routes:manage', resource: 'routes', action: 'manage' },
-      { name: 'trips:manage', resource: 'trips', action: 'manage' },
-      { name: 'bookings:create', resource: 'bookings', action: 'create' },
-      { name: 'bookings:read', resource: 'bookings', action: 'read' },
-      { name: 'bookings:manage', resource: 'bookings', action: 'manage' },
-      { name: 'reports:view', resource: 'reports', action: 'read' },
+      { name: 'reels:create', resource: 'reels', action: 'create' },
+      { name: 'reels:read', resource: 'reels', action: 'read' },
+      { name: 'reels:update', resource: 'reels', action: 'update' },
+      { name: 'reels:delete', resource: 'reels', action: 'delete' },
+      { name: 'reels:manage', resource: 'reels', action: 'manage' },
+      { name: 'categories:manage', resource: 'categories', action: 'manage' },
+      { name: 'tips:manage', resource: 'tips', action: 'manage' },
+      { name: 'comments:manage', resource: 'comments', action: 'manage' },
+      { name: 'analytics:view', resource: 'analytics', action: 'read' },
       { name: 'users:manage', resource: 'users', action: 'manage' },
     ];
 
@@ -364,34 +366,46 @@ export class AuthService implements OnModuleInit {
       savedPermissions.push(perm);
     }
 
-    // 2. Create Default Roles
+    // 2. Create Default Roles for Vastu Reel Platform
     const roleDefinitions = [
       {
         name: 'SUPER_ADMIN',
-        description: 'Super Administrator with full system control',
+        description: 'Super Administrator with full platform access and management control',
         permissions: savedPermissions,
       },
       {
+        name: 'ADMIN',
+        description: 'Platform Administrator managing reels, categories, comments, and users',
+        permissions: savedPermissions.filter((p) =>
+          [
+            'reels:manage',
+            'reels:read',
+            'categories:manage',
+            'tips:manage',
+            'comments:manage',
+            'analytics:view',
+            'users:manage',
+          ].includes(p.name),
+        ),
+      },
+      {
+        name: 'CREATOR',
+        description: 'Vastu Expert / Content Creator uploading and managing reels and tips',
+        permissions: savedPermissions.filter((p) =>
+          [
+            'reels:create',
+            'reels:read',
+            'reels:update',
+            'reels:delete',
+            'analytics:view',
+          ].includes(p.name),
+        ),
+      },
+      {
         name: 'USER',
-        description: 'Passenger user who books seats',
+        description: 'Standard app user viewing and interacting with reels',
         permissions: savedPermissions.filter((p) =>
-          ['bookings:create', 'bookings:read'].includes(p.name),
-        ),
-      },
-      {
-        name: 'DRIVER',
-        description: 'Bus driver viewing assigned trip details',
-        permissions: savedPermissions.filter((p) =>
-          ['trips:manage', 'bookings:read'].includes(p.name),
-        ),
-      },
-      {
-        name: 'AGENT',
-        description: 'Booking agent managing customer tickets',
-        permissions: savedPermissions.filter((p) =>
-          ['bookings:create', 'bookings:read', 'bookings:manage'].includes(
-            p.name,
-          ),
+          ['reels:read'].includes(p.name),
         ),
       },
     ];

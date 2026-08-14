@@ -12,10 +12,10 @@ export class Permission {
   id: string;
 
   @Column({ unique: true })
-  name: string; // e.g. "buses:manage", "bookings:read"
+  name: string; // e.g. "reels:create", "reels:manage", "users:manage"
 
   @Column({ nullable: true })
-  resource: string; // e.g. "buses", "bookings", "users"
+  resource: string; // e.g. "reels", "categories", "users"
 
   @Column({ nullable: true })
   action: string; // e.g. "create", "read", "update", "delete", "manage"

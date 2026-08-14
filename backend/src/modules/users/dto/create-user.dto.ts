@@ -12,7 +12,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
-  @ApiProperty({ example: 'David Miller', description: 'Full name of passenger' })
+  @ApiProperty({ example: 'David Miller', description: 'Full name of user' })
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -27,14 +27,14 @@ export class CreateUserDto {
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ example: 28, description: 'Age of passenger' })
+  @ApiPropertyOptional({ example: 28, description: 'Age of user' })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(120)
   age?: number;
 
-  @ApiPropertyOptional({ example: '123 Main Street, New York, NY', description: 'Passenger residential address' })
+  @ApiPropertyOptional({ example: '123 Main Street, New York, NY', description: 'Residential address' })
   @IsOptional()
   @IsString()
   address?: string;
