@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
   OnModuleInit,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -36,7 +37,14 @@ export class AuthService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.seedDefaults().catch(() => null);
+    try {
+      await this.seedDefaults();
+      console.log(
+        '✅ Default roles, permissions, and Super Admin verified/seeded.',
+      );
+    } catch (err: any) {
+      console.error('⚠️ Seeding on startup notice:', err?.message || err);
+    }
   }
 
   /**
@@ -67,7 +75,9 @@ export class AuthService implements OnModuleInit {
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const targetRoleName = (dto.userType || dto.roleName || 'USER').trim().toUpperCase();
+    const targetRoleName = (dto.userType || dto.roleName || 'USER')
+      .trim()
+      .toUpperCase();
 
     let role = await this.roleRepository.findOne({
       where: { name: targetRoleName },
@@ -87,7 +97,6 @@ export class AuthService implements OnModuleInit {
       phone: dto.phone,
       age: dto.age,
       address: dto.address,
-      emergencyContact: dto.emergencyContact,
       password: hashedPassword,
       roles: [role],
     });
@@ -101,12 +110,16 @@ export class AuthService implements OnModuleInit {
    * Login user
    */
   async login(dto: LoginDto) {
+    if (!dto || !dto.email || !dto.password) {
+      throw new BadRequestException('Email and password must be specified');
+    }
+    const email = dto.email.trim().toLowerCase();
     const user = await this.userRepository
       .createQueryBuilder('user')
       .addSelect('user.password')
       .leftJoinAndSelect('user.roles', 'roles')
       .leftJoinAndSelect('roles.permissions', 'permissions')
-      .where('LOWER(user.email) = LOWER(:email)', { email: dto.email })
+      .where('LOWER(user.email) = :email', { email })
       .getOne();
 
     if (!user) {
@@ -120,19 +133,6 @@ export class AuthService implements OnModuleInit {
 
     if (!user.isActive) {
       throw new UnauthorizedException('User account is deactivated');
-    }
-
-    if (dto.userType && dto.userType.trim().length > 0) {
-      const requiredRole = dto.userType.trim().toUpperCase();
-      const userRoles = user.roles ? user.roles.map((r) => r.name.toUpperCase()) : [];
-      const hasPermission =
-        userRoles.includes(requiredRole) || userRoles.includes('SUPER_ADMIN');
-
-      if (!hasPermission) {
-        throw new UnauthorizedException(
-          `Access denied: Your account is not authorized as a ${requiredRole}`,
-        );
-      }
     }
 
     return this.generateAuthResponse(user);
@@ -164,7 +164,6 @@ export class AuthService implements OnModuleInit {
         phone: user.phone,
         age: user.age,
         address: user.address,
-        emergencyContact: user.emergencyContact,
         roles: roleNames,
         permissions,
         createdAt: user.createdAt,
@@ -195,7 +194,6 @@ export class AuthService implements OnModuleInit {
       phone: user.phone,
       age: user.age,
       address: user.address,
-      emergencyContact: user.emergencyContact,
       roles: roleNames,
       permissions,
       isActive: user.isActive,
@@ -242,10 +240,6 @@ export class AuthService implements OnModuleInit {
 
     if (dto.address !== undefined) {
       user.address = dto.address;
-    }
-
-    if (dto.emergencyContact !== undefined) {
-      user.emergencyContact = dto.emergencyContact;
     }
 
     if (dto.password && dto.password.trim().length > 0) {
@@ -370,12 +364,14 @@ export class AuthService implements OnModuleInit {
     const roleDefinitions = [
       {
         name: 'SUPER_ADMIN',
-        description: 'Super Administrator with full platform access and management control',
+        description:
+          'Super Administrator with full platform access and management control',
         permissions: savedPermissions,
       },
       {
         name: 'ADMIN',
-        description: 'Platform Administrator managing reels, categories, comments, and users',
+        description:
+          'Platform Administrator managing reels, categories, comments, and users',
         permissions: savedPermissions.filter((p) =>
           [
             'reels:manage',
@@ -390,7 +386,8 @@ export class AuthService implements OnModuleInit {
       },
       {
         name: 'CREATOR',
-        description: 'Vastu Expert / Content Creator uploading and managing reels and tips',
+        description:
+          'Vastu Expert / Content Creator uploading and managing reels and tips',
         permissions: savedPermissions.filter((p) =>
           [
             'reels:create',
@@ -425,31 +422,46 @@ export class AuthService implements OnModuleInit {
     }
 
     // 3. Seed Default Super Admin User
-    const adminEmail =
+    const adminEmail = (
       this.configService.get<string>('ADMIN_EMAIL') ||
       this.configService.get<string>('SUPER_ADMIN_EMAIL') ||
-      'admin@gmail.com';
+      'admin@gmail.com'
+    )
+      .toLowerCase()
+      .trim();
+
     const adminPassword =
       this.configService.get<string>('ADMIN_PASSWORD') ||
       this.configService.get<string>('SUPER_ADMIN_PASSWORD') ||
       'Admin@123';
 
     let admin = await this.userRepository.findOne({
-      where: { email: adminEmail.toLowerCase() },
+      where: { email: adminEmail },
+      relations: { roles: true },
     });
 
-    if (!admin) {
-      const superAdminRole = await this.roleRepository.findOne({
-        where: { name: 'SUPER_ADMIN' },
-      });
+    const superAdminRole = await this.roleRepository.findOne({
+      where: { name: 'SUPER_ADMIN' },
+    });
 
-      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+    if (!admin) {
       admin = this.userRepository.create({
         name: 'Super Admin',
-        email: adminEmail.toLowerCase(),
+        email: adminEmail,
         password: hashedPassword,
+        isActive: true,
         roles: superAdminRole ? [superAdminRole] : [],
       });
+      await this.userRepository.save(admin);
+    } else {
+      // Sync super admin password & role
+      admin.password = hashedPassword;
+      admin.isActive = true;
+      if (superAdminRole) {
+        admin.roles = [superAdminRole];
+      }
       await this.userRepository.save(admin);
     }
 

@@ -1,30 +1,56 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty({ example: 'John Doe' })
+  @IsString()
+  @IsNotEmpty()
   name: string;
 
   @ApiProperty({ example: 'john@example.com' })
+  @IsEmail()
+  @IsNotEmpty()
   email: string;
 
   @ApiProperty({ example: 'password123' })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
   password: string;
 
-  @ApiProperty({ example: '+1234567890', required: false })
+  @ApiPropertyOptional({ example: '+1234567890', required: false })
+  @IsOptional()
+  @IsString()
   phone?: string;
 
-  @ApiProperty({ example: 25, required: false })
+  @ApiPropertyOptional({ example: 25, required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(120)
   age?: number;
 
-  @ApiProperty({ example: '123 Main St', required: false })
+  @ApiPropertyOptional({ example: '123 Main St', required: false })
+  @IsOptional()
+  @IsString()
   address?: string;
 
-  @ApiProperty({ example: '+1987654321', required: false })
-  emergencyContact?: string;
+  @ApiPropertyOptional({ example: 'USER', required: false })
+  @IsOptional()
+  @IsString()
+  roleName?: string; // Optional: "USER", "CREATOR", "ADMIN", etc. Default "USER"
 
-  @ApiProperty({ example: 'USER', required: false })
-  roleName?: string; // Optional: "USER", "DRIVER", "AGENT", etc. Default "USER"
-
-  @ApiProperty({ example: 'DRIVER', required: false })
+  @ApiPropertyOptional({ example: 'CREATOR', required: false })
+  @IsOptional()
+  @IsString()
   userType?: string; // Optional: Alias for roleName
 }

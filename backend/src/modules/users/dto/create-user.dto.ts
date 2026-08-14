@@ -17,12 +17,18 @@ export class CreateUserDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'david.m@example.com', description: 'Unique email address' })
+  @ApiProperty({
+    example: 'david.m@example.com',
+    description: 'Unique email address',
+  })
   @IsEmail()
   @IsNotEmpty()
   email: string;
 
-  @ApiPropertyOptional({ example: '+1 555-0129', description: 'Contact phone number' })
+  @ApiPropertyOptional({
+    example: '+1 555-0129',
+    description: 'Contact phone number',
+  })
   @IsOptional()
   @IsString()
   phone?: string;
@@ -34,28 +40,37 @@ export class CreateUserDto {
   @Max(120)
   age?: number;
 
-  @ApiPropertyOptional({ example: '123 Main Street, New York, NY', description: 'Residential address' })
+  @ApiPropertyOptional({
+    example: '123 Main Street, New York, NY',
+    description: 'Residential address',
+  })
   @IsOptional()
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ example: '+1 555-9999', description: 'Emergency contact phone number' })
-  @IsOptional()
-  @IsString()
-  emergencyContact?: string;
-
-  @ApiPropertyOptional({ example: 'SecurePassword123!', description: 'Account password' })
+  @ApiPropertyOptional({
+    example: 'SecurePassword123!',
+    description: 'Account password',
+  })
   @IsOptional()
   @IsString()
   @MinLength(6)
   password?: string;
 
-  @ApiPropertyOptional({ example: true, default: true, description: 'Account active status' })
+  @ApiPropertyOptional({
+    example: true,
+    default: true,
+    description: 'Account active status',
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ example: 'USER', default: 'USER', description: 'Assigned role name' })
+  @ApiPropertyOptional({
+    example: 'USER',
+    default: 'USER',
+    description: 'Assigned role name',
+  })
   @IsOptional()
   @IsString()
   roleName?: string;

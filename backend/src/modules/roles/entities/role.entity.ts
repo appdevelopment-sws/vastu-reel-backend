@@ -14,7 +14,7 @@ export class Role {
   id: string;
 
   @Column({ unique: true })
-  name: string; // e.g. "USER", "DRIVER", "AGENT", "SUPER_ADMIN"
+  name: string; // e.g. "USER", "", "AGENT", "SUPER_ADMIN"
 
   @Column({ nullable: true })
   description: string;

@@ -4,6 +4,5 @@ export class UpdateProfileDto {
   phone?: string;
   age?: number;
   address?: string;
-  emergencyContact?: string;
   password?: string;
 }

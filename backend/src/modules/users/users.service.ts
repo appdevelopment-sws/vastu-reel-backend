@@ -18,7 +18,6 @@ export interface FormattedUserResponse {
   phone?: string;
   age?: number;
   address?: string;
-  emergencyContact?: string;
   isActive: boolean;
   status: 'ACTIVE' | 'INACTIVE';
   roles?: string[];
@@ -46,7 +45,6 @@ export class UsersService {
       phone: user.phone || undefined,
       age: user.age || undefined,
       address: user.address || undefined,
-      emergencyContact: user.emergencyContact || undefined,
       isActive: user.isActive,
       status: user.isActive ? 'ACTIVE' : 'INACTIVE',
       roles: user.roles ? user.roles.map((r) => r.name) : [],
@@ -91,9 +89,7 @@ export class UsersService {
       phone: createUserDto.phone ? createUserDto.phone.trim() : undefined,
       age: createUserDto.age,
       address: createUserDto.address ? createUserDto.address.trim() : undefined,
-      emergencyContact: createUserDto.emergencyContact
-        ? createUserDto.emergencyContact.trim()
-        : undefined,
+
       password: hashedPassword,
       isActive:
         createUserDto.isActive !== undefined ? createUserDto.isActive : true,
@@ -195,19 +191,19 @@ export class UsersService {
       user.name = updateUserDto.name.trim();
     }
     if (updateUserDto.phone !== undefined) {
-      user.phone = updateUserDto.phone ? updateUserDto.phone.trim() : (null as any);
+      user.phone = updateUserDto.phone
+        ? updateUserDto.phone.trim()
+        : (null as any);
     }
     if (updateUserDto.age !== undefined) {
       user.age = updateUserDto.age;
     }
     if (updateUserDto.address !== undefined) {
-      user.address = updateUserDto.address ? updateUserDto.address.trim() : (null as any);
-    }
-    if (updateUserDto.emergencyContact !== undefined) {
-      user.emergencyContact = updateUserDto.emergencyContact
-        ? updateUserDto.emergencyContact.trim()
+      user.address = updateUserDto.address
+        ? updateUserDto.address.trim()
         : (null as any);
     }
+
     if (updateUserDto.isActive !== undefined) {
       user.isActive = updateUserDto.isActive;
     }

@@ -29,9 +29,6 @@ export class User {
   @Column({ nullable: true })
   address: string;
 
-  @Column({ nullable: true })
-  emergencyContact: string;
-
   @Column({ select: false })
   password: string;
 
