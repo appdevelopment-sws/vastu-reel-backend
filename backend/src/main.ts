@@ -23,14 +23,14 @@ async function bootstrap() {
 
   // Swagger Documentation Configuration
   const config = new DocumentBuilder()
-    .setTitle('Vastu Reel API')
+    .setTitle('Vastu API')
     .setDescription('Backend REST API Documentation')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  
+
   // Expose Swagger UI on /api/docs and /docs
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
@@ -46,6 +46,8 @@ async function bootstrap() {
   const port = process.env.PORT ?? 8008;
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📑 Swagger Documentation available at: http://localhost:${port}/api/docs`);
+  console.log(
+    `📑 Swagger Documentation available at: http://localhost:${port}/api/docs`,
+  );
 }
 bootstrap();
