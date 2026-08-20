@@ -15,6 +15,7 @@ import { ReelComment } from './entities/reel-comment.entity';
 import { ReelView } from './entities/reel-view.entity';
 import { ReelBookmark } from './entities/reel-bookmark.entity';
 import { User } from '../users/entities/user.entity';
+import { ActivityLogModule } from '../activity-logs/activity-log.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { User } from '../users/entities/user.entity';
     BullModule.registerQueue({
       name: 'video-processing',
     }),
+    ActivityLogModule,
   ],
   controllers: [ReelsController],
   providers: [ReelsService, ReelsProcessor, StorageService],

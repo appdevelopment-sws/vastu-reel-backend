@@ -7,6 +7,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ReelsModule } from './modules/reels/reels.module';
+import { FollowsModule } from './modules/follows/follows.module';
+import { ActivityLogModule } from './modules/activity-logs/activity-log.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -49,6 +51,8 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
     AuthModule,
     UsersModule,
     ReelsModule,
+    FollowsModule,
+    ActivityLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

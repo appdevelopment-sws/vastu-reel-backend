@@ -13,6 +13,8 @@ import { ReelView } from '../entities/reel-view.entity';
 import { ReelBookmark } from '../entities/reel-bookmark.entity';
 import { StorageService } from './storage.service';
 import { InitUploadDto, CreateCommentDto, FeedQueryDto } from '../dto/reels.dto';
+import { ActivityLogService } from '../../activity-logs/activity-log.service';
+import { ActivityLogType } from '../../activity-logs/entities/activity-log.entity';
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 const ALLOWED_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm'];
@@ -37,6 +39,7 @@ export class ReelsService {
     @InjectQueue('video-processing')
     private readonly videoQueue: Queue,
     private readonly storageService: StorageService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   /**
@@ -128,7 +131,7 @@ export class ReelsService {
     await this.mediaRepository.save(media);
 
     // Set Reel status to PROCESSING
-    const reel = await this.reelRepository.findOne({ where: { id: uploadId } });
+    const reel = await this.reelRepository.findOne({ where: { id: uploadId }, relations: { user: true } });
     if (!reel) {
       throw new NotFoundException('Reel metadata record not found.');
     }
@@ -153,6 +156,16 @@ export class ReelsService {
     );
 
     console.log(`Queued video-processing job ${job.id} for Reel ${reel.id}`);
+
+    // Log global activity: new reel published
+    await this.activityLogService.log({
+      type: ActivityLogType.REEL_PUBLISHED,
+      actorId: userId,
+      reelId: reel.id,
+      message: `${reel.user?.name ?? 'A creator'} published a new reel: "${reel.title}"`,
+      isGlobal: true,
+      metadata: { title: reel.title, actorName: reel.user?.name },
+    });
 
     return {
       reelId: reel.id,
@@ -229,6 +242,7 @@ export class ReelsService {
           creator: {
             id: reel.user?.id || 'c_unknown',
             name: reel.user?.name || 'Vastu Advisor',
+            username: reel.user?.username || null,
             avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
             isVerified: true,
             title: 'Certified Consultant',
@@ -293,6 +307,7 @@ export class ReelsService {
       creator: {
         id: reel.user?.id || 'c_unknown',
         name: reel.user?.name || 'Vastu Advisor',
+        username: reel.user?.username || null,
         avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         isVerified: true,
         title: 'Certified Consultant',
@@ -328,7 +343,10 @@ export class ReelsService {
    * Likes a Reel.
    */
   async likeReel(userId: string, reelId: string) {
-    const reel = await this.reelRepository.findOne({ where: { id: reelId } });
+    const reel = await this.reelRepository.findOne({
+      where: { id: reelId },
+      relations: { user: true },
+    });
     if (!reel) {
       throw new NotFoundException('Reel not found.');
     }
@@ -337,6 +355,19 @@ export class ReelsService {
     if (!existing) {
       const like = this.likeRepository.create({ reelId, userId });
       await this.likeRepository.save(like);
+
+      // Log like activity (personal — only reel owner sees it)
+      if (reel.userId !== userId) {
+        await this.activityLogService.log({
+          type: ActivityLogType.LIKE,
+          actorId: userId,
+          targetUserId: reel.userId,
+          reelId,
+          message: `Someone liked your reel "${reel.title}".`,
+          isGlobal: false,
+          metadata: { reelId, reelTitle: reel.title },
+        });
+      }
     }
     return { success: true };
   }
@@ -384,7 +415,10 @@ export class ReelsService {
    * Adds a Comment to a Reel.
    */
   async addComment(userId: string, reelId: string, dto: CreateCommentDto) {
-    const reel = await this.reelRepository.findOne({ where: { id: reelId } });
+    const reel = await this.reelRepository.findOne({
+      where: { id: reelId },
+      relations: { user: true },
+    });
     if (!reel) {
       throw new NotFoundException('Reel not found.');
     }
@@ -397,6 +431,19 @@ export class ReelsService {
     });
 
     const saved = await this.commentRepository.save(comment);
+
+    // Log comment activity (personal — only reel owner sees it)
+    if (reel.userId !== userId) {
+      await this.activityLogService.log({
+        type: ActivityLogType.COMMENT,
+        actorId: userId,
+        targetUserId: reel.userId,
+        reelId,
+        message: `Someone commented on your reel "${reel.title}": "${dto.text.substring(0, 60)}${dto.text.length > 60 ? '...' : ''}"`,
+        isGlobal: false,
+        metadata: { reelId, reelTitle: reel.title, commentText: dto.text },
+      });
+    }
 
     // Fetch comment with user relation
     return this.commentRepository.findOne({
