@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Patch, Body, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Controller, Post, Get, Patch, Body, UseGuards, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiQuery, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -17,6 +17,14 @@ import { Permissions } from './decorators/permissions.decorator';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Get('check-username')
+  @ApiOperation({ summary: 'Check if a username is available' })
+  @ApiQuery({ name: 'username', type: String, required: true })
+  async checkUsername(@Query('username') username: string) {
+    return this.authService.checkUsername(username);
+  }
 
   @Public()
   @Post('register')

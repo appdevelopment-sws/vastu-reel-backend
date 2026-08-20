@@ -63,15 +63,44 @@ export class AuthService implements OnModuleInit {
     return Array.from(permissionsSet);
   }
 
+  async checkUsername(username: string) {
+    if (!username || username.trim().length < 3) {
+      throw new BadRequestException('Username must be at least 3 characters');
+    }
+    const normalized = username.trim().toLowerCase();
+    if (!/^[a-zA-Z0-9._]+$/.test(normalized)) {
+      throw new BadRequestException(
+        'Username can only contain letters, numbers, underscores, and periods',
+      );
+    }
+    const existing = await this.userRepository.findOne({
+      where: { username: normalized },
+    });
+    return {
+      available: !existing,
+      username: normalized,
+    };
+  }
+
   /**
    * Register new user
    */
   async register(dto: RegisterDto) {
-    const existing = await this.userRepository.findOne({
-      where: { email: dto.email.toLowerCase() },
+    const emailNormalized = dto.email.toLowerCase().trim();
+    const usernameNormalized = dto.username.toLowerCase().trim();
+
+    const existingEmail = await this.userRepository.findOne({
+      where: { email: emailNormalized },
     });
-    if (existing) {
+    if (existingEmail) {
       throw new ConflictException('Email already registered');
+    }
+
+    const existingUsername = await this.userRepository.findOne({
+      where: { username: usernameNormalized },
+    });
+    if (existingUsername) {
+      throw new ConflictException('Username already taken');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
@@ -92,8 +121,9 @@ export class AuthService implements OnModuleInit {
     }
 
     const user = this.userRepository.create({
-      name: dto.name,
-      email: dto.email.toLowerCase(),
+      username: usernameNormalized,
+      name: dto.name.trim(),
+      email: emailNormalized,
       phone: dto.phone,
       age: dto.age,
       address: dto.address,
@@ -147,6 +177,7 @@ export class AuthService implements OnModuleInit {
 
     const payload = {
       sub: user.id,
+      username: user.username,
       email: user.email,
       name: user.name,
       roles: roleNames,
@@ -159,6 +190,7 @@ export class AuthService implements OnModuleInit {
       accessToken,
       user: {
         id: user.id,
+        username: user.username,
         name: user.name,
         email: user.email,
         phone: user.phone,
@@ -189,6 +221,7 @@ export class AuthService implements OnModuleInit {
 
     return {
       id: user.id,
+      username: user.username,
       name: user.name,
       email: user.email,
       phone: user.phone,
@@ -212,6 +245,19 @@ export class AuthService implements OnModuleInit {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (dto.username && dto.username.toLowerCase().trim() !== (user.username || '').toLowerCase().trim()) {
+      const usernameNormalized = dto.username.toLowerCase().trim();
+      const existing = await this.userRepository.findOne({
+        where: { username: usernameNormalized },
+      });
+      if (existing && existing.id !== userId) {
+        throw new ConflictException(
+          'Username already taken by another account',
+        );
+      }
+      user.username = usernameNormalized;
     }
 
     if (dto.email && dto.email.toLowerCase() !== user.email.toLowerCase()) {
@@ -449,6 +495,7 @@ export class AuthService implements OnModuleInit {
     if (!admin) {
       admin = this.userRepository.create({
         name: 'Super Admin',
+        username: 'superadmin',
         email: adminEmail,
         password: hashedPassword,
         isActive: true,
@@ -459,6 +506,9 @@ export class AuthService implements OnModuleInit {
       // Sync super admin password & role
       admin.password = hashedPassword;
       admin.isActive = true;
+      if (!admin.username) {
+        admin.username = 'superadmin';
+      }
       if (superAdminRole) {
         admin.roles = [superAdminRole];
       }

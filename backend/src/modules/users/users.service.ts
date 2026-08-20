@@ -13,6 +13,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 export interface FormattedUserResponse {
   id: string;
+  username?: string;
   name: string;
   email: string;
   phone?: string;
@@ -40,6 +41,7 @@ export class UsersService {
   private formatUser(user: User): FormattedUserResponse {
     return {
       id: user.id,
+      username: user.username,
       name: user.name,
       email: user.email,
       phone: user.phone || undefined,
@@ -58,12 +60,23 @@ export class UsersService {
    */
   async create(createUserDto: CreateUserDto): Promise<FormattedUserResponse> {
     const emailNormalized = createUserDto.email.toLowerCase().trim();
-    const existing = await this.userRepository.findOne({
+    const usernameNormalized = createUserDto.username.toLowerCase().trim();
+
+    const existingEmail = await this.userRepository.findOne({
       where: { email: emailNormalized },
     });
-    if (existing) {
+    if (existingEmail) {
       throw new ConflictException(
         `Email address '${emailNormalized}' is already registered.`,
+      );
+    }
+
+    const existingUsername = await this.userRepository.findOne({
+      where: { username: usernameNormalized },
+    });
+    if (existingUsername) {
+      throw new ConflictException(
+        `Username '${usernameNormalized}' is already taken.`,
       );
     }
 
@@ -84,6 +97,7 @@ export class UsersService {
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     const user = this.userRepository.create({
+      username: usernameNormalized,
       name: createUserDto.name.trim(),
       email: emailNormalized,
       phone: createUserDto.phone ? createUserDto.phone.trim() : undefined,
@@ -170,6 +184,21 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found.`);
+    }
+
+    if (updateUserDto.username) {
+      const usernameNormalized = updateUserDto.username.toLowerCase().trim();
+      if (usernameNormalized !== user.username) {
+        const existing = await this.userRepository.findOne({
+          where: { username: usernameNormalized },
+        });
+        if (existing && existing.id !== id) {
+          throw new ConflictException(
+            `Username '${usernameNormalized}' is already taken by another account.`,
+          );
+        }
+        user.username = usernameNormalized;
+      }
     }
 
     if (updateUserDto.email) {

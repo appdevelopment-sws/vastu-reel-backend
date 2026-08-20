@@ -8,10 +8,25 @@ import {
   Max,
   IsBoolean,
   MinLength,
+  Matches,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
+  @ApiProperty({
+    example: 'davidmiller',
+    description: 'Unique username like Instagram',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(3)
+  @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9._]+$/, {
+    message: 'Username can only contain alphanumeric characters, underscores, and dots',
+  })
+  username: string;
+
   @ApiProperty({ example: 'David Miller', description: 'Full name of user' })
   @IsString()
   @IsNotEmpty()
