@@ -3,8 +3,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { ReelsModule } from './modules/reels/reels.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -33,8 +35,20 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
           configService.get<boolean>('DB_SYNCHRONIZE') === true,
       }),
     }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST', 'localhost'),
+          port: configService.get<number>('REDIS_PORT', 6379),
+          password: configService.get<string>('REDIS_PASSWORD') || undefined,
+        },
+      }),
+    }),
     AuthModule,
     UsersModule,
+    ReelsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -44,3 +58,4 @@ export class AppModule implements NestModule {
     consumer.apply(HTTPLoggerMiddleware).forRoutes('*');
   }
 }
+

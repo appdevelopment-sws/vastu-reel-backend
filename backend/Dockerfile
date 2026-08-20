@@ -5,8 +5,9 @@ FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Install native dependencies required for build modules (e.g., bcrypt)
-RUN apk add --no-cache python3 make g++
+# Install native dependencies required for build modules (e.g., bcrypt) and ffmpeg for video processing
+RUN apk add --no-cache python3 make g++ ffmpeg
+
 
 # Copy package manifests
 COPY package*.json ./
@@ -58,8 +59,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install dumb-init for proper signal forwarding and process management
-RUN apk add --no-cache dumb-init
+# Install dumb-init for proper signal forwarding and process management, and ffmpeg
+RUN apk add --no-cache dumb-init ffmpeg
 
 # Copy built artifacts and production dependencies with appropriate ownership
 COPY --chown=node:node package*.json ./
