@@ -14,7 +14,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies for building
-RUN npm ci
+RUN npm install --no-audit
 
 # Copy source files and configuration
 COPY . .

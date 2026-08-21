@@ -18,7 +18,11 @@ services:
       - --default-authentication-plugin=mysql_native_password
       - --max_connections=200
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -77,7 +81,7 @@ services:
     env_file:
       - ./backend/.env.prod
     ports:
-      - "8008:8008"
+      - "3002:8008"
     depends_on:
       mysql:
         condition: service_healthy
@@ -101,7 +105,7 @@ services:
     container_name: vastu_reel_frontend_prod
     restart: always
     ports:
-      - "80:80"
+      - "8000:80"
     depends_on:
       - backend
     networks:
