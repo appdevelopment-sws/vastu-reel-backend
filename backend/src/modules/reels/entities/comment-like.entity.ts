@@ -7,21 +7,21 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { ReelComment } from './reel-comment.entity';
+import { Comment } from './comment.entity';
 import { User } from '../../users/entities/user.entity';
 
-@Entity('reel_comment_likes')
+@Entity('comment_likes')
 @Index(['commentId', 'userId'], { unique: true })
-export class ReelCommentLike {
+export class CommentLike {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ name: 'comment_id' })
   commentId: string;
 
-  @ManyToOne(() => ReelComment, (comment) => comment.likes, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Comment, (comment) => comment.likes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'comment_id' })
-  comment: ReelComment;
+  comment: Comment;
 
   @Column({ name: 'user_id' })
   userId: string;

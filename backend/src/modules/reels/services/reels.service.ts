@@ -8,8 +8,8 @@ import { Reel, ReelStatus, ReelVisibility } from '../entities/reel.entity';
 import { ReelMedia } from '../entities/reel-media.entity';
 import { ReelUpload, UploadStatus } from '../entities/reel-upload.entity';
 import { ReelLike } from '../entities/reel-like.entity';
-import { ReelComment } from '../entities/reel-comment.entity';
-import { ReelCommentLike } from '../entities/reel-comment-like.entity';
+import { Comment } from '../entities/comment.entity';
+import { CommentLike } from '../entities/comment-like.entity';
 import { ReelView } from '../entities/reel-view.entity';
 import { ReelBookmark } from '../entities/reel-bookmark.entity';
 import { User } from '../../users/entities/user.entity';
@@ -33,10 +33,10 @@ export class ReelsService {
     private readonly uploadRepository: Repository<ReelUpload>,
     @InjectRepository(ReelLike)
     private readonly likeRepository: Repository<ReelLike>,
-    @InjectRepository(ReelComment)
-    private readonly commentRepository: Repository<ReelComment>,
-    @InjectRepository(ReelCommentLike)
-    private readonly commentLikeRepository: Repository<ReelCommentLike>,
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
+    @InjectRepository(CommentLike)
+    private readonly commentLikeRepository: Repository<CommentLike>,
     @InjectRepository(ReelView)
     private readonly viewRepository: Repository<ReelView>,
     @InjectRepository(ReelBookmark)
@@ -692,7 +692,7 @@ export class ReelsService {
   }
 
   private formatComment(
-    c: ReelComment,
+    c: Comment,
     currentUserId?: string | null,
     repliesCount = 0,
     replies: any[] = [],

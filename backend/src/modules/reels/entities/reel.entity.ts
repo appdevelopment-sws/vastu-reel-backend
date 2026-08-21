@@ -13,7 +13,7 @@ import { User } from '../../users/entities/user.entity';
 import { ReelMedia } from './reel-media.entity';
 import { ReelLike } from './reel-like.entity';
 import { ReelBookmark } from './reel-bookmark.entity';
-import { ReelComment } from './reel-comment.entity';
+import { Comment } from './comment.entity';
 import { ReelView } from './reel-view.entity';
 
 export enum ReelStatus {
@@ -101,8 +101,8 @@ export class Reel {
   @OneToMany(() => ReelBookmark, (bookmark) => bookmark.reel)
   bookmarks: ReelBookmark[];
 
-  @OneToMany(() => ReelComment, (comment) => comment.reel)
-  comments: ReelComment[];
+  @OneToMany(() => Comment, (comment) => comment.reel)
+  comments: Comment[];
 
   @OneToMany(() => ReelView, (view) => view.reel)
   views: ReelView[];

@@ -10,10 +10,10 @@ import {
 } from 'typeorm';
 import { Reel } from './reel.entity';
 import { User } from '../../users/entities/user.entity';
-import { ReelCommentLike } from './reel-comment-like.entity';
+import { CommentLike } from './comment-like.entity';
 
-@Entity('reel_comments')
-export class ReelComment {
+@Entity('comments')
+export class Comment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -37,15 +37,18 @@ export class ReelComment {
   @Column({ name: 'parent_id', nullable: true })
   parentId: string;
 
-  @ManyToOne(() => ReelComment, (comment) => comment.replies, { onDelete: 'CASCADE', nullable: true })
+  @ManyToOne(() => Comment, (comment) => comment.replies, {
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
   @JoinColumn({ name: 'parent_id' })
-  parent: ReelComment;
+  parent: Comment;
 
-  @OneToMany(() => ReelComment, (comment) => comment.parent)
-  replies: ReelComment[];
+  @OneToMany(() => Comment, (comment) => comment.parent)
+  replies: Comment[];
 
-  @OneToMany(() => ReelCommentLike, (like) => like.comment)
-  likes: ReelCommentLike[];
+  @OneToMany(() => CommentLike, (like) => like.comment)
+  likes: CommentLike[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -53,4 +56,3 @@ export class ReelComment {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
-

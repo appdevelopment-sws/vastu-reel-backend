@@ -11,8 +11,8 @@ import { Reel } from './entities/reel.entity';
 import { ReelMedia } from './entities/reel-media.entity';
 import { ReelUpload } from './entities/reel-upload.entity';
 import { ReelLike } from './entities/reel-like.entity';
-import { ReelComment } from './entities/reel-comment.entity';
-import { ReelCommentLike } from './entities/reel-comment-like.entity';
+import { Comment } from './entities/comment.entity';
+import { CommentLike } from './entities/comment-like.entity';
 import { ReelView } from './entities/reel-view.entity';
 import { ReelBookmark } from './entities/reel-bookmark.entity';
 import { User } from '../users/entities/user.entity';
@@ -26,8 +26,8 @@ import { ActivityLogModule } from '../activity-logs/activity-log.module';
       ReelMedia,
       ReelUpload,
       ReelLike,
-      ReelComment,
-      ReelCommentLike,
+      Comment,
+      CommentLike,
       ReelView,
       ReelBookmark,
       User,
