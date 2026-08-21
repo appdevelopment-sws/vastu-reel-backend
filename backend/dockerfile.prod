@@ -1,0 +1,77 @@
+# ==============================================================================
+# Production Dockerfile for NestJS Backend
+# Multi-stage build for security, minimal image size, and performance
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Stage 1: Base image with native build dependencies
+# ------------------------------------------------------------------------------
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Install native dependencies required for build modules (e.g., bcrypt) and ffmpeg for video processing
+RUN apk add --no-cache python3 make g++ ffmpeg dumb-init
+
+# ------------------------------------------------------------------------------
+# Stage 2: Dependencies & Build Stage
+# ------------------------------------------------------------------------------
+FROM base AS builder
+
+WORKDIR /app
+
+# Copy package manifests
+COPY package*.json ./
+
+# Clean install all dependencies (including devDependencies for TypeScript compilation)
+RUN npm ci
+
+# Copy application source code and configuration files
+COPY tsconfig*.json nest-cli.json ./
+COPY src/ ./src/
+
+# Compile TypeScript to JavaScript
+RUN npm run build
+
+# ------------------------------------------------------------------------------
+# Stage 3: Production Dependencies Only
+# ------------------------------------------------------------------------------
+FROM base AS prod-deps
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Clean install production-only dependencies
+RUN npm ci --omit=dev && npm cache clean --force
+
+# ------------------------------------------------------------------------------
+# Stage 4: Production Runtime Image
+# ------------------------------------------------------------------------------
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8008
+
+# Install dumb-init for proper signal handling and ffmpeg for runtime video processing
+RUN apk add --no-cache dumb-init ffmpeg
+
+# Copy built application and production dependencies with appropriate permissions
+COPY --chown=node:node package*.json ./
+COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/dist ./dist
+
+# Run as non-privileged node user for security
+USER node
+
+# Expose API application port
+EXPOSE 8008
+
+# Health check to ensure service responsiveness
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8008/api/docs || exit 1
+
+# Execute application using dumb-init PID 1 supervisor
+CMD ["dumb-init", "node", "dist/main.js"]

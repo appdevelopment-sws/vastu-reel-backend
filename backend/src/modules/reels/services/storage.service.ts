@@ -26,19 +26,28 @@ export class StorageService implements OnModuleInit {
     const endpoint = this.configService.get<string>('S3_ENDPOINT');
     const region = this.configService.get<string>('S3_REGION', 'us-east-1');
     const accessKeyId = this.configService.get<string>('S3_ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.get<string>('S3_SECRET_ACCESS_KEY');
-    const forcePathStyle = this.configService.get<string>('S3_FORCE_PATH_STYLE') === 'true';
+    const secretAccessKey = this.configService.get<string>(
+      'S3_SECRET_ACCESS_KEY',
+    );
+    const forcePathStyle =
+      this.configService.get<string>('S3_FORCE_PATH_STYLE') === 'true';
 
-    this.bucketName = this.configService.get<string>('S3_BUCKET_NAME', 'vastu-reels');
+    this.bucketName = this.configService.get<string>(
+      'S3_BUCKET_NAME',
+      'vastu-video',
+    );
     this.clientEndpoint = this.configService.get<string>('S3_CLIENT_ENDPOINT');
 
     this.s3Client = new S3Client({
       endpoint: endpoint || undefined,
       region,
-      credentials: accessKeyId && secretAccessKey ? {
-        accessKeyId,
-        secretAccessKey,
-      } : undefined,
+      credentials:
+        accessKeyId && secretAccessKey
+          ? {
+              accessKeyId,
+              secretAccessKey,
+            }
+          : undefined,
       forcePathStyle,
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
@@ -47,19 +56,30 @@ export class StorageService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
+      await this.s3Client.send(
+        new HeadBucketCommand({ Bucket: this.bucketName }),
+      );
       console.log(`S3 bucket "${this.bucketName}" already exists.`);
     } catch (err: any) {
-      const isNotFound = err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404;
+      const isNotFound =
+        err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404;
       if (isNotFound) {
         try {
-          await this.s3Client.send(new CreateBucketCommand({ Bucket: this.bucketName }));
+          await this.s3Client.send(
+            new CreateBucketCommand({ Bucket: this.bucketName }),
+          );
           console.log(`S3 bucket "${this.bucketName}" created successfully.`);
         } catch (createErr) {
-          console.warn(`Failed to automatically create S3 bucket "${this.bucketName}":`, createErr);
+          console.warn(
+            `Failed to automatically create S3 bucket "${this.bucketName}":`,
+            createErr,
+          );
         }
       } else {
-        console.warn(`Error checking S3 bucket "${this.bucketName}" existence:`, err);
+        console.warn(
+          `Error checking S3 bucket "${this.bucketName}" existence:`,
+          err,
+        );
       }
     }
 
@@ -83,9 +103,14 @@ export class StorageService implements OnModuleInit {
           Policy: publicReadPolicy,
         }),
       );
-      console.log(`Configured public read policy on bucket "${this.bucketName}".`);
+      console.log(
+        `Configured public read policy on bucket "${this.bucketName}".`,
+      );
     } catch (policyErr) {
-      console.warn(`Failed to set public bucket policy on "${this.bucketName}":`, policyErr);
+      console.warn(
+        `Failed to set public bucket policy on "${this.bucketName}":`,
+        policyErr,
+      );
     }
   }
 
@@ -111,7 +136,9 @@ export class StorageService implements OnModuleInit {
       try {
         const parsedClient = new URL(this.clientEndpoint);
         if (requestHost) {
-          const parsedRequest = requestHost.includes('://') ? new URL(requestHost) : new URL(`http://${requestHost}`);
+          const parsedRequest = requestHost.includes('://')
+            ? new URL(requestHost)
+            : new URL(`http://${requestHost}`);
           if (parsedRequest.hostname === '10.0.2.2') {
             parsedClient.hostname = '10.0.2.2';
           }
@@ -124,23 +151,31 @@ export class StorageService implements OnModuleInit {
 
     // 2. Instantiate temporary S3 client with the client-accessible endpoint
     const accessKeyId = this.configService.get<string>('S3_ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.get<string>('S3_SECRET_ACCESS_KEY');
-    const forcePathStyle = this.configService.get<string>('S3_FORCE_PATH_STYLE') === 'true';
+    const secretAccessKey = this.configService.get<string>(
+      'S3_SECRET_ACCESS_KEY',
+    );
+    const forcePathStyle =
+      this.configService.get<string>('S3_FORCE_PATH_STYLE') === 'true';
 
     const signingClient = new S3Client({
       endpoint: signEndpoint || undefined,
       region: this.configService.get<string>('S3_REGION', 'us-east-1'),
-      credentials: accessKeyId && secretAccessKey ? {
-        accessKeyId,
-        secretAccessKey,
-      } : undefined,
+      credentials:
+        accessKeyId && secretAccessKey
+          ? {
+              accessKeyId,
+              secretAccessKey,
+            }
+          : undefined,
       forcePathStyle,
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
     });
 
     // 3. Generate signed URL
-    const url = await getSignedUrl(signingClient, command, { expiresIn: expiresInSeconds });
+    const url = await getSignedUrl(signingClient, command, {
+      expiresIn: expiresInSeconds,
+    });
 
     // Clean up
     signingClient.destroy();
@@ -203,7 +238,11 @@ export class StorageService implements OnModuleInit {
   /**
    * Uploads a local file to S3.
    */
-  async uploadFile(localFilePath: string, key: string, mimeType: string): Promise<string> {
+  async uploadFile(
+    localFilePath: string,
+    key: string,
+    mimeType: string,
+  ): Promise<string> {
     const fileStream = fs.createReadStream(localFilePath);
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
@@ -230,7 +269,9 @@ export class StorageService implements OnModuleInit {
       let baseEndpoint = this.clientEndpoint || endpoint;
       if (requestHost) {
         try {
-          const parsedRequest = requestHost.includes('://') ? new URL(requestHost) : new URL(`http://${requestHost}`);
+          const parsedRequest = requestHost.includes('://')
+            ? new URL(requestHost)
+            : new URL(`http://${requestHost}`);
           const parsedBase = new URL(baseEndpoint);
           if (parsedRequest.hostname === '10.0.2.2') {
             parsedBase.hostname = '10.0.2.2';
@@ -239,7 +280,8 @@ export class StorageService implements OnModuleInit {
         } catch (_) {}
       }
 
-      const forcePathStyle = this.configService.get<string>('S3_FORCE_PATH_STYLE') === 'true';
+      const forcePathStyle =
+        this.configService.get<string>('S3_FORCE_PATH_STYLE') === 'true';
       if (forcePathStyle) {
         return `${baseEndpoint}/${this.bucketName}/${key}`;
       } else {
@@ -280,7 +322,9 @@ export class StorageService implements OnModuleInit {
       });
 
       await this.s3Client.send(deleteCommand);
-      console.log(`Deleted folder prefix ${prefix} from bucket ${this.bucketName}`);
+      console.log(
+        `Deleted folder prefix ${prefix} from bucket ${this.bucketName}`,
+      );
     } catch (err) {
       console.error(`Failed to delete folder prefix ${prefix}:`, err);
     }
