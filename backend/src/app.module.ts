@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module';
 import { ReelsModule } from './modules/reels/reels.module';
 import { FollowsModule } from './modules/follows/follows.module';
 import { ActivityLogModule } from './modules/activity-logs/activity-log.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -53,6 +54,7 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
     ReelsModule,
     FollowsModule,
     ActivityLogModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
