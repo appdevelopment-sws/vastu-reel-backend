@@ -115,8 +115,57 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Checks if an endpoint is local/emulator/docker rather than a public cloud S3 provider.
+   */
+  private isLocalEndpoint(endpointUrl?: string): boolean {
+    if (!endpointUrl) return false;
+    try {
+      const parsed = new URL(endpointUrl);
+      const host = parsed.hostname.toLowerCase();
+      return (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '0.0.0.0' ||
+        host === 'minio' ||
+        host === '10.0.2.2' ||
+        host === 'host.docker.internal'
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Adapts a local S3/MinIO endpoint hostname to match the incoming client request host
+   * (e.g. Android 10.0.2.2, LAN IP 192.168.x.x, or public server IP), while preserving port.
+   */
+  private resolveClientEndpoint(
+    baseEndpointUrl?: string,
+    requestHost?: string,
+  ): string | undefined {
+    if (!baseEndpointUrl) return undefined;
+    if (!this.isLocalEndpoint(baseEndpointUrl) || !requestHost) {
+      return baseEndpointUrl;
+    }
+
+    try {
+      const parsedBase = new URL(baseEndpointUrl);
+      const requestHostClean = requestHost.includes('://')
+        ? requestHost
+        : `http://${requestHost}`;
+      const parsedRequest = new URL(requestHostClean);
+
+      // If base is local MinIO/docker, adapt hostname to match incoming caller's IP/hostname
+      parsedBase.hostname = parsedRequest.hostname;
+      return parsedBase.toString().replace(/\/$/, '');
+    } catch {
+      return baseEndpointUrl;
+    }
+  }
+
+  /**
    * Generates a pre-signed URL for direct client-side uploads.
-   * Rewrites hostname if S3_CLIENT_ENDPOINT is configured to support local emulator testing.
+   * Dynamically adapts local MinIO endpoints for emulators/devices while keeping cloud R2/S3 endpoints untouched.
    */
   async getPresignedUploadUrl(
     key: string,
@@ -131,22 +180,12 @@ export class StorageService implements OnModuleInit {
     });
 
     // 1. Determine S3 endpoint to sign with
-    let signEndpoint = this.configService.get<string>('S3_ENDPOINT');
-    if (this.clientEndpoint) {
-      try {
-        const parsedClient = new URL(this.clientEndpoint);
-        if (requestHost) {
-          const parsedRequest = requestHost.includes('://')
-            ? new URL(requestHost)
-            : new URL(`http://${requestHost}`);
-          if (parsedRequest.hostname === '10.0.2.2') {
-            parsedClient.hostname = '10.0.2.2';
-          }
-        }
-        signEndpoint = parsedClient.toString();
-      } catch (err) {
-        console.error('Failed to parse endpoint for S3 signing client:', err);
-      }
+    const configuredEndpoint = this.configService.get<string>('S3_ENDPOINT');
+    let signEndpoint = this.clientEndpoint || configuredEndpoint;
+
+    // Only adapt hostname if it is a local MinIO / Docker endpoint
+    if (this.isLocalEndpoint(signEndpoint)) {
+      signEndpoint = this.resolveClientEndpoint(signEndpoint, requestHost);
     }
 
     // 2. Instantiate temporary S3 client with the client-accessible endpoint
@@ -259,39 +298,39 @@ export class StorageService implements OnModuleInit {
    * Gets a public/direct URL for an object key.
    */
   getObjectUrl(key: string, requestHost?: string): string {
+    const cleanKey = key.replace(/^\/+/, '');
+
+    // 1. If CDN_URL is configured (e.g. Cloudflare R2 public domain / custom domain), prioritize it
     const cdnUrl = this.configService.get<string>('CDN_URL');
     if (cdnUrl) {
-      return `${cdnUrl}/${key}`;
+      const cleanCdn = cdnUrl.replace(/\/+$/, '');
+      return `${cleanCdn}/${cleanKey}`;
     }
 
     const endpoint = this.configService.get<string>('S3_ENDPOINT');
     if (endpoint) {
       let baseEndpoint = this.clientEndpoint || endpoint;
-      if (requestHost) {
-        try {
-          const parsedRequest = requestHost.includes('://')
-            ? new URL(requestHost)
-            : new URL(`http://${requestHost}`);
-          const parsedBase = new URL(baseEndpoint);
-          if (parsedRequest.hostname === '10.0.2.2') {
-            parsedBase.hostname = '10.0.2.2';
-            baseEndpoint = parsedBase.toString().replace(/\/$/, '');
-          }
-        } catch (_) {}
+
+      // Only adapt hostname if it is a local MinIO / Docker endpoint
+      if (this.isLocalEndpoint(baseEndpoint)) {
+        baseEndpoint =
+          this.resolveClientEndpoint(baseEndpoint, requestHost) || baseEndpoint;
       }
 
       const forcePathStyle =
         this.configService.get<string>('S3_FORCE_PATH_STYLE') === 'true';
       if (forcePathStyle) {
-        return `${baseEndpoint}/${this.bucketName}/${key}`;
+        const cleanBase = baseEndpoint.replace(/\/+$/, '');
+        return `${cleanBase}/${this.bucketName}/${cleanKey}`;
       } else {
         const parsed = new URL(baseEndpoint);
-        return `${parsed.protocol}//${this.bucketName}.${parsed.host}${parsed.pathname === '/' ? '' : parsed.pathname}/${key}`;
+        const basePath = parsed.pathname === '/' ? '' : parsed.pathname;
+        return `${parsed.protocol}//${this.bucketName}.${parsed.host}${basePath}/${cleanKey}`;
       }
     }
 
     const region = this.configService.get<string>('S3_REGION', 'us-east-1');
-    return `https://${this.bucketName}.s3.${region}.amazonaws.com/${key}`;
+    return `https://${this.bucketName}.s3.${region}.amazonaws.com/${cleanKey}`;
   }
 
   /**
