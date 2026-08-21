@@ -41,8 +41,8 @@ FROM base AS build
 
 WORKDIR /app
 
-# Clean install all dependencies
-RUN npm ci
+# Install all dependencies
+RUN npm install --no-audit
 
 # Copy full source
 COPY . .
@@ -59,8 +59,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# Clean install only production dependencies
-RUN npm ci --omit=dev && npm cache clean --force
+# Install only production dependencies
+RUN npm install --omit=dev --no-audit && npm cache clean --force
 
 # ------------------------------------------------------------------------------
 # 5. Production runtime stage (Lean & Secure)

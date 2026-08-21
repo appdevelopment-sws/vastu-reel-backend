@@ -10,7 +10,7 @@ FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Install native dependencies required for build modules (e.g., bcrypt) and ffmpeg for video processing
+# Install native dependencies required for build modules (bcrypt) and ffmpeg for video processing
 RUN apk add --no-cache python3 make g++ ffmpeg dumb-init
 
 # ------------------------------------------------------------------------------
@@ -23,8 +23,8 @@ WORKDIR /app
 # Copy package manifests
 COPY package*.json ./
 
-# Clean install all dependencies (including devDependencies for TypeScript compilation)
-RUN npm ci
+# Install dependencies for building
+RUN npm install --no-audit
 
 # Copy application source code and configuration files
 COPY tsconfig*.json nest-cli.json ./
@@ -43,7 +43,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Clean install production-only dependencies
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm install --omit=dev --no-audit && npm cache clean --force
 
 # ------------------------------------------------------------------------------
 # Stage 4: Production Runtime Image
