@@ -12,6 +12,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { ReelMedia } from './reel-media.entity';
 import { ReelLike } from './reel-like.entity';
+import { ReelBookmark } from './reel-bookmark.entity';
 import { ReelComment } from './reel-comment.entity';
 import { ReelView } from './reel-view.entity';
 
@@ -96,6 +97,9 @@ export class Reel {
 
   @OneToMany(() => ReelLike, (like) => like.reel)
   likes: ReelLike[];
+
+  @OneToMany(() => ReelBookmark, (bookmark) => bookmark.reel)
+  bookmarks: ReelBookmark[];
 
   @OneToMany(() => ReelComment, (comment) => comment.reel)
   comments: ReelComment[];

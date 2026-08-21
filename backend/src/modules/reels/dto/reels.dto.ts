@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export class InitUploadDto {
   @ApiProperty({ example: 'video.mp4' })
@@ -99,4 +99,16 @@ export class FeedQueryDto {
   @IsString()
   @IsOptional()
   userId?: string;
+
+  @ApiProperty({ example: false, required: false })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  liked?: boolean;
+
+  @ApiProperty({ example: false, required: false })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  saved?: boolean;
 }

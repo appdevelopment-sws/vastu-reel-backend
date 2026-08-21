@@ -199,6 +199,12 @@ export class ReelsService {
     if (query.userId) {
       qb.andWhere('reel.userId = :userId', { userId: query.userId });
     }
+    if (query.liked && userId) {
+      qb.innerJoin('reel.likes', 'userLike', 'userLike.userId = :likeUserId', { likeUserId: userId });
+    }
+    if (query.saved && userId) {
+      qb.innerJoin('reel.bookmarks', 'userBookmark', 'userBookmark.userId = :bookmarkUserId', { bookmarkUserId: userId });
+    }
 
     qb.orderBy('reel.createdAt', 'DESC')
       .skip(skip)

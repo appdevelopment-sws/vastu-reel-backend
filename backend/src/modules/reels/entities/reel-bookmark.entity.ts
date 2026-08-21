@@ -19,7 +19,7 @@ export class ReelBookmark {
   @Column({ name: 'reel_id' })
   reelId: string;
 
-  @ManyToOne(() => Reel, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Reel, (reel) => reel.bookmarks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'reel_id' })
   reel: Reel;
 
