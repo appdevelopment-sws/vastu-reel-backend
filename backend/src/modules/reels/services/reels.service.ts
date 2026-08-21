@@ -11,6 +11,7 @@ import { ReelLike } from '../entities/reel-like.entity';
 import { ReelComment } from '../entities/reel-comment.entity';
 import { ReelView } from '../entities/reel-view.entity';
 import { ReelBookmark } from '../entities/reel-bookmark.entity';
+import { Follow } from '../../follows/entities/follow.entity';
 import { StorageService } from './storage.service';
 import { InitUploadDto, CreateCommentDto, FeedQueryDto } from '../dto/reels.dto';
 import { ActivityLogService } from '../../activity-logs/activity-log.service';
@@ -36,6 +37,8 @@ export class ReelsService {
     private readonly viewRepository: Repository<ReelView>,
     @InjectRepository(ReelBookmark)
     private readonly bookmarkRepository: Repository<ReelBookmark>,
+    @InjectRepository(Follow)
+    private readonly followRepository: Repository<Follow>,
     @InjectQueue('video-processing')
     private readonly videoQueue: Queue,
     private readonly storageService: StorageService,
@@ -211,10 +214,14 @@ export class ReelsService {
 
         let isLiked = false;
         let isBookmarked = false;
+        let isFollowingCreator = false;
 
         if (userId) {
           isLiked = await this.likeRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
           isBookmarked = await this.bookmarkRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
+          if (reel.userId) {
+            isFollowingCreator = await this.followRepository.count({ where: { followerId: userId, followingId: reel.userId } }).then(c => c > 0);
+          }
         }
 
         // Formulate streaming paths
@@ -246,6 +253,7 @@ export class ReelsService {
             avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
             isVerified: true,
             title: 'Certified Consultant',
+            isFollowing: isFollowingCreator,
           },
         };
       })
@@ -277,10 +285,14 @@ export class ReelsService {
 
     let isLiked = false;
     let isBookmarked = false;
+    let isFollowingCreator = false;
 
     if (userId) {
       isLiked = await this.likeRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
       isBookmarked = await this.bookmarkRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
+      if (reel.userId) {
+        isFollowingCreator = await this.followRepository.count({ where: { followerId: userId, followingId: reel.userId } }).then(c => c > 0);
+      }
     }
 
     const videoUrl = reel.media?.hlsKey ? this.storageService.getObjectUrl(reel.media.hlsKey, requestHost) : null;
@@ -311,6 +323,7 @@ export class ReelsService {
         avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         isVerified: true,
         title: 'Certified Consultant',
+        isFollowing: isFollowingCreator,
       },
     };
   }

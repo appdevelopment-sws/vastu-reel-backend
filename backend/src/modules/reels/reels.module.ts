@@ -15,6 +15,7 @@ import { ReelComment } from './entities/reel-comment.entity';
 import { ReelView } from './entities/reel-view.entity';
 import { ReelBookmark } from './entities/reel-bookmark.entity';
 import { User } from '../users/entities/user.entity';
+import { Follow } from '../follows/entities/follow.entity';
 import { ActivityLogModule } from '../activity-logs/activity-log.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { ActivityLogModule } from '../activity-logs/activity-log.module';
       ReelView,
       ReelBookmark,
       User,
+      Follow,
     ]),
     BullModule.registerQueue({
       name: 'video-processing',
