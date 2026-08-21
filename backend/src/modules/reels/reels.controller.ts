@@ -18,7 +18,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
 import { ReelsService } from './services/reels.service';
-import { InitUploadDto, CompleteUploadDto, CreateCommentDto, FeedQueryDto } from './dto/reels.dto';
+import { InitUploadDto, CompleteUploadDto, CreateCommentDto, CommentQueryDto, FeedQueryDto } from './dto/reels.dto';
 import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Reels')
@@ -132,11 +132,35 @@ export class ReelsController {
   }
 
   @Public()
-  @ApiOperation({ summary: 'Get comments of a reel' })
+  @ApiOperation({ summary: 'Get paginated comments or replies of a reel' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Comments list.' })
   @Get(':id/comments')
-  getComments(@Param('id') id: string) {
-    return this.reelsService.getComments(id);
+  getComments(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Query() query: CommentQueryDto,
+  ) {
+    const userId = this.tryExtractUserId(req);
+    return this.reelsService.getComments(id, query, userId);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Like a comment' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Comment liked successfully.' })
+  @Post('comments/:commentId/like')
+  @HttpCode(HttpStatus.OK)
+  likeComment(@Req() req: any, @Param('commentId') commentId: string) {
+    const userId = req.user.sub;
+    return this.reelsService.likeComment(userId, commentId);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Unlike a comment' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Comment unliked successfully.' })
+  @Delete('comments/:commentId/like')
+  unlikeComment(@Req() req: any, @Param('commentId') commentId: string) {
+    const userId = req.user.sub;
+    return this.reelsService.unlikeComment(userId, commentId);
   }
 
   @Public()

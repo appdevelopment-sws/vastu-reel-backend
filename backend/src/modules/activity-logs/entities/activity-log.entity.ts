@@ -13,6 +13,7 @@ import { Reel } from '../../reels/entities/reel.entity';
 export enum ActivityLogType {
   LIKE = 'like',
   COMMENT = 'comment',
+  MENTION = 'mention',
   FOLLOW = 'follow',
   REEL_PUBLISHED = 'reel_published',
   SYSTEM = 'system',

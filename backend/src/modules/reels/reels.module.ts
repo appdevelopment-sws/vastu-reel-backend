@@ -12,6 +12,7 @@ import { ReelMedia } from './entities/reel-media.entity';
 import { ReelUpload } from './entities/reel-upload.entity';
 import { ReelLike } from './entities/reel-like.entity';
 import { ReelComment } from './entities/reel-comment.entity';
+import { ReelCommentLike } from './entities/reel-comment-like.entity';
 import { ReelView } from './entities/reel-view.entity';
 import { ReelBookmark } from './entities/reel-bookmark.entity';
 import { User } from '../users/entities/user.entity';
@@ -26,6 +27,7 @@ import { ActivityLogModule } from '../activity-logs/activity-log.module';
       ReelUpload,
       ReelLike,
       ReelComment,
+      ReelCommentLike,
       ReelView,
       ReelBookmark,
       User,

@@ -72,6 +72,25 @@ export class CreateCommentDto {
   parentId?: string;
 }
 
+export class CommentQueryDto {
+  @ApiProperty({ example: 1, required: false, default: 1 })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  page?: number;
+
+  @ApiProperty({ example: 20, required: false, default: 20 })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  limit?: number;
+
+  @ApiProperty({ example: 'uuid', required: false, description: 'Filter replies of a specific parent comment' })
+  @IsString()
+  @IsOptional()
+  parentId?: string;
+}
+
 export class FeedQueryDto {
   @ApiProperty({ example: 1, required: false, default: 1 })
   @Type(() => Number)

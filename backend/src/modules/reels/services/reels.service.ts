@@ -9,11 +9,13 @@ import { ReelMedia } from '../entities/reel-media.entity';
 import { ReelUpload, UploadStatus } from '../entities/reel-upload.entity';
 import { ReelLike } from '../entities/reel-like.entity';
 import { ReelComment } from '../entities/reel-comment.entity';
+import { ReelCommentLike } from '../entities/reel-comment-like.entity';
 import { ReelView } from '../entities/reel-view.entity';
 import { ReelBookmark } from '../entities/reel-bookmark.entity';
+import { User } from '../../users/entities/user.entity';
 import { Follow } from '../../follows/entities/follow.entity';
 import { StorageService } from './storage.service';
-import { InitUploadDto, CreateCommentDto, FeedQueryDto } from '../dto/reels.dto';
+import { InitUploadDto, CreateCommentDto, CommentQueryDto, FeedQueryDto } from '../dto/reels.dto';
 import { ActivityLogService } from '../../activity-logs/activity-log.service';
 import { ActivityLogType } from '../../activity-logs/entities/activity-log.entity';
 
@@ -33,10 +35,14 @@ export class ReelsService {
     private readonly likeRepository: Repository<ReelLike>,
     @InjectRepository(ReelComment)
     private readonly commentRepository: Repository<ReelComment>,
+    @InjectRepository(ReelCommentLike)
+    private readonly commentLikeRepository: Repository<ReelCommentLike>,
     @InjectRepository(ReelView)
     private readonly viewRepository: Repository<ReelView>,
     @InjectRepository(ReelBookmark)
     private readonly bookmarkRepository: Repository<ReelBookmark>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @InjectRepository(Follow)
     private readonly followRepository: Repository<Follow>,
     @InjectQueue('video-processing')
@@ -431,7 +437,7 @@ export class ReelsService {
   }
 
   /**
-   * Adds a Comment to a Reel.
+   * Adds a Comment or Reply to a Reel (strictly enforces max 2-level depth).
    */
   async addComment(userId: string, reelId: string, dto: CreateCommentDto) {
     const reel = await this.reelRepository.findOne({
@@ -442,16 +448,59 @@ export class ReelsService {
       throw new NotFoundException('Reel not found.');
     }
 
+    let targetParentId: string | null = null;
+    if (dto.parentId) {
+      const parent = await this.commentRepository.findOne({
+        where: { id: dto.parentId },
+      });
+      if (!parent) {
+        throw new NotFoundException('Parent comment not found.');
+      }
+      if (parent.reelId !== reelId) {
+        throw new BadRequestException('Parent comment does not belong to this reel.');
+      }
+      // Enforce max 2-level depth:
+      // If the parent is already a reply (has parentId), attach this reply to the root comment
+      targetParentId = parent.parentId ? parent.parentId : parent.id;
+    }
+
     const comment = this.commentRepository.create({
       reelId,
       userId,
       text: dto.text,
-      parentId: dto.parentId || undefined,
+      parentId: targetParentId || undefined,
     });
 
     const saved = await this.commentRepository.save(comment);
 
-    // Log comment activity (personal — only reel owner sees it)
+    // 1. Check for @username mentions and notify mentioned users
+    const mentionMatches = dto.text.match(/@([a-zA-Z0-9_]+)/g);
+    if (mentionMatches && mentionMatches.length > 0) {
+      const uniqueUsernames = [...new Set(mentionMatches.map((m) => m.substring(1).toLowerCase()))];
+      for (const uname of uniqueUsernames) {
+        const mentionedUser = await this.userRepository.findOne({
+          where: { username: uname },
+        });
+        if (mentionedUser && mentionedUser.id !== userId) {
+          await this.activityLogService.log({
+            type: ActivityLogType.MENTION,
+            actorId: userId,
+            targetUserId: mentionedUser.id,
+            reelId,
+            message: `Someone mentioned you in a comment: "${dto.text.substring(0, 60)}${dto.text.length > 60 ? '...' : ''}"`,
+            isGlobal: false,
+            metadata: {
+              reelId,
+              reelTitle: reel.title,
+              commentId: saved.id,
+              commentText: dto.text,
+            },
+          });
+        }
+      }
+    }
+
+    // 2. Log comment activity to reel owner
     if (reel.userId !== userId) {
       await this.activityLogService.log({
         type: ActivityLogType.COMMENT,
@@ -460,40 +509,210 @@ export class ReelsService {
         reelId,
         message: `Someone commented on your reel "${reel.title}": "${dto.text.substring(0, 60)}${dto.text.length > 60 ? '...' : ''}"`,
         isGlobal: false,
-        metadata: { reelId, reelTitle: reel.title, commentText: dto.text },
+        metadata: { reelId, reelTitle: reel.title, commentId: saved.id, commentText: dto.text },
       });
     }
 
-    // Fetch comment with user relation
-    return this.commentRepository.findOne({
+    // 3. Fetch comment with user relation
+    const loaded = await this.commentRepository.findOne({
       where: { id: saved.id },
       relations: { user: true },
     });
+
+    return this.formatComment(loaded!, userId, 0, []);
   }
 
   /**
-   * Gets comments list of a Reel.
+   * Gets paginated comments (or paginated replies of a parent comment) of a Reel.
    */
-  async getComments(reelId: string) {
-    const comments = await this.commentRepository.find({
+  async getComments(
+    reelId: string,
+    query?: CommentQueryDto,
+    userId?: string | null,
+  ) {
+    const page = Math.max(1, query?.page || 1);
+    const limit = Math.min(50, Math.max(1, query?.limit || 20));
+    const skip = (page - 1) * limit;
+
+    if (query?.parentId) {
+      // Fetch paginated replies for a specific parent comment
+      const [replies, total] = await this.commentRepository.findAndCount({
+        where: { reelId, parentId: query.parentId },
+        relations: { user: true },
+        order: { createdAt: 'ASC' },
+        skip,
+        take: limit,
+      });
+
+      const items = await Promise.all(
+        replies.map(async (reply) => {
+          const likesCount = await this.commentLikeRepository.count({
+            where: { commentId: reply.id },
+          });
+          const isLiked = userId
+            ? await this.commentLikeRepository
+                .count({ where: { commentId: reply.id, userId } })
+                .then((c) => c > 0)
+            : false;
+          return this.formatComment(reply, userId, 0, [], likesCount, isLiked);
+        }),
+      );
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+        hasMore: skip + replies.length < total,
+      };
+    }
+
+    // Fetch top-level root comments (parentId is null)
+    const [comments, total] = await this.commentRepository.findAndCount({
       where: { reelId, parentId: IsNull() },
-      relations: { user: true, replies: { user: true } },
-      order: { createdAt: 'ASC' },
+      relations: { user: true },
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
     });
 
-    return comments.map((c) => this.mapComment(c));
+    const items = await Promise.all(
+      comments.map(async (comment) => {
+        const repliesCount = await this.commentRepository.count({
+          where: { parentId: comment.id },
+        });
+        const likesCount = await this.commentLikeRepository.count({
+          where: { commentId: comment.id },
+        });
+        const isLiked = userId
+          ? await this.commentLikeRepository
+              .count({ where: { commentId: comment.id, userId } })
+              .then((c) => c > 0)
+          : false;
+
+        // Fetch first 2 preview replies
+        const previewRepliesRaw = await this.commentRepository.find({
+          where: { parentId: comment.id },
+          relations: { user: true },
+          order: { createdAt: 'ASC' },
+          take: 2,
+        });
+
+        const previewReplies = await Promise.all(
+          previewRepliesRaw.map(async (r) => {
+            const rLikesCount = await this.commentLikeRepository.count({
+              where: { commentId: r.id },
+            });
+            const rIsLiked = userId
+              ? await this.commentLikeRepository
+                  .count({ where: { commentId: r.id, userId } })
+                  .then((c) => c > 0)
+              : false;
+            return this.formatComment(r, userId, 0, [], rLikesCount, rIsLiked);
+          }),
+        );
+
+        return this.formatComment(
+          comment,
+          userId,
+          repliesCount,
+          previewReplies,
+          likesCount,
+          isLiked,
+        );
+      }),
+    );
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      hasMore: skip + comments.length < total,
+    };
   }
 
-  private mapComment(c: ReelComment): any {
+  /**
+   * Likes a comment or reply.
+   */
+  async likeComment(userId: string, commentId: string) {
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comment not found.');
+    }
+
+    const existing = await this.commentLikeRepository.findOne({
+      where: { commentId, userId },
+    });
+
+    if (!existing) {
+      const like = this.commentLikeRepository.create({ commentId, userId });
+      await this.commentLikeRepository.save(like);
+
+      if (comment.userId !== userId) {
+        await this.activityLogService.log({
+          type: ActivityLogType.LIKE,
+          actorId: userId,
+          targetUserId: comment.userId,
+          reelId: comment.reelId,
+          message: `Someone liked your comment: "${comment.text.substring(0, 50)}${comment.text.length > 50 ? '...' : ''}"`,
+          isGlobal: false,
+          metadata: {
+            reelId: comment.reelId,
+            commentId: comment.id,
+            commentText: comment.text,
+          },
+        });
+      }
+    }
+
+    const likesCount = await this.commentLikeRepository.count({
+      where: { commentId },
+    });
+    return { success: true, isLiked: true, likesCount };
+  }
+
+  /**
+   * Unlikes a comment or reply.
+   */
+  async unlikeComment(userId: string, commentId: string) {
+    const existing = await this.commentLikeRepository.findOne({
+      where: { commentId, userId },
+    });
+    if (existing) {
+      await this.commentLikeRepository.remove(existing);
+    }
+
+    const likesCount = await this.commentLikeRepository.count({
+      where: { commentId },
+    });
+    return { success: true, isLiked: false, likesCount };
+  }
+
+  private formatComment(
+    c: ReelComment,
+    currentUserId?: string | null,
+    repliesCount = 0,
+    replies: any[] = [],
+    likesCount = 0,
+    isLiked = false,
+  ): any {
     return {
       id: c.id,
+      userId: c.userId,
       userName: c.user?.name || 'Vastu User',
-      userAvatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+      username: c.user?.username || null,
+      userAvatarUrl:
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
       commentText: c.text,
-      timestamp: c.createdAt.toISOString(),
-      likesCount: 0,
-      isLiked: false,
-      replies: c.replies ? c.replies.map((r) => this.mapComment(r)) : [],
+      timestamp: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
+      parentId: c.parentId || null,
+      likesCount,
+      isLiked,
+      repliesCount,
+      replies,
     };
   }
 

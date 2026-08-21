@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Reel } from './reel.entity';
 import { User } from '../../users/entities/user.entity';
+import { ReelCommentLike } from './reel-comment-like.entity';
 
 @Entity('reel_comments')
 export class ReelComment {
@@ -43,9 +44,13 @@ export class ReelComment {
   @OneToMany(() => ReelComment, (comment) => comment.parent)
   replies: ReelComment[];
 
+  @OneToMany(() => ReelCommentLike, (like) => like.comment)
+  likes: ReelCommentLike[];
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
+

@@ -129,7 +129,7 @@ export class UsersService {
     if (params?.search && params.search.trim().length > 0) {
       const search = `%${params.search.trim().toLowerCase()}%`;
       qb.andWhere(
-        '(LOWER(user.name) LIKE :search OR LOWER(user.email) LIKE :search OR user.phone LIKE :search)',
+        '(LOWER(user.name) LIKE :search OR LOWER(user.username) LIKE :search OR LOWER(user.email) LIKE :search OR user.phone LIKE :search)',
         { search },
       );
     }
