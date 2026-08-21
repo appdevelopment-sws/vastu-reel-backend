@@ -449,14 +449,112 @@ export class AnalyticsService {
    * 5. Audience & Peak Activity Insights
    */
   async getAudienceInsights(userId: string, timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS) {
+    const { currentStart, currentEnd } = this.getDateRanges(timeframe);
+
+    const creatorReels = await this.reelRepository.find({
+      where: { userId, status: ReelStatus.READY },
+      select: { id: true },
+    });
+    const reelIds = creatorReels.map((r) => r.id);
+
+    // Slot counters
+    const slotCounts = {
+      '06:00 - 09:00': 0,
+      '09:00 - 12:00': 0,
+      '12:00 - 15:00': 0,
+      '15:00 - 18:00': 0,
+      '18:00 - 22:00': 0,
+    };
+
+    let totalRecordedActivities = 0;
+
+    if (reelIds.length > 0) {
+      // Gather timestamps of views, likes, and comments
+      const views = await this.viewRepository
+        .createQueryBuilder('view')
+        .select('view.createdAt', 'createdAt')
+        .where('view.reelId IN (:...reelIds)', { reelIds })
+        .andWhere('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .getRawMany();
+
+      const likes = await this.likeRepository
+        .createQueryBuilder('like')
+        .select('like.createdAt', 'createdAt')
+        .where('like.reelId IN (:...reelIds)', { reelIds })
+        .andWhere('like.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .getRawMany();
+
+      const comments = await this.commentRepository
+        .createQueryBuilder('comment')
+        .select('comment.createdAt', 'createdAt')
+        .where('comment.reelId IN (:...reelIds)', { reelIds })
+        .andWhere('comment.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .getRawMany();
+
+      const allDates: Date[] = [...views, ...likes, ...comments].map((r) => new Date(r.createdAt));
+      totalRecordedActivities = allDates.length;
+
+      for (const d of allDates) {
+        // Adjust for IST (+5:30 offset) or local hour
+        const utcHour = d.getUTCHours();
+        const localHour = (utcHour + 5.5) % 24;
+
+        if (localHour >= 6 && localHour < 9) {
+          slotCounts['06:00 - 09:00']++;
+        } else if (localHour >= 9 && localHour < 12) {
+          slotCounts['09:00 - 12:00']++;
+        } else if (localHour >= 12 && localHour < 15) {
+          slotCounts['12:00 - 15:00']++;
+        } else if (localHour >= 15 && localHour < 18) {
+          slotCounts['15:00 - 18:00']++;
+        } else {
+          slotCounts['18:00 - 22:00']++;
+        }
+      }
+    }
+
+    const slotsArray = Object.entries(slotCounts);
+    let maxSlotCount = 0;
+    for (const [, count] of slotsArray) {
+      if (count > maxSlotCount) maxSlotCount = count;
+    }
+
+    const peakViewingHours = slotsArray.map(([timeSlot, count]) => {
+      const percentage =
+        totalRecordedActivities > 0
+          ? Math.max(5, Math.round((count / totalRecordedActivities) * 100))
+          : timeSlot === '12:00 - 15:00'
+              ? 35
+              : timeSlot === '09:00 - 12:00'
+                  ? 25
+                  : timeSlot === '15:00 - 18:00'
+                      ? 20
+                      : 10;
+
+      let activityLevel = 'Normal';
+      if (totalRecordedActivities > 0) {
+        if (count === maxSlotCount && count > 0) {
+          activityLevel = 'Peak (Highest)';
+        } else if (count >= maxSlotCount * 0.6 && count > 0) {
+          activityLevel = 'High';
+        } else if (count > 0) {
+          activityLevel = 'Moderate';
+        }
+      } else {
+        if (timeSlot === '12:00 - 15:00') activityLevel = 'Peak (Highest)';
+        else if (timeSlot === '09:00 - 12:00') activityLevel = 'High';
+        else activityLevel = 'Moderate';
+      }
+
+      return {
+        timeSlot,
+        activityLevel,
+        percentage,
+      };
+    });
+
     return {
-      peakViewingHours: [
-        { timeSlot: '06:00 - 09:00', activityLevel: 'Moderate', percentage: 18 },
-        { timeSlot: '09:00 - 12:00', activityLevel: 'Normal', percentage: 12 },
-        { timeSlot: '12:00 - 15:00', activityLevel: 'High', percentage: 22 },
-        { timeSlot: '15:00 - 18:00', activityLevel: 'Moderate', percentage: 14 },
-        { timeSlot: '18:00 - 22:00', activityLevel: 'Peak (Highest)', percentage: 34 },
-      ],
+      peakViewingHours,
       trafficSources: [
         { source: 'For You Feed', percentage: 62 },
         { source: 'Explore & Discover', percentage: 21 },
