@@ -56,9 +56,11 @@ export class ActivityLogService {
     const [items, total] = await this.logRepository
       .createQueryBuilder('log')
       .leftJoinAndSelect('log.actor', 'actor')
-      .where('log.is_global = :isGlobal', { isGlobal: true })
-      .orWhere('log.target_user_id = :userId', { userId })
-      .orderBy('log.created_at', 'DESC')
+      .where('(log.isGlobal = :isGlobal OR log.targetUserId = :userId)', {
+        isGlobal: true,
+        userId,
+      })
+      .orderBy('log.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -83,8 +85,8 @@ export class ActivityLogService {
     const [items, total] = await this.logRepository
       .createQueryBuilder('log')
       .leftJoinAndSelect('log.actor', 'actor')
-      .where('log.is_global = :isGlobal', { isGlobal: true })
-      .orderBy('log.created_at', 'DESC')
+      .where('log.isGlobal = :isGlobal', { isGlobal: true })
+      .orderBy('log.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
       .getManyAndCount();
@@ -98,13 +100,23 @@ export class ActivityLogService {
   }
 
   private formatEntry(log: ActivityLog): Record<string, any> {
+    const actorDisplayName =
+      log.actor?.username
+        ? `@${log.actor.username}`
+        : log.actor?.name || log.metadata?.actorName || null;
+
+    let message = log.message;
+    if (actorDisplayName && message.startsWith('Someone ')) {
+      message = message.replace(/^Someone\s+/, `${actorDisplayName} `);
+    }
+
     return {
       id: log.id,
       type: log.type,
-      message: log.message,
+      message,
       isGlobal: log.isGlobal,
       actorId: log.actorId,
-      actorName: log.actor?.name ?? null,
+      actorName: actorDisplayName,
       targetUserId: log.targetUserId,
       reelId: log.reelId,
       metadata: log.metadata,
@@ -112,3 +124,4 @@ export class ActivityLogService {
     };
   }
 }
+

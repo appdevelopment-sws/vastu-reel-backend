@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, Brackets } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
@@ -211,6 +211,20 @@ export class ReelsService {
     if (query.saved && userId) {
       qb.innerJoin('reel.bookmarks', 'userBookmark', 'userBookmark.userId = :bookmarkUserId', { bookmarkUserId: userId });
     }
+    if (query.search && query.search.trim()) {
+      const searchTerms = query.search.trim().split(/\s+/).filter(Boolean);
+      qb.andWhere(
+        new Brackets((subQb) => {
+          searchTerms.forEach((term, idx) => {
+            const paramName = `search_${idx}`;
+            subQb.andWhere(
+              `(LOWER(reel.title) LIKE LOWER(:${paramName}) OR LOWER(reel.caption) LIKE LOWER(:${paramName}) OR LOWER(reel.location) LIKE LOWER(:${paramName}) OR LOWER(reel.category) LIKE LOWER(:${paramName}) OR LOWER(reel.subCategory) LIKE LOWER(:${paramName}) OR LOWER(reel.propertyType) LIKE LOWER(:${paramName}) OR LOWER(reel.element) LIKE LOWER(:${paramName}) OR LOWER(creator.name) LIKE LOWER(:${paramName}) OR LOWER(creator.username) LIKE LOWER(:${paramName}))`,
+              { [paramName]: `%${term}%` },
+            );
+          });
+        }),
+      );
+    }
 
     qb.orderBy('reel.createdAt', 'DESC')
       .skip(skip)
@@ -383,14 +397,17 @@ export class ReelsService {
 
       // Log like activity (personal — only reel owner sees it)
       if (reel.userId !== userId) {
+        const actor = await this.userRepository.findOne({ where: { id: userId } });
+        const actorDisplayName = actor?.username ? `@${actor.username}` : (actor?.name || 'Someone');
+
         await this.activityLogService.log({
           type: ActivityLogType.LIKE,
           actorId: userId,
           targetUserId: reel.userId,
           reelId,
-          message: `Someone liked your reel "${reel.title}".`,
+          message: `${actorDisplayName} liked your reel "${reel.title}".`,
           isGlobal: false,
-          metadata: { reelId, reelTitle: reel.title },
+          metadata: { reelId, reelTitle: reel.title, actorName: actorDisplayName },
         });
       }
     }
@@ -473,6 +490,9 @@ export class ReelsService {
 
     const saved = await this.commentRepository.save(comment);
 
+    const actor = await this.userRepository.findOne({ where: { id: userId } });
+    const actorDisplayName = actor?.username ? `@${actor.username}` : (actor?.name || 'Someone');
+
     // 1. Check for @username mentions and notify mentioned users
     const mentionMatches = dto.text.match(/@([a-zA-Z0-9_]+)/g);
     if (mentionMatches && mentionMatches.length > 0) {
@@ -487,33 +507,62 @@ export class ReelsService {
             actorId: userId,
             targetUserId: mentionedUser.id,
             reelId,
-            message: `Someone mentioned you in a comment: "${dto.text.substring(0, 60)}${dto.text.length > 60 ? '...' : ''}"`,
+            message: `${actorDisplayName} mentioned you in a comment: "${dto.text.substring(0, 60)}${dto.text.length > 60 ? '...' : ''}"`,
             isGlobal: false,
             metadata: {
               reelId,
               reelTitle: reel.title,
               commentId: saved.id,
               commentText: dto.text,
+              actorName: actorDisplayName,
             },
           });
         }
       }
     }
 
-    // 2. Log comment activity to reel owner
+    // 2. If this is a reply to a parent comment, notify the parent comment author
+    if (dto.parentId) {
+      const parent = await this.commentRepository.findOne({ where: { id: dto.parentId } });
+      if (parent && parent.userId && parent.userId !== userId && parent.userId !== reel.userId) {
+        await this.activityLogService.log({
+          type: ActivityLogType.COMMENT,
+          actorId: userId,
+          targetUserId: parent.userId,
+          reelId,
+          message: `${actorDisplayName} replied to your comment: "${dto.text.substring(0, 60)}${dto.text.length > 60 ? '...' : ''}"`,
+          isGlobal: false,
+          metadata: {
+            reelId,
+            reelTitle: reel.title,
+            commentId: saved.id,
+            commentText: dto.text,
+            actorName: actorDisplayName,
+          },
+        });
+      }
+    }
+
+    // 3. Log comment activity to reel owner
     if (reel.userId !== userId) {
       await this.activityLogService.log({
         type: ActivityLogType.COMMENT,
         actorId: userId,
         targetUserId: reel.userId,
         reelId,
-        message: `Someone commented on your reel "${reel.title}": "${dto.text.substring(0, 60)}${dto.text.length > 60 ? '...' : ''}"`,
+        message: `${actorDisplayName} commented on your reel "${reel.title}": "${dto.text.substring(0, 60)}${dto.text.length > 60 ? '...' : ''}"`,
         isGlobal: false,
-        metadata: { reelId, reelTitle: reel.title, commentId: saved.id, commentText: dto.text },
+        metadata: {
+          reelId,
+          reelTitle: reel.title,
+          commentId: saved.id,
+          commentText: dto.text,
+          actorName: actorDisplayName,
+        },
       });
     }
 
-    // 3. Fetch comment with user relation
+    // 4. Fetch comment with user relation
     const loaded = await this.commentRepository.findOne({
       where: { id: saved.id },
       relations: { user: true },
@@ -652,17 +701,21 @@ export class ReelsService {
       await this.commentLikeRepository.save(like);
 
       if (comment.userId !== userId) {
+        const actor = await this.userRepository.findOne({ where: { id: userId } });
+        const actorDisplayName = actor?.username ? `@${actor.username}` : (actor?.name || 'Someone');
+
         await this.activityLogService.log({
           type: ActivityLogType.LIKE,
           actorId: userId,
           targetUserId: comment.userId,
           reelId: comment.reelId,
-          message: `Someone liked your comment: "${comment.text.substring(0, 50)}${comment.text.length > 50 ? '...' : ''}"`,
+          message: `${actorDisplayName} liked your comment: "${comment.text.substring(0, 50)}${comment.text.length > 50 ? '...' : ''}"`,
           isGlobal: false,
           metadata: {
             reelId: comment.reelId,
             commentId: comment.id,
             commentText: comment.text,
+            actorName: actorDisplayName,
           },
         });
       }
@@ -738,5 +791,128 @@ export class ReelsService {
     await this.reelRepository.save(reel);
 
     return { viewsCount: reel.viewsCount };
+  }
+
+  /**
+   * Returns dynamic trending tags and trending videos based on real data only.
+   * Criteria: Aggregated from active READY & PUBLIC reels, ordered by total views and video count.
+   */
+  async getTrending(requestHost?: string) {
+    const reels = await this.reelRepository.find({
+      where: { status: ReelStatus.READY, visibility: ReelVisibility.PUBLIC },
+      relations: { media: true, user: true },
+      order: { viewsCount: 'DESC', createdAt: 'DESC' },
+      take: 100,
+    });
+
+    if (reels.length === 0) {
+      return [];
+    }
+
+    const tagMap = new Map<string, { tag: string; count: number; views: number; thumbnail: string | null }>();
+
+    for (const reel of reels) {
+      const thumbnail = reel.media?.thumbnailKey
+        ? this.storageService.getObjectUrl(reel.media.thumbnailKey, requestHost)
+        : null;
+
+      const text = `${reel.title || ''} ${reel.caption || ''}`;
+      // Extract only explicit hashtags (e.g., #VastuTips, #NorthFacing) with at least 3 characters
+      const matches = text.match(/#[a-zA-Z0-9_]{3,}/g) || [];
+      const candidateTags = new Set<string>(matches.map((t) => t.trim()));
+
+      for (const tag of candidateTags) {
+        const normalized = tag;
+        const existing = tagMap.get(normalized) || {
+          tag: normalized,
+          count: 0,
+          views: 0,
+          thumbnail: thumbnail || null,
+        };
+        existing.count += 1;
+        existing.views += reel.viewsCount || 0;
+        if (!existing.thumbnail && thumbnail) {
+          existing.thumbnail = thumbnail;
+        }
+        tagMap.set(normalized, existing);
+      }
+    }
+
+    const dynamicTrendingTags = Array.from(tagMap.values())
+      .sort((a, b) => b.views - a.views || b.count - a.count)
+      .slice(0, 15)
+      .map((item) => {
+        let countDisplay = `${item.count} video${item.count > 1 ? 's' : ''}`;
+        if (item.views >= 1000000) {
+          countDisplay = `${(item.views / 1000000).toFixed(1)}M views`;
+        } else if (item.views >= 1000) {
+          countDisplay = `${(item.views / 1000).toFixed(1)}K views`;
+        }
+        return {
+          tag: item.tag,
+          count: countDisplay,
+          image: item.thumbnail || '',
+        };
+      });
+
+    return dynamicTrendingTags;
+  }
+
+  /**
+   * Returns list of popular creators based on real activity only.
+   * Criteria: Registered active users who have published at least 1 ready reel OR have at least 1 follower,
+   * ranked by follower count and published reels count.
+   */
+  async getPopularCreators(currentUserId?: string | null) {
+    const users = await this.userRepository.find({
+      where: { isActive: true },
+      take: 50,
+    });
+
+    const creatorList = await Promise.all(
+      users.map(async (user) => {
+        const followersCount = await this.followRepository.count({
+          where: { followingId: user.id },
+        });
+        const reelsCount = await this.reelRepository.count({
+          where: { userId: user.id, status: ReelStatus.READY },
+        });
+
+        // Strict criteria: Must have at least 1 published reel or 1 follower to be considered a creator
+        if (reelsCount === 0 && followersCount === 0) {
+          return null;
+        }
+
+        let isFollowing = false;
+        if (currentUserId && currentUserId !== user.id) {
+          isFollowing = await this.followRepository.count({
+            where: { followerId: currentUserId, followingId: user.id },
+          }).then((c) => c > 0);
+        }
+
+        return {
+          id: user.id,
+          name: user.name || user.username || 'Creator',
+          username: user.username || null,
+          avatarUrl: '',
+          isVerified: true,
+          title: reelsCount > 0 ? `${reelsCount} Reel${reelsCount > 1 ? 's' : ''}` : 'Creator',
+          followersCount,
+          reelsCount,
+          isFollowing,
+        };
+      }),
+    );
+
+    const validCreators = creatorList.filter((c): c is NonNullable<typeof c> => c !== null);
+
+    // Sort by popularity score: followers * 3 + reelsCount * 2
+    validCreators.sort((a, b) => {
+      const scoreA = a.followersCount * 3 + a.reelsCount * 2;
+      const scoreB = b.followersCount * 3 + b.reelsCount * 2;
+      return scoreB - scoreA;
+    });
+
+    return validCreators;
   }
 }

@@ -130,4 +130,9 @@ export class FeedQueryDto {
   @IsBoolean()
   @IsOptional()
   saved?: boolean;
+
+  @ApiProperty({ example: 'kitchen vastu north', required: false })
+  @IsString()
+  @IsOptional()
+  search?: string;
 }

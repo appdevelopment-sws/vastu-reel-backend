@@ -62,6 +62,24 @@ export class ReelsController {
   }
 
   @Public()
+  @ApiOperation({ summary: 'Get dynamic trending tags and trending videos' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Trending data retrieved.' })
+  @Get('trending')
+  getTrending(@Req() req: Request) {
+    const requestHost = req.headers.host;
+    return this.reelsService.getTrending(requestHost);
+  }
+
+  @Public()
+  @ApiOperation({ summary: 'Get popular Vastu creators' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Popular creators retrieved.' })
+  @Get('popular-creators')
+  getPopularCreators(@Req() req: Request) {
+    const userId = this.tryExtractUserId(req);
+    return this.reelsService.getPopularCreators(userId);
+  }
+
+  @Public()
   @ApiOperation({ summary: 'Get single reel metadata by ID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Reel details retrieved.' })
   @Get(':id')
