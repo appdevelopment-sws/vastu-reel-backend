@@ -1,15 +1,26 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { AuthResponse, LoginCredentials, RegisterData, User } from '../types/auth';
 
-// Extract API Base URL from Vite environment or default to local NestJS port 8008
+// Extract API Base URL from Vite environment or default to relative /api (production/Nginx) or port 8008 (dev)
 const getBaseUrl = (): string => {
-  let url = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.REACT_APP_API_URL || 'http://localhost:8008';
+  let url =
+    (import.meta as any).env?.VITE_API_URL ||
+    (import.meta as any).env?.REACT_APP_API_URL;
+
+  if (!url) {
+    // In local Vite dev server (DEV mode), default to http://localhost:8008
+    // In production build (served behind Nginx), default to relative /api
+    url = (import.meta as any).env?.DEV ? 'http://localhost:8008' : '/api';
+  }
+
   // Strip trailing slash if present
   url = url.replace(/\/+$/, '');
+
   // If user configured http://localhost:8008/api/v1 but backend routes are root /auth, /users
   if (url.endsWith('/api/v1')) {
     url = url.replace('/api/v1', '');
   }
+
   return url;
 };
 
