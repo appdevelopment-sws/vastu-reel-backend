@@ -1,21 +1,66 @@
-import { Button } from "@/components/ui/button"
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
+import { DashboardLayout } from './components/layout/DashboardLayout';
+import { DashboardOverviewPage } from './pages/dashboard/DashboardOverviewPage';
+import { UsersPage } from './pages/dashboard/UsersPage';
+import { ReelsPage } from './pages/dashboard/ReelsPage';
+import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
+import { RolesPage } from './pages/dashboard/RolesPage';
+import { SettingsPage } from './pages/dashboard/SettingsPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 export function App() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2"></Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to dark mode)
-        </div>
-      </div>
-    </div>
-  )
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Public Auth Routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Root redirect */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          {/* Protected Admin & Dashboard Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<DashboardOverviewPage />} />
+            <Route path="reels" element={<ReelsPage />} />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <UsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="analytics" element={<AnalyticsPage />} />
+            <Route
+              path="roles"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <RolesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+
+          {/* 404 Fallback */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
