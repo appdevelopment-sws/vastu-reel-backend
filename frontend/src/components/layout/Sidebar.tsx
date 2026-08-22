@@ -1,6 +1,6 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import React from "react"
+import { NavLink, useNavigate } from "react-router-dom"
+import { useAuth } from "../../context/AuthContext"
 import {
   Compass,
   LayoutDashboard,
@@ -13,64 +13,64 @@ import {
   ChevronRight,
   Sparkles,
   User as UserIcon,
-} from 'lucide-react';
+} from "lucide-react"
 
 interface SidebarProps {
-  isOpen: boolean;
-  onClose?: () => void;
+  isOpen: boolean
+  onClose?: () => void
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, logout, isAdmin } = useAuth();
-  const navigate = useNavigate();
+  const { user, logout, isAdmin } = useAuth()
+  const navigate = useNavigate()
 
   const navItems = [
     {
-      label: 'Overview',
-      path: '/dashboard',
+      label: "Overview",
+      path: "/dashboard",
       icon: LayoutDashboard,
       badge: null,
     },
     {
-      label: 'Reels Library',
-      path: '/dashboard/reels',
+      label: "Reels Library",
+      path: "/dashboard/reels",
       icon: Film,
-      badge: 'Live',
+      badge: "Live",
     },
     {
-      label: 'Users & Creators',
-      path: '/dashboard/users',
+      label: "Users & Creators",
+      path: "/dashboard/users",
       icon: Users,
       badge: null,
       adminOnly: true,
     },
     {
-      label: 'Analytics',
-      path: '/dashboard/analytics',
+      label: "Analytics",
+      path: "/dashboard/analytics",
       icon: BarChart3,
       badge: null,
     },
     {
-      label: 'Roles & Access',
-      path: '/dashboard/roles',
+      label: "Roles & Access",
+      path: "/dashboard/roles",
       icon: ShieldCheck,
-      badge: 'RBAC',
+      badge: "RBAC",
       adminOnly: true,
     },
     {
-      label: 'Settings',
-      path: '/dashboard/settings',
+      label: "Settings",
+      path: "/dashboard/settings",
       icon: Settings,
       badge: null,
     },
-  ];
+  ]
 
   const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
+    logout()
+    navigate("/login", { replace: true })
+  }
 
-  const primaryRole = user?.roles?.[0] || 'USER';
+  const primaryRole = user?.roles?.[0] || "USER"
 
   return (
     <>
@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       <aside
         className={`fixed top-0 bottom-0 left-0 z-50 flex w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Brand Header */}
@@ -95,35 +95,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div>
             <div className="flex items-center gap-1.5 font-bold tracking-tight text-foreground">
               <span>Vastu</span>
-              <span className="text-primary font-black">Reels</span>
+              <span className="font-black text-primary">Reels</span>
             </div>
-            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest">
+            <p className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
               Admin Portal
             </p>
           </div>
         </div>
 
         {/* Navigation items */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
-          <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+        <div className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
+          <p className="px-3 pb-2 text-[10px] font-bold tracking-wider text-muted-foreground/80 uppercase">
             Main Menu
           </p>
 
           {navItems
             .filter((item) => !item.adminOnly || isAdmin)
             .map((item) => {
-              const Icon = item.icon;
+              const Icon = item.icon
               return (
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  end={item.path === '/dashboard'}
+                  end={item.path === "/dashboard"}
                   onClick={onClose}
                   className={({ isActive }) =>
                     `group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all ${
                       isActive
-                        ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm shadow-primary/20'
-                        : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm shadow-primary/20"
+                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     }`
                   }
                 >
@@ -141,39 +141,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     <ChevronRight className="h-3.5 w-3.5 opacity-40 transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </NavLink>
-              );
+              )
             })}
         </div>
 
         {/* Quick System Badge */}
-        <div className="px-4 py-2">
-          <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-muted/30 p-3">
-            <Sparkles className="h-4 w-4 text-chart-1 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-foreground truncate">
-                Cosmic Engine v1.0
-              </p>
-              <p className="text-[10px] text-muted-foreground truncate">
-                MySQL + MinIO Storage Ready
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* User Profile & Logout Footer */}
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
-                {user?.name ? user.name.charAt(0).toUpperCase() : <UserIcon className="h-4 w-4" />}
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary">
+                {user?.name ? (
+                  user.name.charAt(0).toUpperCase()
+                ) : (
+                  <UserIcon className="h-4 w-4" />
+                )}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-foreground truncate">
-                  {user?.name || 'Administrator'}
+                <p className="truncate text-xs font-bold text-foreground">
+                  {user?.name || "Administrator"}
                 </p>
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                  <span className="truncate text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
                     {primaryRole}
                   </span>
                 </div>
@@ -191,5 +182,5 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </div>
       </aside>
     </>
-  );
-};
+  )
+}

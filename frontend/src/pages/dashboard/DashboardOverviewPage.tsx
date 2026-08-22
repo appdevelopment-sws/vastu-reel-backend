@@ -17,8 +17,10 @@ import {
   ExternalLink,
   Activity,
   RefreshCw,
+  Play,
 } from "lucide-react"
 import { Link } from "react-router-dom"
+import { ReelPlayerModal, type ReelItem } from "../../components/ui/ReelPlayerModal"
 
 export const DashboardOverviewPage: React.FC = () => {
   const { user } = useAuth()
@@ -30,10 +32,12 @@ export const DashboardOverviewPage: React.FC = () => {
     totalViews: 0,
   })
   const [recentUsers, setRecentUsers] = useState<any[]>([])
-  const [recentReels, setRecentReels] = useState<any[]>([])
+  const [recentReels, setRecentReels] = useState<ReelItem[]>([])
   const [activities, setActivities] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false)
+  const [selectedReelIndex, setSelectedReelIndex] = useState(0)
 
   const fetchDashboardData = async () => {
     try {
@@ -321,13 +325,17 @@ export const DashboardOverviewPage: React.FC = () => {
                 app or API!
               </div>
             ) : (
-              recentReels.map((reel) => (
+              recentReels.map((reel, index) => (
                 <div
                   key={reel.id}
-                  className="rounded-xl border border-border/60 bg-muted/20 p-3.5 transition hover:border-primary/30"
+                  onClick={() => {
+                    setSelectedReelIndex(index)
+                    setIsPlayerOpen(true)
+                  }}
+                  className="group relative cursor-pointer rounded-xl border border-border/60 bg-muted/20 p-3.5 transition hover:border-primary/50 hover:bg-card hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <h4 className="line-clamp-1 text-xs font-bold text-foreground">
+                    <h4 className="line-clamp-1 text-xs font-bold text-foreground transition-colors group-hover:text-primary">
                       {reel.title || "Untitled Vastu Reel"}
                     </h4>
                     <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
@@ -335,13 +343,20 @@ export const DashboardOverviewPage: React.FC = () => {
                     </span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
-                    {reel.description || "No description provided"}
+                    {reel.description || reel.caption || "No description provided"}
                   </p>
                   <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
-                    <span>By @{reel.user?.username || "creator"}</span>
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" /> {reel.viewsCount || 0}
+                    <span className="font-semibold text-foreground">
+                      @{reel.creator?.username || reel.user?.username || "creator"}
                     </span>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-3 w-3" /> {reel.viewsCount || 0}
+                      </span>
+                      <span className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                        <Play className="h-2.5 w-2.5 fill-current" /> Play
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))
@@ -350,6 +365,15 @@ export const DashboardOverviewPage: React.FC = () => {
         </div>
         {/* Right Col: Backend Environment Status & Activity Feed */}
       </div>
+
+      {/* Reel Player Modal */}
+      <ReelPlayerModal
+        isOpen={isPlayerOpen}
+        reels={recentReels}
+        currentIndex={selectedReelIndex}
+        onClose={() => setIsPlayerOpen(false)}
+        onNavigate={(idx) => setSelectedReelIndex(idx)}
+      />
     </div>
   )
 }

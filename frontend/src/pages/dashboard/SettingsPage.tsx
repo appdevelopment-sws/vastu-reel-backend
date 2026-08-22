@@ -1,32 +1,29 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { authApi, API_BASE_URL } from '../../services/api';
-import {
-  User,
-  Database,
-  CheckCircle2,
-  AlertCircle,
-  Save,
-} from 'lucide-react';
+import React, { useState } from "react"
+import { useAuth } from "../../context/AuthContext"
+import { authApi, API_BASE_URL } from "../../services/api"
+import { User, Database, CheckCircle2, AlertCircle, Save } from "lucide-react"
 
 export const SettingsPage: React.FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth()
 
-  const [name, setName] = useState(user?.name || '');
-  const [username, setUsername] = useState(user?.username || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [age, setAge] = useState(user?.age ? String(user.age) : '');
-  const [address, setAddress] = useState(user?.address || '');
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState(user?.name || "")
+  const [username, setUsername] = useState(user?.username || "")
+  const [email, setEmail] = useState(user?.email || "")
+  const [phone, setPhone] = useState(user?.phone || "")
+  const [age, setAge] = useState(user?.age ? String(user.age) : "")
+  const [address, setAddress] = useState(user?.address || "")
+  const [password, setPassword] = useState("")
 
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{
+    type: "success" | "error"
+    text: string
+  } | null>(null)
 
   const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setMessage(null);
+    e.preventDefault()
+    setSaving(true)
+    setMessage(null)
 
     try {
       await authApi.updateProfile({
@@ -37,39 +34,44 @@ export const SettingsPage: React.FC = () => {
         age: age ? parseInt(age, 10) : undefined,
         address: address.trim() || undefined,
         password: password.trim() || undefined,
-      });
+      })
 
-      await refreshUser();
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
-      setPassword('');
+      await refreshUser()
+      setMessage({ type: "success", text: "Profile updated successfully!" })
+      setPassword("")
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to update profile settings';
-      setMessage({ type: 'error', text: Array.isArray(msg) ? msg.join(', ') : msg });
+      const msg =
+        err.response?.data?.message || "Failed to update profile settings"
+      setMessage({
+        type: "error",
+        text: Array.isArray(msg) ? msg.join(", ") : msg,
+      })
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   return (
-    <div className="space-y-6 max-w-4xl animate-in fade-in duration-300">
+    <div className="max-w-4xl animate-in space-y-6 duration-300 fade-in">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Platform Settings & Profile
         </h1>
         <p className="text-sm text-muted-foreground">
-          Manage your administrator account credentials and backend connection parameters
+          Manage your administrator account credentials and backend connection
+          parameters
         </p>
       </div>
 
       {message && (
         <div
           className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${
-            message.type === 'success'
-              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
-              : 'border-destructive/20 bg-destructive/10 text-destructive'
+            message.type === "success"
+              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+              : "border-destructive/20 bg-destructive/10 text-destructive"
           }`}
         >
-          {message.type === 'success' ? (
+          {message.type === "success" ? (
             <CheckCircle2 className="h-5 w-5 shrink-0" />
           ) : (
             <AlertCircle className="h-5 w-5 shrink-0" />
@@ -80,15 +82,15 @@ export const SettingsPage: React.FC = () => {
 
       {/* Profile Form */}
       <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
-        <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
+        <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-foreground">
           <User className="h-4 w-4 text-primary" />
           <span>Admin Profile Information</span>
         </h2>
 
         <form onSubmit={handleUpdate} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <label className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Display Name
               </label>
               <input
@@ -96,12 +98,12 @@ export const SettingsPage: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="mt-1.5 w-full rounded-xl border border-input bg-background py-2.5 px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <label className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Username
               </label>
               <input
@@ -109,14 +111,14 @@ export const SettingsPage: React.FC = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="mt-1.5 w-full rounded-xl border border-input bg-background py-2.5 px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <label className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Email Address
               </label>
               <input
@@ -124,12 +126,12 @@ export const SettingsPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="mt-1.5 w-full rounded-xl border border-input bg-background py-2.5 px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <label className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Change Password (Leave blank to keep current)
               </label>
               <input
@@ -137,14 +139,14 @@ export const SettingsPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="mt-1.5 w-full rounded-xl border border-input bg-background py-2.5 px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <label className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Phone
               </label>
               <input
@@ -152,31 +154,31 @@ export const SettingsPage: React.FC = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91..."
-                className="mt-1.5 w-full rounded-xl border border-input bg-background py-2.5 px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <label className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Age
               </label>
               <input
                 type="number"
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-input bg-background py-2.5 px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <label className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Address / City
               </label>
               <input
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-input bg-background py-2.5 px-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
               />
             </div>
           </div>
@@ -188,14 +190,16 @@ export const SettingsPage: React.FC = () => {
               className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
-              <span>{saving ? 'Saving changes...' : 'Save Profile Changes'}</span>
+              <span>
+                {saving ? "Saving changes..." : "Save Profile Changes"}
+              </span>
             </button>
           </div>
         </form>
       </div>
 
       {/* Backend API Configuration Info */}
-      <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
+      {/* <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
         <h2 className="text-base font-bold text-foreground mb-2 flex items-center gap-2">
           <Database className="h-4 w-4 text-emerald-500" />
           <span>Backend URL Configuration</span>
@@ -221,7 +225,7 @@ export const SettingsPage: React.FC = () => {
             </a>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
-  );
-};
+  )
+}
