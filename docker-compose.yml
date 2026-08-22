@@ -111,21 +111,26 @@ services:
     networks:
       - vastu_network
 
-  # Future React Admin Frontend Service (Uncomment & configure when adding frontend)
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: vastu_frontend
-  #   restart: always
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     REACT_APP_API_URL: http://localhost:8008/api/v1
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - vastu_network
+  # React Admin Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vastu_frontend
+    restart: always
+    ports:
+      - "3000:5173"
+      # - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8008/api/v1
+      REACT_APP_API_URL: http://localhost:8008/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - vastu_network
 
 networks:
   vastu_network:
