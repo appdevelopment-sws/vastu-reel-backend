@@ -95,7 +95,18 @@ export class ReelsController {
   @Delete(':id')
   deleteReel(@Req() req: any, @Param('id') id: string) {
     const userId = req.user.sub;
-    return this.reelsService.deleteReel(userId, id);
+    const userRoles = req.user.roles || [];
+    return this.reelsService.deleteReel(userId, id, userRoles);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a comment or reply' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Comment deleted successfully.' })
+  @Delete('comments/:commentId')
+  deleteComment(@Req() req: any, @Param('commentId') commentId: string) {
+    const userId = req.user.sub;
+    const userRoles = req.user.roles || [];
+    return this.reelsService.deleteComment(userId, commentId, userRoles);
   }
 
   @ApiBearerAuth()

@@ -6,9 +6,11 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardOverviewPage } from './pages/dashboard/DashboardOverviewPage';
 import { UsersPage } from './pages/dashboard/UsersPage';
+import { CreatorDetailPage } from './pages/dashboard/CreatorDetailPage';
 import { ReelsPage } from './pages/dashboard/ReelsPage';
 import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
 import { RolesPage } from './pages/dashboard/RolesPage';
+import { ActivityLogsPage } from './pages/dashboard/ActivityLogsPage';
 import { SettingsPage } from './pages/dashboard/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -43,7 +45,16 @@ export function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="users/:id"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <CreatorDetailPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="activity" element={<ActivityLogsPage />} />
             <Route
               path="roles"
               element={

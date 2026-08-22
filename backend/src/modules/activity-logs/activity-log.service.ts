@@ -99,6 +99,45 @@ export class ActivityLogService {
     };
   }
 
+  /**
+   * Returns all platform activity logs for administrators with optional filtering by type & search.
+   */
+  async getAllActivity(
+    page = 1,
+    limit = 30,
+    type?: string,
+    search?: string,
+  ): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+    const skip = (page - 1) * limit;
+
+    const qb = this.logRepository
+      .createQueryBuilder('log')
+      .leftJoinAndSelect('log.actor', 'actor')
+      .orderBy('log.createdAt', 'DESC');
+
+    if (type && type !== 'ALL') {
+      qb.andWhere('log.type = :type', { type });
+    }
+
+    if (search && search.trim()) {
+      qb.andWhere(
+        '(LOWER(log.message) LIKE LOWER(:search) OR LOWER(actor.name) LIKE LOWER(:search) OR LOWER(actor.username) LIKE LOWER(:search))',
+        { search: `%${search.trim()}%` },
+      );
+    }
+
+    qb.skip(skip).take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    return {
+      items: items.map((item) => this.formatEntry(item)),
+      total,
+      page,
+      limit,
+    };
+  }
+
   private formatEntry(log: ActivityLog): Record<string, any> {
     const actorDisplayName =
       log.actor?.username

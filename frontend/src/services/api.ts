@@ -111,6 +111,42 @@ export const usersApi = {
     return response.data;
   },
 
+  getCreatorSummary: async (id: string) => {
+    const response = await apiClient.get(`/users/${id}/creator-summary`);
+    return response.data;
+  },
+
+  getCreatorReels: async (
+    id: string,
+    params?: { page?: number; limit?: number; status?: string; search?: string }
+  ) => {
+    const response = await apiClient.get(`/users/${id}/reels`, { params });
+    return response.data;
+  },
+
+  getCreatorAnalytics: async (
+    id: string,
+    params?: { timeframe?: string; metric?: string }
+  ) => {
+    const response = await apiClient.get(`/users/${id}/analytics`, { params });
+    return response.data;
+  },
+
+  updateStatus: async (id: string, isActive: boolean, reason?: string) => {
+    const response = await apiClient.patch(`/users/${id}/status`, { isActive, reason });
+    return response.data;
+  },
+
+  block: async (id: string, reason?: string) => {
+    const response = await apiClient.patch(`/users/${id}/block`, { reason });
+    return response.data;
+  },
+
+  unblock: async (id: string) => {
+    const response = await apiClient.patch(`/users/${id}/unblock`);
+    return response.data;
+  },
+
   create: async (data: any) => {
     const response = await apiClient.post('/users', data);
     return response.data;
@@ -129,7 +165,7 @@ export const usersApi = {
 
 // Reels API
 export const reelsApi = {
-  getFeed: async (params?: { page?: number; limit?: number; category?: string }) => {
+  getFeed: async (params?: { page?: number; limit?: number; category?: string; search?: string }) => {
     const response = await apiClient.get('/reels/feed', { params });
     return response.data;
   },
@@ -144,44 +180,117 @@ export const reelsApi = {
     return response.data;
   },
 
+  initUpload: async (data: {
+    title: string;
+    caption?: string;
+    category?: string;
+    subCategory?: string;
+    propertyType?: string;
+    element?: string;
+    location?: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+  }) => {
+    const response = await apiClient.post('/reels/upload/init', data);
+    return response.data;
+  },
+
+  completeUpload: async (uploadId: string) => {
+    const response = await apiClient.post('/reels/upload/complete', { uploadId });
+    return response.data;
+  },
+
   delete: async (id: string) => {
     const response = await apiClient.delete(`/reels/${id}`);
+    return response.data;
+  },
+
+  getComments: async (reelId: string, params?: { page?: number; limit?: number; parentId?: string }) => {
+    const response = await apiClient.get(`/reels/${reelId}/comments`, { params });
+    return response.data;
+  },
+
+  addComment: async (reelId: string, data: { text: string; parentId?: string }) => {
+    const response = await apiClient.post(`/reels/${reelId}/comments`, data);
+    return response.data;
+  },
+
+  deleteComment: async (commentId: string) => {
+    const response = await apiClient.delete(`/reels/comments/${commentId}`);
     return response.data;
   },
 };
 
 // Analytics API
 export const analyticsApi = {
+  // Creator-scoped analytics
   getOverview: async (timeframe?: string) => {
     const response = await apiClient.get('/analytics/creator/overview', {
-      params: { timeframe: timeframe || '30d' },
+      params: { timeframe: timeframe || '28d' },
     });
     return response.data;
   },
 
-  getChartData: async (metric = 'views', timeframe = '30d') => {
+  getChartData: async (metric = 'views', timeframe = '28d') => {
     const response = await apiClient.get('/analytics/creator/chart', {
       params: { metric, timeframe },
     });
     return response.data;
   },
 
-  getTopReels: async (timeframe = '30d', limit = 5) => {
+  getTopReels: async (timeframe = '28d', limit = 10, sortBy = 'views') => {
     const response = await apiClient.get('/analytics/creator/top-reels', {
-      params: { timeframe, limit },
+      params: { timeframe, limit, sortBy },
     });
     return response.data;
   },
 
-  getCategories: async (timeframe = '30d') => {
+  getCategories: async (timeframe = '28d') => {
     const response = await apiClient.get('/analytics/creator/categories', {
       params: { timeframe },
     });
     return response.data;
   },
 
-  getAudience: async (timeframe = '30d') => {
+  getAudience: async (timeframe = '28d') => {
     const response = await apiClient.get('/analytics/creator/audience', {
+      params: { timeframe },
+    });
+    return response.data;
+  },
+
+  // Platform-wide analytics (Admin)
+  getPlatformOverview: async (timeframe?: string) => {
+    const response = await apiClient.get('/analytics/platform/overview', {
+      params: { timeframe: timeframe || '28d' },
+    });
+    return response.data;
+  },
+
+  getPlatformChart: async (metric = 'views', timeframe = '28d') => {
+    const response = await apiClient.get('/analytics/platform/chart', {
+      params: { metric, timeframe },
+    });
+    return response.data;
+  },
+
+  getPlatformTopReels: async (timeframe = '28d', limit = 10, sortBy = 'views') => {
+    const response = await apiClient.get('/analytics/platform/top-reels', {
+      params: { timeframe, limit, sortBy },
+    });
+    return response.data;
+  },
+
+  getPlatformCategories: async (timeframe = '28d') => {
+    const response = await apiClient.get('/analytics/platform/categories', {
+      params: { timeframe },
+    });
+    return response.data;
+  },
+
+  getPlatformAudience: async (timeframe = '28d') => {
+    const response = await apiClient.get('/analytics/platform/audience', {
       params: { timeframe },
     });
     return response.data;
@@ -190,6 +299,11 @@ export const analyticsApi = {
 
 // Activity Log API
 export const activityApi = {
+  getAll: async (params?: { page?: number; limit?: number; type?: string; search?: string }) => {
+    const response = await apiClient.get('/activity/all', { params });
+    return response.data;
+  },
+
   getMyActivity: async (page = 1, limit = 20) => {
     const response = await apiClient.get('/activity', {
       params: { page, limit },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { reelsApi } from "../../services/api"
 import { ReelPlayerModal, type ReelItem } from "../../components/ui/ReelPlayerModal"
+import { UploadReelModal } from "../../components/ui/UploadReelModal"
 import {
   Film,
   Eye,
@@ -10,10 +11,9 @@ import {
   Search,
   Filter,
   Play,
-  Layers,
-  Sparkles,
   Compass,
   MessageCircle,
+  Upload,
 } from "lucide-react"
 
 export const ReelsPage: React.FC = () => {
@@ -23,9 +23,10 @@ export const ReelsPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState("ALL")
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // Video Player Modal State
+  // Modals State
   const [isPlayerOpen, setIsPlayerOpen] = useState(false)
   const [selectedReelIndex, setSelectedReelIndex] = useState(0)
+  const [isUploadOpen, setIsUploadOpen] = useState(false)
 
   // Track failed thumbnail images to show fallbacks
   const [failedThumbnails, setFailedThumbnails] = useState<
@@ -96,23 +97,36 @@ export const ReelsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Vastu Video Library
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <span>Vastu Video Library</span>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              {reels.length} Published Videos
+            </span>
           </h1>
           <p className="text-sm text-muted-foreground">
-            Browse, play and inspect short videos, HLS streams & creator metadata
+            Browse, stream HLS videos, moderate comments, and upload new Vastu remedies
           </p>
         </div>
 
-        <button
-          onClick={fetchReels}
-          className="flex items-center gap-2 self-start rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground shadow-sm transition hover:bg-muted"
-        >
-          <RefreshCw
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-          />
-          <span>Refresh Feed</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsUploadOpen(true)}
+            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 transition hover:bg-primary/90 cursor-pointer"
+          >
+            <Upload className="h-4 w-4" />
+            <span>Upload New Reel</span>
+          </button>
+
+          <button
+            onClick={fetchReels}
+            className="flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground shadow-sm transition hover:bg-muted cursor-pointer"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+            />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Filters */}
@@ -323,6 +337,15 @@ export const ReelsPage: React.FC = () => {
         onClose={() => setIsPlayerOpen(false)}
         onNavigate={(newIndex) => setSelectedReelIndex(newIndex)}
         onDelete={handleDelete}
+      />
+
+      {/* Upload Video Reel Modal */}
+      <UploadReelModal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onSuccess={() => {
+          fetchReels()
+        }}
       />
     </div>
   )

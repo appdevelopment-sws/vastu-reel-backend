@@ -69,4 +69,42 @@ export class AnalyticsController {
     const userId = req.user.sub;
     return this.analyticsService.getMilestones(userId);
   }
+
+  // --- Platform Wide Analytics (Admin) ---
+
+  @ApiOperation({ summary: 'Get platform-wide overview analytics KPIs (Admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Platform overview metrics retrieved.' })
+  @Get('platform/overview')
+  getPlatformOverview(@Query() query: AnalyticsQueryDto) {
+    return this.analyticsService.getPlatformOverview(query.timeframe);
+  }
+
+  @ApiOperation({ summary: 'Get platform-wide interactive time-series chart data (Admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Platform chart data points retrieved.' })
+  @Get('platform/chart')
+  getPlatformChartData(@Query() query: ChartQueryDto) {
+    return this.analyticsService.getPlatformChartData(query);
+  }
+
+  @ApiOperation({ summary: 'Get platform-wide ranked top performing reels (Admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Platform top reels retrieved.' })
+  @Get('platform/top-reels')
+  getPlatformTopReels(@Req() req: any, @Query() query: TopReelsQueryDto) {
+    const requestHost = req.headers?.host;
+    return this.analyticsService.getPlatformTopReels(query, requestHost);
+  }
+
+  @ApiOperation({ summary: 'Get platform-wide category performance breakdown (Admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Platform category metrics retrieved.' })
+  @Get('platform/categories')
+  getPlatformCategories(@Query() query: AnalyticsQueryDto) {
+    return this.analyticsService.getPlatformCategories(query.timeframe);
+  }
+
+  @ApiOperation({ summary: 'Get platform-wide audience insights & regional distribution (Admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Platform audience insights retrieved.' })
+  @Get('platform/audience')
+  getPlatformAudience(@Query() query: AnalyticsQueryDto) {
+    return this.analyticsService.getPlatformAudience(query.timeframe);
+  }
 }

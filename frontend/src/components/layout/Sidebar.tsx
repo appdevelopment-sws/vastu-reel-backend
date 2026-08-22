@@ -51,6 +51,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       badge: null,
     },
     {
+      label: "Activity & Audit Logs",
+      path: "/dashboard/activity",
+      icon: Sparkles,
+      badge: "Live",
+    },
+    {
       label: "Roles & Access",
       path: "/dashboard/roles",
       icon: ShieldCheck,

@@ -356,14 +356,21 @@ export class ReelsService {
 
   /**
    * Deletes a Reel by ID (soft delete + triggers folder deletion in S3).
+   * Allows owner or SUPER_ADMIN / ADMIN to delete.
    */
-  async deleteReel(userId: string, id: string) {
+  async deleteReel(userId: string, id: string, userRoles?: string[]) {
     const reel = await this.reelRepository.findOne({ where: { id } });
     if (!reel) {
       throw new NotFoundException('Reel not found.');
     }
-    if (reel.userId !== userId) {
-      throw new ForbiddenException('You do not own this reel.');
+
+    const isAdmin =
+      userRoles?.includes('SUPER_ADMIN') ||
+      userRoles?.includes('ADMIN') ||
+      false;
+
+    if (reel.userId !== userId && !isAdmin) {
+      throw new ForbiddenException('You do not have permission to delete this reel.');
     }
 
     reel.status = ReelStatus.DELETED;
@@ -375,7 +382,44 @@ export class ReelsService {
       console.error(`Failed to delete S3 folder for Reel ${id}:`, err);
     });
 
-    return { success: true };
+    return { success: true, message: 'Reel deleted successfully.' };
+  }
+
+  /**
+   * Deletes a comment or reply (owner or admin).
+   */
+  async deleteComment(userId: string, commentId: string, userRoles?: string[]) {
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comment not found.');
+    }
+
+    const isAdmin =
+      userRoles?.includes('SUPER_ADMIN') ||
+      userRoles?.includes('ADMIN') ||
+      false;
+
+    if (comment.userId !== userId && !isAdmin) {
+      throw new ForbiddenException('You do not have permission to delete this comment.');
+    }
+
+    // Delete comment likes
+    await this.commentLikeRepository.delete({ commentId });
+
+    // If root comment, delete replies
+    if (!comment.parentId) {
+      const replies = await this.commentRepository.find({ where: { parentId: comment.id } });
+      for (const reply of replies) {
+        await this.commentLikeRepository.delete({ commentId: reply.id });
+      }
+      await this.commentRepository.delete({ parentId: comment.id });
+    }
+
+    await this.commentRepository.remove(comment);
+
+    return { success: true, message: 'Comment deleted successfully.' };
   }
 
   /**

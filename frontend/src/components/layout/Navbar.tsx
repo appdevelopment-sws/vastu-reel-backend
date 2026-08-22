@@ -1,7 +1,7 @@
 import React from "react"
 import { useAuth } from "../../context/AuthContext"
 import { useTheme } from "../theme-provider"
-import { Menu, Sun, Moon, Search, Bell, User as UserIcon } from "lucide-react"
+import { Menu, Sun, Moon, Search, User as UserIcon } from "lucide-react"
 
 interface NavbarProps {
   onOpenMobileSidebar: () => void

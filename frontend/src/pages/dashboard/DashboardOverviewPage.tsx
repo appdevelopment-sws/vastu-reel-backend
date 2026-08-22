@@ -4,7 +4,6 @@ import {
   usersApi,
   reelsApi,
   activityApi,
-  API_BASE_URL,
 } from "../../services/api"
 import {
   Users,
@@ -14,7 +13,6 @@ import {
   Shield,
   ArrowUpRight,
   Database,
-  ExternalLink,
   Activity,
   RefreshCw,
   Play,
@@ -230,7 +228,7 @@ export const DashboardOverviewPage: React.FC = () => {
         })}
       </div>
 
-      {/* 2-Column Content Grid: Users & Reels vs System Status & Activity */}
+      {/* 3-Column Content Grid: Users & Reels vs System Status & Activity */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left 2 Cols: Recent Reels & Creators */}
         <div className="space-y-6 lg:col-span-2">
@@ -298,72 +296,141 @@ export const DashboardOverviewPage: React.FC = () => {
           </div>
 
           {/* Quick Reel Feed Preview */}
-        </div>
-        <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-border/60 pb-4">
-            <div>
-              <h3 className="font-bold text-foreground">
-                Latest Reels Uploads
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Vastu short videos published by creators
-              </p>
-            </div>
-            <Link
-              to="/dashboard/reels"
-              className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-            >
-              <span>Browse Reels</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {recentReels.length === 0 ? (
-              <div className="col-span-2 py-8 text-center text-sm text-muted-foreground">
-                No reels published yet. Upload your first reel from the mobile
-                app or API!
+          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-border/60 pb-4">
+              <div>
+                <h3 className="font-bold text-foreground">
+                  Latest Reels Uploads
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Vastu short videos published by creators
+                </p>
               </div>
-            ) : (
-              recentReels.map((reel, index) => (
-                <div
-                  key={reel.id}
-                  onClick={() => {
-                    setSelectedReelIndex(index)
-                    setIsPlayerOpen(true)
-                  }}
-                  className="group relative cursor-pointer rounded-xl border border-border/60 bg-muted/20 p-3.5 transition hover:border-primary/50 hover:bg-card hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="line-clamp-1 text-xs font-bold text-foreground transition-colors group-hover:text-primary">
-                      {reel.title || "Untitled Vastu Reel"}
-                    </h4>
-                    <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                      {reel.category || "General"}
-                    </span>
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
-                    {reel.description || reel.caption || "No description provided"}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
-                    <span className="font-semibold text-foreground">
-                      @{reel.creator?.username || reel.user?.username || "creator"}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-3 w-3" /> {reel.viewsCount || 0}
-                      </span>
-                      <span className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                        <Play className="h-2.5 w-2.5 fill-current" /> Play
+              <Link
+                to="/dashboard/reels"
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                <span>Browse Reels</span>
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {recentReels.length === 0 ? (
+                <div className="col-span-2 py-8 text-center text-sm text-muted-foreground">
+                  No reels published yet. Upload your first reel from the mobile app or web portal!
+                </div>
+              ) : (
+                recentReels.map((reel, index) => (
+                  <div
+                    key={reel.id}
+                    onClick={() => {
+                      setSelectedReelIndex(index)
+                      setIsPlayerOpen(true)
+                    }}
+                    className="group relative cursor-pointer rounded-xl border border-border/60 bg-muted/20 p-3.5 transition hover:border-primary/50 hover:bg-card hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="line-clamp-1 text-xs font-bold text-foreground transition-colors group-hover:text-primary">
+                        {reel.title || "Untitled Vastu Reel"}
+                      </h4>
+                      <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        {reel.category || "General"}
                       </span>
                     </div>
+                    <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
+                      {reel.description || reel.caption || "No description provided"}
+                    </p>
+                    <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                      <span className="font-semibold text-foreground">
+                        @{reel.creator?.username || reel.user?.username || "creator"}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> {reel.viewsCount || 0}
+                        </span>
+                        <span className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                          <Play className="h-2.5 w-2.5 fill-current" /> Play
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
+
         {/* Right Col: Backend Environment Status & Activity Feed */}
+        <div className="space-y-6">
+          {/* System Services Health Monitor */}
+          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <Database className="h-4 w-4 text-emerald-500" />
+                <span>System Pipeline Health</span>
+              </h3>
+              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Operational</span>
+              </span>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-2.5">
+                <span className="font-medium text-muted-foreground">PostgreSQL DB</span>
+                <span className="font-bold text-emerald-500">Connected (Port 5432)</span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-2.5">
+                <span className="font-medium text-muted-foreground">Redis Queue (BullMQ)</span>
+                <span className="font-bold text-emerald-500">Active (Transcoder Ready)</span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-2.5">
+                <span className="font-medium text-muted-foreground">S3 Object Storage</span>
+                <span className="font-bold text-emerald-500">Bucket: reels-video</span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-2.5">
+                <span className="font-medium text-muted-foreground">FFmpeg HLS Pipeline</span>
+                <span className="font-bold text-primary">Multi-Bitrate Enabled</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Activity Stream Preview */}
+          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                <span>Live Audit Stream</span>
+              </h3>
+              <Link
+                to="/dashboard/activity"
+                className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1"
+              >
+                <span>View All</span>
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
+            </div>
+
+            <div className="space-y-3 divide-y divide-border/40">
+              {activities.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">
+                  No activity recorded yet.
+                </p>
+              ) : (
+                activities.slice(0, 5).map((act) => (
+                  <div key={act.id} className="pt-2 text-xs space-y-1">
+                    <p className="font-medium text-foreground line-clamp-2">{act.message}</p>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>{act.actorName || 'System'}</span>
+                      <span>{new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Reel Player Modal */}

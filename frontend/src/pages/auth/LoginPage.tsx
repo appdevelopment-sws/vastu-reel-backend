@@ -2,32 +2,28 @@ import React, { useState } from "react"
 import { useNavigate, useLocation, Link } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import {
-  Sparkles,
   Lock,
   Mail,
   Eye,
   EyeOff,
   ArrowRight,
   AlertCircle,
-  Database,
   CheckCircle2,
   Compass,
 } from "lucide-react"
-import { API_BASE_URL } from "../../services/api"
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login, seedAdmin, isAuthenticated } = useAuth()
+  const { login, isAuthenticated } = useAuth()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [seedLoading, setSeedLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [successMessage] = useState<string | null>(null)
 
   const from = (location.state as any)?.from?.pathname || "/dashboard"
 
@@ -66,29 +62,6 @@ export const LoginPage: React.FC = () => {
     setEmail("admin@gmail.com")
     setPassword("Admin@123")
     setError(null)
-  }
-
-  const handleSeedDatabase = async () => {
-    setSeedLoading(true)
-    setError(null)
-    setSuccessMessage(null)
-    try {
-      const res = await seedAdmin()
-      setSuccessMessage(
-        `${res.message || "Seeded successfully!"} Pre-filling admin credentials...`
-      )
-      setEmail(res.superAdminCredentials?.email || "admin@gmail.com")
-      setPassword(res.superAdminCredentials?.password || "Admin@123")
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-          "Failed to seed default admin. Is backend running at " +
-            API_BASE_URL +
-            "?"
-      )
-    } finally {
-      setSeedLoading(false)
-    }
   }
 
   return (
