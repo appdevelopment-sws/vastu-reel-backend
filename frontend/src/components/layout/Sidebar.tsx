@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronRight,
   Sparkles,
+  Flag,
   User as UserIcon,
 } from "lucide-react"
 
@@ -55,6 +56,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: "/dashboard/activity",
       icon: Sparkles,
       badge: "Live",
+    },
+    {
+      label: "Reports & Moderation",
+      path: "/dashboard/activity",
+      icon: Flag,
+      badge: "Reports",
     },
     {
       label: "Roles & Access",
@@ -149,6 +156,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </NavLink>
               )
             })}
+
+          <div className="my-2 border-t border-sidebar-border/60" />
+
+          <button
+            onClick={handleLogout}
+            className="group flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium text-destructive transition-all hover:bg-destructive/10"
+          >
+            <div className="flex items-center gap-3">
+              <LogOut className="h-4 w-4 shrink-0 transition-transform group-hover:scale-110" />
+              <span>Logout</span>
+            </div>
+          </button>
         </div>
 
         {/* Quick System Badge */}

@@ -295,6 +295,43 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Uploads a Buffer (e.g. from Multer) directly to S3.
+   */
+  async uploadBuffer(
+    buffer: Buffer,
+    key: string,
+    mimeType: string,
+    requestHost?: string,
+  ): Promise<string> {
+    const cleanKey = key.replace(/^\/+/, '');
+    try {
+      const command = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: cleanKey,
+        Body: buffer,
+        ContentType: mimeType,
+      });
+
+      await this.s3Client.send(command);
+      return this.getObjectUrl(cleanKey, requestHost);
+    } catch (err) {
+      console.warn(`S3 uploadBuffer failed for key ${cleanKey}, storing locally:`, err);
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads', path.dirname(cleanKey));
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const filePath = path.join(process.cwd(), 'public', 'uploads', cleanKey);
+      fs.writeFileSync(filePath, buffer);
+
+      let host = requestHost || 'localhost:8008';
+      if (!host.startsWith('http://') && !host.startsWith('https://')) {
+        host = `http://${host}`;
+      }
+      return `${host}/uploads/${cleanKey}`;
+    }
+  }
+
+  /**
    * Gets a public/direct URL for an object key.
    */
   getObjectUrl(key: string, requestHost?: string): string {

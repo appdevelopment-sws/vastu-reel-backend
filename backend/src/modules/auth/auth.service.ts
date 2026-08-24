@@ -196,6 +196,16 @@ export class AuthService implements OnModuleInit {
         phone: user.phone,
         age: user.age,
         address: user.address,
+        avatarUrl: user.avatarUrl,
+        coverImageUrl: user.coverImageUrl,
+        profession: user.profession,
+        bio: user.bio,
+        highlights: user.highlights,
+        whatsapp: user.whatsapp,
+        website: user.website,
+        rating: user.rating !== undefined ? Number(user.rating) : 4.8,
+        ratingsCount: user.ratingsCount || 0,
+        isVerified: user.isVerified || false,
         roles: roleNames,
         permissions,
         createdAt: user.createdAt,
@@ -227,6 +237,16 @@ export class AuthService implements OnModuleInit {
       phone: user.phone,
       age: user.age,
       address: user.address,
+      avatarUrl: user.avatarUrl,
+      coverImageUrl: user.coverImageUrl,
+      profession: user.profession,
+      bio: user.bio,
+      highlights: user.highlights,
+      whatsapp: user.whatsapp,
+      website: user.website,
+      rating: user.rating !== undefined ? Number(user.rating) : 4.8,
+      ratingsCount: user.ratingsCount || 0,
+      isVerified: user.isVerified || false,
       roles: roleNames,
       permissions,
       isActive: user.isActive,
@@ -286,6 +306,34 @@ export class AuthService implements OnModuleInit {
 
     if (dto.address !== undefined) {
       user.address = dto.address;
+    }
+
+    if (dto.avatarUrl !== undefined) {
+      user.avatarUrl = dto.avatarUrl;
+    }
+
+    if (dto.coverImageUrl !== undefined) {
+      user.coverImageUrl = dto.coverImageUrl;
+    }
+
+    if (dto.profession !== undefined) {
+      user.profession = dto.profession;
+    }
+
+    if (dto.bio !== undefined) {
+      user.bio = dto.bio;
+    }
+
+    if (dto.highlights !== undefined) {
+      user.highlights = dto.highlights;
+    }
+
+    if (dto.whatsapp !== undefined) {
+      user.whatsapp = dto.whatsapp;
+    }
+
+    if (dto.website !== undefined) {
+      user.website = dto.website;
     }
 
     if (dto.password && dto.password.trim().length > 0) {

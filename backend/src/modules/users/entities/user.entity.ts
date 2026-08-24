@@ -32,6 +32,36 @@ export class User {
   @Column({ nullable: true })
   address: string;
 
+  @Column({ nullable: true })
+  avatarUrl: string;
+
+  @Column({ nullable: true })
+  coverImageUrl: string;
+
+  @Column({ nullable: true })
+  profession: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio: string;
+
+  @Column({ nullable: true })
+  highlights: string;
+
+  @Column({ nullable: true })
+  whatsapp: string;
+
+  @Column({ nullable: true })
+  website: string;
+
+  @Column({ type: 'decimal', precision: 3, scale: 1, default: 4.8 })
+  rating: number;
+
+  @Column({ default: 0 })
+  ratingsCount: number;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
   @Column({ select: false })
   password: string;
 

@@ -8,13 +8,18 @@ import {
   Delete,
   Query,
   Req,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiQuery,
   ApiOperation,
   ApiResponse,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -22,7 +27,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
-@Controller(['users', 'user'])
+@Controller(['users', 'user', 'api/v1/users', 'api/v1/user'])
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -30,6 +35,64 @@ export class UsersController {
   @ApiOperation({ summary: 'Create a new user account' })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Post('upload-url')
+  @ApiOperation({ summary: 'Generate presigned S3/R2 upload URL for avatar or cover image' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        mimeType: { type: 'string', default: 'image/jpeg' },
+        type: { type: 'string', enum: ['avatar', 'cover'], default: 'avatar' },
+      },
+    },
+  })
+  getUploadUrl(
+    @Req() req: any,
+    @Body('mimeType') mimeType?: string,
+    @Body('type') type?: 'avatar' | 'cover',
+    @Body('userId') bodyUserId?: string,
+  ) {
+    const userId = req.user?.sub || bodyUserId;
+    const requestHost = req.headers?.host;
+    return this.usersService.getPresignedUploadUrl(
+      userId,
+      mimeType || 'image/jpeg',
+      type || 'avatar',
+      requestHost,
+    );
+  }
+
+  @Post('upload-media')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload profile avatar or cover image' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        type: {
+          type: 'string',
+          enum: ['avatar', 'cover'],
+          default: 'avatar',
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  uploadMedia(
+    @Req() req: any,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('type') type?: 'avatar' | 'cover',
+    @Body('userId') bodyUserId?: string,
+  ) {
+    const userId = req.user?.sub || bodyUserId;
+    const requestHost = req.headers?.host;
+    return this.usersService.uploadMedia(userId, file, type || 'avatar', requestHost);
   }
 
   @Get()

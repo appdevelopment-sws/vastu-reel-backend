@@ -63,6 +63,41 @@ export class CreateUserDto {
   @IsString()
   address?: string;
 
+  @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @ApiPropertyOptional({ example: 'https://example.com/cover.jpg' })
+  @IsOptional()
+  @IsString()
+  coverImageUrl?: string;
+
+  @ApiPropertyOptional({ example: 'Builder & Developer' })
+  @IsOptional()
+  @IsString()
+  profession?: string;
+
+  @ApiPropertyOptional({ example: 'Building happy spaces with trust & quality.' })
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
+  @ApiPropertyOptional({ example: 'RERA Verified • 15+ Projects Delivered' })
+  @IsOptional()
+  @IsString()
+  highlights?: string;
+
+  @ApiPropertyOptional({ example: '+919876543210' })
+  @IsOptional()
+  @IsString()
+  whatsapp?: string;
+
+  @ApiPropertyOptional({ example: 'https://amanbuilders.com' })
+  @IsOptional()
+  @IsString()
+  website?: string;
+
   @ApiPropertyOptional({
     example: 'SecurePassword123!',
     description: 'Account password',

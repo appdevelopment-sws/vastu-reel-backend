@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
@@ -26,6 +27,16 @@ export interface FormattedUserResponse {
   phone?: string;
   age?: number;
   address?: string;
+  avatarUrl?: string;
+  coverImageUrl?: string;
+  profession?: string;
+  bio?: string;
+  highlights?: string;
+  whatsapp?: string;
+  website?: string;
+  rating?: number;
+  ratingsCount?: number;
+  isVerified?: boolean;
   isActive: boolean;
   status: 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
   roles?: string[];
@@ -79,6 +90,16 @@ export class UsersService {
       phone: user.phone || undefined,
       age: user.age || undefined,
       address: user.address || undefined,
+      avatarUrl: user.avatarUrl || undefined,
+      coverImageUrl: user.coverImageUrl || undefined,
+      profession: user.profession || undefined,
+      bio: user.bio || undefined,
+      highlights: user.highlights || undefined,
+      whatsapp: user.whatsapp || undefined,
+      website: user.website || undefined,
+      rating: user.rating !== undefined ? Number(user.rating) : 4.8,
+      ratingsCount: user.ratingsCount || 0,
+      isVerified: user.isVerified || false,
       isActive: user.isActive,
       status: user.isActive ? 'ACTIVE' : 'BLOCKED',
       roles: user.roles ? user.roles.map((r) => r.name) : [],
@@ -139,6 +160,13 @@ export class UsersService {
       phone: createUserDto.phone ? createUserDto.phone.trim() : undefined,
       age: createUserDto.age,
       address: createUserDto.address ? createUserDto.address.trim() : undefined,
+      avatarUrl: createUserDto.avatarUrl,
+      coverImageUrl: createUserDto.coverImageUrl,
+      profession: createUserDto.profession,
+      bio: createUserDto.bio,
+      highlights: createUserDto.highlights,
+      whatsapp: createUserDto.whatsapp,
+      website: createUserDto.website,
       password: hashedPassword,
       isActive:
         createUserDto.isActive !== undefined ? createUserDto.isActive : true,
@@ -650,6 +678,27 @@ export class UsersService {
         ? updateUserDto.address.trim()
         : (null as any);
     }
+    if (updateUserDto.avatarUrl !== undefined) {
+      user.avatarUrl = updateUserDto.avatarUrl;
+    }
+    if (updateUserDto.coverImageUrl !== undefined) {
+      user.coverImageUrl = updateUserDto.coverImageUrl;
+    }
+    if (updateUserDto.profession !== undefined) {
+      user.profession = updateUserDto.profession;
+    }
+    if (updateUserDto.bio !== undefined) {
+      user.bio = updateUserDto.bio;
+    }
+    if (updateUserDto.highlights !== undefined) {
+      user.highlights = updateUserDto.highlights;
+    }
+    if (updateUserDto.whatsapp !== undefined) {
+      user.whatsapp = updateUserDto.whatsapp;
+    }
+    if (updateUserDto.website !== undefined) {
+      user.website = updateUserDto.website;
+    }
 
     if (updateUserDto.isActive !== undefined) {
       user.isActive = updateUserDto.isActive;
@@ -690,6 +739,81 @@ export class UsersService {
     return {
       success: true,
       message: `User '${user.name}' has been successfully deleted.`,
+    };
+  }
+
+  /**
+   * Generates a pre-signed S3/R2 URL for direct client-side upload (Avatar or Cover)
+   */
+  async getPresignedUploadUrl(
+    userId: string,
+    mimeType: string = 'image/jpeg',
+    type: 'avatar' | 'cover' = 'avatar',
+    requestHost?: string,
+  ): Promise<{ uploadUrl: string; key: string; publicUrl: string }> {
+    if (!userId) {
+      throw new BadRequestException('User ID is required for upload URL generation.');
+    }
+
+    const ext = mimeType.split('/')[1] || 'jpg';
+    const folder = type === 'cover' ? 'covers' : 'avatars';
+    const key = `users/${folder}/${userId}/${Date.now()}.${ext}`;
+
+    const uploadUrl = await this.storageService.getPresignedUploadUrl(
+      key,
+      mimeType,
+      900,
+      requestHost,
+    );
+
+    const publicUrl = this.storageService.getObjectUrl(key, requestHost);
+
+    return {
+      uploadUrl,
+      key,
+      publicUrl,
+    };
+  }
+
+  /**
+   * Upload user media (avatar or cover image)
+   */
+  async uploadMedia(
+    userId: string,
+    file: Express.Multer.File,
+    type: 'avatar' | 'cover' = 'avatar',
+    requestHost?: string,
+  ): Promise<{ url: string; field: string }> {
+    if (!file) {
+      throw new BadRequestException('No image file provided.');
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const ext = file.originalname ? file.originalname.split('.').pop() || 'jpg' : 'jpg';
+    const folder = type === 'cover' ? 'covers' : 'avatars';
+    const storageKey = `users/${folder}/${userId}/${Date.now()}.${ext}`;
+
+    const url = await this.storageService.uploadBuffer(
+      file.buffer,
+      storageKey,
+      file.mimetype || 'image/jpeg',
+      requestHost,
+    );
+
+    if (type === 'cover') {
+      user.coverImageUrl = url;
+    } else {
+      user.avatarUrl = url;
+    }
+    await this.userRepository.save(user);
+
+    return {
+      url,
+      field: type === 'cover' ? 'coverImageUrl' : 'avatarUrl',
     };
   }
 }

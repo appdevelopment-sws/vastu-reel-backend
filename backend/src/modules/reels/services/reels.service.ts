@@ -237,6 +237,7 @@ export class ReelsService {
       reels.map(async (reel) => {
         const likesCount = await this.likeRepository.count({ where: { reelId: reel.id } });
         const commentsCount = await this.commentRepository.count({ where: { reelId: reel.id } });
+        const bookmarksCount = await this.bookmarkRepository.count({ where: { reelId: reel.id } });
 
         let isLiked = false;
         let isBookmarked = false;
@@ -266,6 +267,7 @@ export class ReelsService {
           createdAt: reel.createdAt,
           likesCount,
           commentsCount,
+          bookmarksCount,
           viewsCount: String(reel.viewsCount),
           videoUrl,
           thumbnailUrl,
@@ -290,6 +292,7 @@ export class ReelsService {
       total,
       page,
       limit,
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -308,6 +311,7 @@ export class ReelsService {
 
     const likesCount = await this.likeRepository.count({ where: { reelId: reel.id } });
     const commentsCount = await this.commentRepository.count({ where: { reelId: reel.id } });
+    const bookmarksCount = await this.bookmarkRepository.count({ where: { reelId: reel.id } });
 
     let isLiked = false;
     let isBookmarked = false;
@@ -336,6 +340,7 @@ export class ReelsService {
       createdAt: reel.createdAt,
       likesCount,
       commentsCount,
+      bookmarksCount,
       viewsCount: String(reel.viewsCount),
       videoUrl,
       thumbnailUrl,
