@@ -136,3 +136,46 @@ export class FeedQueryDto {
   @IsOptional()
   search?: string;
 }
+
+export class UpdateReelDto {
+  @ApiProperty({ example: 'Updated Title', required: false })
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @ApiProperty({ example: 'Updated caption...', required: false })
+  @IsString()
+  @IsOptional()
+  caption?: string;
+
+  @ApiProperty({ example: 'kitchen', required: false })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @ApiProperty({ example: 'desk_facing', required: false })
+  @IsString()
+  @IsOptional()
+  subCategory?: string;
+
+  @ApiProperty({ example: 'commercial', required: false })
+  @IsString()
+  @IsOptional()
+  propertyType?: string;
+
+  @ApiProperty({ example: 'Air', required: false })
+  @IsString()
+  @IsOptional()
+  element?: string;
+
+  @ApiProperty({ example: 'Mumbai, India', required: false })
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @ApiProperty({ example: 'https://images.unsplash.com/...', required: false })
+  @IsString()
+  @IsOptional()
+  thumbnailUrl?: string;
+}
+

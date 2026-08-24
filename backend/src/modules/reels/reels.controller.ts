@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Delete,
   Body,
   Param,
@@ -18,7 +19,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
 import { ReelsService } from './services/reels.service';
-import { InitUploadDto, CompleteUploadDto, CreateCommentDto, CommentQueryDto, FeedQueryDto } from './dto/reels.dto';
+import { InitUploadDto, CompleteUploadDto, CreateCommentDto, CommentQueryDto, FeedQueryDto, UpdateReelDto } from './dto/reels.dto';
 import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Reels')
@@ -97,6 +98,20 @@ export class ReelsController {
     const userId = req.user.sub;
     const userRoles = req.user.roles || [];
     return this.reelsService.deleteReel(userId, id, userRoles);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a reel metadata (title, caption, category, thumbnail, etc.)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Reel metadata updated successfully.' })
+  @Patch(':id')
+  updateReel(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateReelDto,
+  ) {
+    const userId = req.user.sub;
+    const requestHost = req.headers.host;
+    return this.reelsService.updateReel(userId, id, dto, requestHost);
   }
 
   @ApiBearerAuth()

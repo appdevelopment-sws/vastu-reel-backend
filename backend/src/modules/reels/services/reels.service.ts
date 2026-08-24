@@ -15,7 +15,7 @@ import { ReelBookmark } from '../entities/reel-bookmark.entity';
 import { User } from '../../users/entities/user.entity';
 import { Follow } from '../../follows/entities/follow.entity';
 import { StorageService } from './storage.service';
-import { InitUploadDto, CreateCommentDto, CommentQueryDto, FeedQueryDto } from '../dto/reels.dto';
+import { InitUploadDto, CreateCommentDto, CommentQueryDto, FeedQueryDto, UpdateReelDto } from '../dto/reels.dto';
 import { ActivityLogService } from '../../activity-logs/activity-log.service';
 import { ActivityLogType } from '../../activity-logs/entities/activity-log.entity';
 
@@ -275,12 +275,21 @@ export class ReelsService {
           isBookmarked,
           mediaUrls: thumbnailUrl ? [thumbnailUrl] : [],
           creator: {
-            id: reel.user?.id || 'c_unknown',
-            name: reel.user?.name || 'Vastu Advisor',
-            username: reel.user?.username || null,
-            avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-            isVerified: true,
-            title: 'Certified Consultant',
+            id: reel.user?.id || reel.userId || 'c_unknown',
+            name: reel.user?.name || reel.user?.username || 'Vastu Creator',
+            username: reel.user?.username || '',
+            avatarUrl: reel.user?.avatarUrl || '',
+            coverImageUrl: reel.user?.coverImageUrl || '',
+            profession: reel.user?.profession || '',
+            bio: reel.user?.bio || '',
+            location: reel.user?.address || reel.location || '',
+            highlights: reel.user?.highlights || '',
+            whatsapp: reel.user?.whatsapp || reel.user?.phone || '',
+            website: reel.user?.website || '',
+            rating: reel.user?.rating ? Number(reel.user.rating) : 4.8,
+            ratingsCount: reel.user?.ratingsCount || 0,
+            isVerified: reel.user?.isVerified ?? true,
+            title: reel.user?.profession || 'Certified Consultant',
             isFollowing: isFollowingCreator,
           },
         };
@@ -348,12 +357,21 @@ export class ReelsService {
       isBookmarked,
       mediaUrls: thumbnailUrl ? [thumbnailUrl] : [],
       creator: {
-        id: reel.user?.id || 'c_unknown',
-        name: reel.user?.name || 'Vastu Advisor',
-        username: reel.user?.username || null,
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-        isVerified: true,
-        title: 'Certified Consultant',
+        id: reel.user?.id || reel.userId || 'c_unknown',
+        name: reel.user?.name || reel.user?.username || 'Vastu Creator',
+        username: reel.user?.username || '',
+        avatarUrl: reel.user?.avatarUrl || '',
+        coverImageUrl: reel.user?.coverImageUrl || '',
+        profession: reel.user?.profession || '',
+        bio: reel.user?.bio || '',
+        location: reel.user?.address || reel.location || '',
+        highlights: reel.user?.highlights || '',
+        whatsapp: reel.user?.whatsapp || reel.user?.phone || '',
+        website: reel.user?.website || '',
+        rating: reel.user?.rating ? Number(reel.user.rating) : 4.8,
+        ratingsCount: reel.user?.ratingsCount || 0,
+        isVerified: reel.user?.isVerified ?? true,
+        title: reel.user?.profession || 'Certified Consultant',
         isFollowing: isFollowingCreator,
       },
     };
@@ -964,4 +982,42 @@ export class ReelsService {
 
     return validCreators;
   }
+
+  /**
+   * Updates metadata for an existing reel (title, caption, thumbnail, etc.).
+   * The original video media file cannot be replaced.
+   */
+  async updateReel(userId: string, id: string, dto: UpdateReelDto, requestHost?: string) {
+    const reel = await this.reelRepository.findOne({
+      where: { id },
+      relations: { media: true, user: true },
+    });
+
+    if (!reel) {
+      throw new NotFoundException('Reel not found.');
+    }
+
+    if (reel.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to edit this reel.');
+    }
+
+    if (dto.title !== undefined) reel.title = dto.title;
+    if (dto.caption !== undefined) reel.caption = dto.caption;
+    if (dto.category !== undefined) reel.category = dto.category;
+    if (dto.subCategory !== undefined) reel.subCategory = dto.subCategory;
+    if (dto.propertyType !== undefined) reel.propertyType = dto.propertyType;
+    if (dto.element !== undefined) reel.element = dto.element;
+    if (dto.location !== undefined) reel.location = dto.location;
+
+    if (dto.thumbnailUrl !== undefined) {
+      if (reel.media) {
+        reel.media.thumbnailKey = dto.thumbnailUrl;
+        await this.mediaRepository.save(reel.media);
+      }
+    }
+
+    await this.reelRepository.save(reel);
+    return this.getById(id, userId, requestHost);
+  }
 }
+
