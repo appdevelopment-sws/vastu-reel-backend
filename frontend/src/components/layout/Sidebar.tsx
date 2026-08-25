@@ -12,7 +12,6 @@ import {
   LogOut,
   ChevronRight,
   Sparkles,
-  Flag,
   MessageCircle,
   User as UserIcon,
 } from "lucide-react"

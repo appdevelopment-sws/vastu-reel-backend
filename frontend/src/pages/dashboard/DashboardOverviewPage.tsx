@@ -4,6 +4,7 @@ import {
   usersApi,
   reelsApi,
   activityApi,
+  analyticsApi,
 } from "../../services/api"
 import {
   Users,
@@ -12,12 +13,10 @@ import {
   TrendingUp,
   Shield,
   ArrowUpRight,
-  Database,
   Activity,
   RefreshCw,
   Play,
   Trophy,
-  Sparkles,
   BadgeCheck,
 } from "lucide-react"
 import { Link } from "react-router-dom"
@@ -66,7 +65,7 @@ export const DashboardOverviewPage: React.FC = () => {
         console.warn("Leaderboard fetch error", e)
       }
 
-      // 2. Fetch reels
+      // 3. Fetch reels
       let reelsList: any[] = []
       try {
         const feedRes = await reelsApi.getFeed({ page: 1, limit: 10 })
@@ -78,7 +77,7 @@ export const DashboardOverviewPage: React.FC = () => {
         console.warn("Reels fetch error", e)
       }
 
-      // 3. Fetch activity logs
+      // 4. Fetch activity logs
       try {
         const actRes = await activityApi.getGlobalActivity(1, 6)
         const actList = Array.isArray(actRes)
@@ -89,6 +88,14 @@ export const DashboardOverviewPage: React.FC = () => {
         console.warn("Activity fetch error", e)
       }
 
+      // 5. Fetch platform overview analytics
+      let platformOverview: any = null
+      try {
+        platformOverview = await analyticsApi.getPlatformOverview("all")
+      } catch (e) {
+        console.warn("Platform overview fetch error", e)
+      }
+
       // Compute stats
       const creatorsCount = usersList.filter((u: any) =>
         u.roles?.some((r: any) =>
@@ -96,16 +103,20 @@ export const DashboardOverviewPage: React.FC = () => {
         )
       ).length
 
-      const totalViewsCount = reelsList.reduce(
-        (acc: number, item: any) => acc + (item.viewsCount || item.views || 0),
+      const fallbackViews = reelsList.reduce(
+        (acc: number, item: any) => acc + Number(item.viewsCount || item.views || 0),
         0
       )
 
       setStats({
-        totalUsers: usersList.length,
-        totalCreators: creatorsCount,
-        totalReels: reelsList.length,
-        totalViews: totalViewsCount,
+        totalUsers: platformOverview?.totalUsers ?? usersList.length,
+        totalCreators: platformOverview?.totalCreators ?? creatorsCount,
+        totalReels: platformOverview?.totalReels ?? reelsList.length,
+        totalViews: Number(
+          platformOverview?.views?.allTimeTotal ??
+          platformOverview?.totalViews ??
+          fallbackViews
+        ),
       })
     } finally {
       setLoading(false)

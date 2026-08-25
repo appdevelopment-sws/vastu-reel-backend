@@ -96,7 +96,7 @@ export class AnalyticsService {
     const reelIds = creatorReels.map((r) => r.id);
 
     const totalReels = creatorReels.length;
-    const allTimeViews = creatorReels.reduce((sum, r) => sum + (r.viewsCount || 0), 0);
+    const allTimeViews = creatorReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
 
     let currentViews = 0;
     let previousViews = 0;
@@ -253,7 +253,7 @@ export class AnalyticsService {
       select: { id: true, viewsCount: true },
     });
     const reelIds = creatorReels.map((r) => r.id);
-    const totalViews = creatorReels.reduce((sum, r) => sum + (r.viewsCount || 0), 0);
+    const totalViews = creatorReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
 
     // Build day buckets
     const pointsCount = days <= 7 ? 7 : days <= 28 ? 14 : 15;
@@ -415,11 +415,11 @@ export class AnalyticsService {
     for (const r of reels) {
       const cat = r.category || 'General Vastu';
       const existing = categoryMap.get(cat) || { views: 0, likes: 0, reelCount: 0 };
-      existing.views += r.viewsCount || 0;
+      existing.views += Number(r.viewsCount || 0);
       existing.likes += r.likes?.length || 0;
       existing.reelCount += 1;
       categoryMap.set(cat, existing);
-      totalViewsAcrossCategories += r.viewsCount || 0;
+      totalViewsAcrossCategories += Number(r.viewsCount || 0);
     }
 
     const categories = Array.from(categoryMap.entries()).map(([name, data]) => {
@@ -624,7 +624,7 @@ export class AnalyticsService {
       where: { userId, status: ReelStatus.READY },
       select: { id: true, viewsCount: true },
     });
-    const totalViews = creatorReels.reduce((sum, r) => sum + (r.viewsCount || 0), 0);
+    const totalViews = creatorReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
     const totalFollowers = await this.followRepository.count({ where: { followingId: userId } });
 
     const milestones = [
@@ -695,7 +695,7 @@ export class AnalyticsService {
     });
     const reelIds = allReels.map((r) => r.id);
     const totalReels = allReels.length;
-    const allTimeViews = allReels.reduce((sum, r) => sum + (r.viewsCount || 0), 0);
+    const allTimeViews = allReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
 
     const totalUsers = await this.userRepository.count();
     const uniqueCreators = new Set(allReels.map((r) => r.userId)).size;
@@ -811,7 +811,7 @@ export class AnalyticsService {
       where: { status: ReelStatus.READY },
       select: { id: true, viewsCount: true },
     });
-    const totalViews = allReels.reduce((sum, r) => sum + (r.viewsCount || 0), 0);
+    const totalViews = allReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
 
     const pointsCount = days <= 7 ? 7 : days <= 28 ? 14 : 15;
     const bucketIntervalMs = (days * 24 * 60 * 60 * 1000) / pointsCount;
@@ -966,11 +966,11 @@ export class AnalyticsService {
     for (const r of reels) {
       const cat = r.category || 'General Vastu';
       const existing = categoryMap.get(cat) || { views: 0, likes: 0, reelCount: 0 };
-      existing.views += r.viewsCount || 0;
+      existing.views += Number(r.viewsCount || 0);
       existing.likes += r.likes?.length || 0;
       existing.reelCount += 1;
       categoryMap.set(cat, existing);
-      totalViewsAcrossCategories += r.viewsCount || 0;
+      totalViewsAcrossCategories += Number(r.viewsCount || 0);
     }
 
     const categories = Array.from(categoryMap.entries()).map(([name, data]) => {

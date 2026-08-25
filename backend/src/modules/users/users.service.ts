@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, Not } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { Role } from '../roles/entities/role.entity';
@@ -228,8 +228,8 @@ export class UsersService {
       .addSelect('COUNT(reel.id)', 'videoCount')
       .addSelect('COALESCE(SUM(reel.viewsCount), 0)', 'totalViews')
       .where('reel.userId IN (:...userIds)', { userIds })
-      .andWhere('reel.status != :deletedStatus', {
-        deletedStatus: ReelStatus.DELETED,
+      .andWhere('reel.status = :status', {
+        status: ReelStatus.READY,
       })
       .groupBy('reel.userId')
       .getRawMany();
@@ -288,7 +288,7 @@ export class UsersService {
       where: { userId: id, status: ReelStatus.READY },
       select: { viewsCount: true },
     });
-    const totalViews = reels.reduce((acc, r) => acc + (r.viewsCount || 0), 0);
+    const totalViews = reels.reduce((acc, r) => acc + Number(r.viewsCount || 0), 0);
 
     const followersCount = await this.followRepository.count({
       where: { followingId: id },
@@ -315,14 +315,14 @@ export class UsersService {
     }
 
     const allReels = await this.reelRepository.find({
-      where: { userId },
+      where: { userId, status: Not(ReelStatus.DELETED) },
       relations: { likes: true, comments: true, bookmarks: true },
     });
 
-    const totalReels = allReels.length;
     const readyReels = allReels.filter((r) => r.status === ReelStatus.READY).length;
     const processingReels = allReels.filter((r) => r.status === ReelStatus.PROCESSING || r.status === ReelStatus.UPLOADING).length;
     const failedReels = allReels.filter((r) => r.status === ReelStatus.FAILED).length;
+    const totalReels = allReels.length;
 
     let totalViews = 0;
     let totalLikes = 0;
@@ -330,7 +330,7 @@ export class UsersService {
     let totalBookmarks = 0;
 
     for (const r of allReels) {
-      totalViews += r.viewsCount || 0;
+      totalViews += Number(r.viewsCount || 0);
       totalLikes += r.likes ? r.likes.length : 0;
       totalComments += r.comments ? r.comments.length : 0;
       totalBookmarks += r.bookmarks ? r.bookmarks.length : 0;
@@ -354,13 +354,14 @@ export class UsersService {
 
     return {
       user: this.formatUser(user, {
-        videoCount: totalReels,
+        videoCount: readyReels,
         totalViews,
         totalLikes,
         followersCount,
       }),
       stats: {
-        totalReels,
+        totalReels: readyReels,
+        allUploadedReels: totalReels,
         readyReels,
         processingReels,
         failedReels,
@@ -399,6 +400,10 @@ export class UsersService {
 
     if (query.status && query.status !== 'ALL') {
       qb.andWhere('reel.status = :status', { status: query.status });
+    } else {
+      qb.andWhere('reel.status != :deletedStatus', {
+        deletedStatus: ReelStatus.DELETED,
+      });
     }
 
     if (query.search && query.search.trim()) {
@@ -501,7 +506,7 @@ export class UsersService {
     const currentStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
     const reels = await this.reelRepository.find({
-      where: { userId },
+      where: { userId, status: Not(ReelStatus.DELETED) },
       relations: { likes: true, comments: true, bookmarks: true },
     });
 
@@ -516,7 +521,7 @@ export class UsersService {
       comments: number;
     }[] = [];
 
-    const totalViews = reels.reduce((acc, r) => acc + (r.viewsCount || 0), 0);
+    const totalViews = reels.reduce((acc, r) => acc + Number(r.viewsCount || 0), 0);
     const totalLikes = reels.reduce((acc, r) => acc + (r.likes?.length || 0), 0);
     const totalComments = reels.reduce(
       (acc, r) => acc + (r.comments?.length || 0),
@@ -559,7 +564,7 @@ export class UsersService {
       const existing = categoryMap.get(cat) || { count: 0, views: 0 };
       categoryMap.set(cat, {
         count: existing.count + 1,
-        views: existing.views + (r.viewsCount || 0),
+        views: existing.views + Number(r.viewsCount || 0),
       });
     }
 

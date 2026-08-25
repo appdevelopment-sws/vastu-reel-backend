@@ -19,7 +19,6 @@ import {
   Edit3,
   Sparkles,
   SlidersHorizontal,
-  CheckCircle2,
   BadgeCheck,
 } from 'lucide-react';
 
@@ -148,8 +147,8 @@ export const UsersPage: React.FC = () => {
     (u.roles || []).some((r: any) => (r.name || r) === 'CREATOR') || (u.videoCount ?? 0) > 0
   ).length;
 
-  const totalVideos = users.reduce((sum, u) => sum + (u.videoCount || 0), 0);
-  const totalViews = users.reduce((sum, u) => sum + (u.totalViews || 0), 0);
+  const totalVideos = users.reduce((sum, u) => sum + Number(u.videoCount || 0), 0);
+  const totalViews = users.reduce((sum, u) => sum + Number(u.totalViews || 0), 0);
   const totalBlocked = users.filter((u) => u.isActive === false).length;
 
   return (
@@ -340,7 +339,9 @@ export const UsersPage: React.FC = () => {
                             <div className="font-bold text-foreground group-hover:text-primary transition flex items-center gap-1.5">
                               <span>{u.name}</span>
                               {u.isVerified && (
-                                <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" title="Verified Vastu Expert" />
+                                <span title="Verified Vastu Expert">
+                                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                                </span>
                               )}
                               <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition text-primary" />
                             </div>

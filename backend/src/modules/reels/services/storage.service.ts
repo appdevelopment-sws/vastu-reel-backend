@@ -34,7 +34,7 @@ export class StorageService implements OnModuleInit {
 
     this.bucketName = this.configService.get<string>(
       'S3_BUCKET_NAME',
-      'vastu-reels',
+      'vastu-video',
     );
     this.clientEndpoint = this.configService.get<string>('S3_CLIENT_ENDPOINT');
 
@@ -315,8 +315,16 @@ export class StorageService implements OnModuleInit {
       await this.s3Client.send(command);
       return this.getObjectUrl(cleanKey, requestHost);
     } catch (err) {
-      console.warn(`S3 uploadBuffer failed for key ${cleanKey}, storing locally:`, err);
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads', path.dirname(cleanKey));
+      console.warn(
+        `S3 uploadBuffer failed for key ${cleanKey}, storing locally:`,
+        err,
+      );
+      const uploadsDir = path.join(
+        process.cwd(),
+        'public',
+        'uploads',
+        path.dirname(cleanKey),
+      );
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }

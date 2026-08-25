@@ -8,7 +8,6 @@ import {
   Filter,
   Trash2,
   RefreshCw,
-  Eye,
   CheckCircle2,
   Sparkles,
   ChevronLeft,

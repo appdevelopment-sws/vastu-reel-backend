@@ -382,12 +382,16 @@ export const CreatorDetailPage: React.FC = () => {
             <Video className="h-4 w-4 text-primary" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
-            {stats.totalReels ?? 0}
+            {stats.readyReels ?? stats.totalReels ?? 0}
           </div>
           <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
             <span className="text-emerald-500 font-semibold">{stats.readyReels ?? 0} Ready</span>
-            <span>•</span>
-            <span>{stats.processingReels ?? 0} Processing</span>
+            {Boolean(stats.processingReels) && (
+              <>
+                <span>•</span>
+                <span className="text-amber-500">{stats.processingReels} Processing</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -482,7 +486,7 @@ export const CreatorDetailPage: React.FC = () => {
             }`}
           >
             <Film className="h-4 w-4" />
-            <span>Uploaded Videos Library ({stats.totalReels ?? 0})</span>
+            <span>Uploaded Videos Library ({stats.readyReels ?? stats.totalReels ?? 0})</span>
           </button>
 
           <button
