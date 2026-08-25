@@ -16,6 +16,9 @@ import {
   Activity,
   RefreshCw,
   Play,
+  Trophy,
+  Sparkles,
+  BadgeCheck,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { ReelPlayerModal, type ReelItem } from "../../components/ui/ReelPlayerModal"
@@ -32,6 +35,7 @@ export const DashboardOverviewPage: React.FC = () => {
   const [recentUsers, setRecentUsers] = useState<any[]>([])
   const [recentReels, setRecentReels] = useState<ReelItem[]>([])
   const [activities, setActivities] = useState<any[]>([])
+  const [topCreators, setTopCreators] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [isPlayerOpen, setIsPlayerOpen] = useState(false)
@@ -49,6 +53,17 @@ export const DashboardOverviewPage: React.FC = () => {
         setRecentUsers(usersList.slice(0, 5))
       } catch (e) {
         console.warn("Users fetch error", e)
+      }
+
+      // 2. Fetch top creators leaderboard
+      try {
+        const leaderboardRes = await usersApi.getLeaderboard({ limit: 4 })
+        const creatorsList = Array.isArray(leaderboardRes)
+          ? leaderboardRes
+          : leaderboardRes.items || []
+        setTopCreators(creatorsList)
+      } catch (e) {
+        console.warn("Leaderboard fetch error", e)
       }
 
       // 2. Fetch reels
@@ -361,38 +376,64 @@ export const DashboardOverviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Col: Backend Environment Status & Activity Feed */}
+        {/* Right Col: Top Creators Leaderboard & Activity Feed */}
         <div className="space-y-6">
-          {/* System Services Health Monitor */}
+          {/* Top Creators Leaderboard */}
           <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                <Database className="h-4 w-4 text-emerald-500" />
-                <span>System Pipeline Health</span>
+                <Trophy className="h-4 w-4 text-amber-500" />
+                <span>Top Creators Leaderboard</span>
               </h3>
-              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Operational</span>
-              </span>
+              <Link
+                to="/dashboard/users"
+                className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1"
+              >
+                <span>View All</span>
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
             </div>
 
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-2.5">
-                <span className="font-medium text-muted-foreground">PostgreSQL DB</span>
-                <span className="font-bold text-emerald-500">Connected (Port 5432)</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-2.5">
-                <span className="font-medium text-muted-foreground">Redis Queue (BullMQ)</span>
-                <span className="font-bold text-emerald-500">Active (Transcoder Ready)</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-2.5">
-                <span className="font-medium text-muted-foreground">S3 Object Storage</span>
-                <span className="font-bold text-emerald-500">Bucket: reels-video</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-2.5">
-                <span className="font-medium text-muted-foreground">FFmpeg HLS Pipeline</span>
-                <span className="font-bold text-primary">Multi-Bitrate Enabled</span>
-              </div>
+            <div className="space-y-2.5 divide-y divide-border/40">
+              {topCreators.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">
+                  No registered creators found.
+                </p>
+              ) : (
+                topCreators.map((creator, idx) => (
+                  <div
+                    key={creator.id}
+                    onClick={() => window.location.href = `/dashboard/users/${creator.id}`}
+                    className="pt-2 flex items-center justify-between group cursor-pointer hover:bg-muted/30 p-1.5 rounded-xl transition"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-bold text-primary">
+                        #{creator.rank || idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1 font-bold text-xs text-foreground group-hover:text-primary transition">
+                          <span className="truncate">{creator.name}</span>
+                          {creator.isVerified && (
+                            <BadgeCheck className="h-3.5 w-3.5 text-primary fill-primary/20 shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          @{creator.username} • {creator.videoCount || 0} videos
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0 text-[11px]">
+                      <div className="font-bold text-emerald-500">
+                        {(creator.totalViews || 0).toLocaleString()} views
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {creator.followersCount || 0} followers
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

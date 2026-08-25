@@ -617,6 +617,65 @@ export class UsersService {
   }
 
   /**
+   * Toggle user verification status (isVerified)
+   */
+  async updateVerification(
+    id: string,
+    isVerified: boolean,
+  ): Promise<{ success: boolean; message: string; user: FormattedUserResponse }> {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: { roles: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found.`);
+    }
+
+    user.isVerified = isVerified;
+    const savedUser = await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: `User account '${user.name}' verification status set to ${isVerified ? 'VERIFIED' : 'UNVERIFIED'}.`,
+      user: this.formatUser(savedUser),
+    };
+  }
+
+  /**
+   * Get Creator Leaderboard (Top performing creators ranked by views, reels, followers)
+   */
+  async getCreatorLeaderboard(limit = 10, sortBy = 'views') {
+    const allUsers = await this.findAll();
+
+    // Filter creators or users with uploaded videos
+    const creators = allUsers.filter(
+      (u) =>
+        (u.roles || []).some((r) => r === 'CREATOR' || r === 'ADMIN') ||
+        (u.videoCount || 0) > 0,
+    );
+
+    creators.sort((a, b) => {
+      if (sortBy === 'followers') return (b.followersCount || 0) - (a.followersCount || 0);
+      if (sortBy === 'videos') return (b.videoCount || 0) - (a.videoCount || 0);
+      return (b.totalViews || 0) - (a.totalViews || 0);
+    });
+
+    const ranked = creators.slice(0, limit).map((c, index) => ({
+      ...c,
+      rank: index + 1,
+      performanceBadge: index === 0 ? '🏆 Top Creator' : index < 3 ? '⭐ Star Astrologer' : '🔥 Rising Expert',
+    }));
+
+    return {
+      total: creators.length,
+      sortBy,
+      items: ranked,
+    };
+  }
+
+
+  /**
    * Update user details by ID
    */
   async update(

@@ -13,13 +13,26 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
 import { ReelsService } from './services/reels.service';
-import { InitUploadDto, CompleteUploadDto, CreateCommentDto, CommentQueryDto, FeedQueryDto, UpdateReelDto } from './dto/reels.dto';
+import {
+  InitUploadDto,
+  CompleteUploadDto,
+  CreateCommentDto,
+  CommentQueryDto,
+  FeedQueryDto,
+  UpdateReelDto,
+  GetAllCommentsQueryDto,
+} from './dto/reels.dto';
 import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Reels')
@@ -32,8 +45,13 @@ export class ReelsController {
   ) {}
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Initialize video upload (Generate pre-signed URL)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Pre-signed S3 URL generated successfully.' })
+  @ApiOperation({
+    summary: 'Initialize video upload (Generate pre-signed URL)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Pre-signed S3 URL generated successfully.',
+  })
   @Post('upload/init')
   @HttpCode(HttpStatus.OK)
   initUpload(@Req() req: any, @Body() dto: InitUploadDto) {
@@ -44,7 +62,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Complete upload and queue processing worker' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Transcoding job queued successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Transcoding job queued successfully.',
+  })
   @Post('upload/complete')
   @HttpCode(HttpStatus.OK)
   completeUpload(@Req() req: any, @Body() dto: CompleteUploadDto) {
@@ -64,7 +85,10 @@ export class ReelsController {
 
   @Public()
   @ApiOperation({ summary: 'Get dynamic trending tags and trending videos' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Trending data retrieved.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Trending data retrieved.',
+  })
   @Get('trending')
   getTrending(@Req() req: Request) {
     const requestHost = req.headers.host;
@@ -73,7 +97,10 @@ export class ReelsController {
 
   @Public()
   @ApiOperation({ summary: 'Get popular Vastu creators' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Popular creators retrieved.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Popular creators retrieved.',
+  })
   @Get('popular-creators')
   getPopularCreators(@Req() req: Request) {
     const userId = this.tryExtractUserId(req);
@@ -82,7 +109,10 @@ export class ReelsController {
 
   @Public()
   @ApiOperation({ summary: 'Get single reel metadata by ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Reel details retrieved.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reel details retrieved.',
+  })
   @Get(':id')
   getById(@Req() req: Request, @Param('id') id: string) {
     const userId = this.tryExtractUserId(req);
@@ -92,7 +122,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a reel' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Reel soft-deleted successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reel soft-deleted successfully.',
+  })
   @Delete(':id')
   deleteReel(@Req() req: any, @Param('id') id: string) {
     const userId = req.user.sub;
@@ -101,8 +134,14 @@ export class ReelsController {
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update a reel metadata (title, caption, category, thumbnail, etc.)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Reel metadata updated successfully.' })
+  @ApiOperation({
+    summary:
+      'Update a reel metadata (title, caption, category, thumbnail, etc.)',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reel metadata updated successfully.',
+  })
   @Patch(':id')
   updateReel(
     @Req() req: any,
@@ -116,7 +155,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a comment or reply' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Comment deleted successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Comment deleted successfully.',
+  })
   @Delete('comments/:commentId')
   deleteComment(@Req() req: any, @Param('commentId') commentId: string) {
     const userId = req.user.sub;
@@ -126,7 +168,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Like a reel' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Reel liked successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reel liked successfully.',
+  })
   @Post(':id/like')
   @HttpCode(HttpStatus.OK)
   likeReel(@Req() req: any, @Param('id') id: string) {
@@ -136,7 +181,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Unlike a reel' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Reel unliked successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reel unliked successfully.',
+  })
   @Delete(':id/like')
   unlikeReel(@Req() req: any, @Param('id') id: string) {
     const userId = req.user.sub;
@@ -145,7 +193,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Bookmark/Save a reel' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Reel bookmarked successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reel bookmarked successfully.',
+  })
   @Post(':id/bookmark')
   @HttpCode(HttpStatus.OK)
   bookmarkReel(@Req() req: any, @Param('id') id: string) {
@@ -155,7 +206,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove bookmark of a reel' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Reel unbookmarked successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reel unbookmarked successfully.',
+  })
   @Delete(':id/bookmark')
   unbookmarkReel(@Req() req: any, @Param('id') id: string) {
     const userId = req.user.sub;
@@ -176,6 +230,16 @@ export class ReelsController {
   }
 
   @Public()
+  @ApiOperation({
+    summary: 'Admin endpoint: Get all comments across all platform reels',
+  })
+  @ApiResponse({ status: HttpStatus.OK, description: 'All comments list.' })
+  @Get('comments/all')
+  getAllComments(@Query() query: GetAllCommentsQueryDto) {
+    return this.reelsService.getAllComments(query);
+  }
+
+  @Public()
   @ApiOperation({ summary: 'Get paginated comments or replies of a reel' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Comments list.' })
   @Get(':id/comments')
@@ -190,7 +254,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Like a comment' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Comment liked successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Comment liked successfully.',
+  })
   @Post('comments/:commentId/like')
   @HttpCode(HttpStatus.OK)
   likeComment(@Req() req: any, @Param('commentId') commentId: string) {
@@ -200,7 +267,10 @@ export class ReelsController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Unlike a comment' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Comment unliked successfully.' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Comment unliked successfully.',
+  })
   @Delete('comments/:commentId/like')
   unlikeComment(@Req() req: any, @Param('commentId') commentId: string) {
     const userId = req.user.sub;

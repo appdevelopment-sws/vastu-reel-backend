@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Sparkles,
   Flag,
+  MessageCircle,
   User as UserIcon,
 } from "lucide-react"
 
@@ -46,6 +47,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       adminOnly: true,
     },
     {
+      label: "Comments Moderation",
+      path: "/dashboard/comments",
+      icon: MessageCircle,
+      badge: "New",
+      adminOnly: true,
+    },
+    {
       label: "Analytics",
       path: "/dashboard/analytics",
       icon: BarChart3,
@@ -57,12 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       icon: Sparkles,
       badge: "Live",
     },
-    {
-      label: "Reports & Moderation",
-      path: "/dashboard/activity",
-      icon: Flag,
-      badge: "Reports",
-    },
+
     {
       label: "Roles & Access",
       path: "/dashboard/roles",

@@ -95,6 +95,17 @@ export class UsersController {
     return this.usersService.uploadMedia(userId, file, type || 'avatar', requestHost);
   }
 
+  @Get('leaderboard/creators')
+  @ApiOperation({ summary: 'Get top creators leaderboard ranked by views, followers, and reels' })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
+  @ApiQuery({ name: 'sortBy', type: String, required: false })
+  getLeaderboard(
+    @Query('limit') limit?: number,
+    @Query('sortBy') sortBy?: string,
+  ) {
+    return this.usersService.getCreatorLeaderboard(limit ? Number(limit) : 10, sortBy || 'views');
+  }
+
   @Get()
   @ApiOperation({
     summary: 'Get all user accounts with video stats & optional filters',
@@ -169,6 +180,15 @@ export class UsersController {
   @ApiOperation({ summary: 'Unblock user account' })
   unblockUser(@Param('id') id: string) {
     return this.usersService.updateStatus(id, true);
+  }
+
+  @Patch(':id/verify')
+  @ApiOperation({ summary: 'Verify or unverify user account (isVerified status)' })
+  updateVerification(
+    @Param('id') id: string,
+    @Body() body: { isVerified: boolean },
+  ) {
+    return this.usersService.updateVerification(id, body.isVerified !== false);
   }
 
   @Get(':id')

@@ -15,7 +15,14 @@ import { ReelBookmark } from '../entities/reel-bookmark.entity';
 import { User } from '../../users/entities/user.entity';
 import { Follow } from '../../follows/entities/follow.entity';
 import { StorageService } from './storage.service';
-import { InitUploadDto, CreateCommentDto, CommentQueryDto, FeedQueryDto, UpdateReelDto } from '../dto/reels.dto';
+import {
+  InitUploadDto,
+  CreateCommentDto,
+  CommentQueryDto,
+  FeedQueryDto,
+  UpdateReelDto,
+  GetAllCommentsQueryDto,
+} from '../dto/reels.dto';
 import { ActivityLogService } from '../../activity-logs/activity-log.service';
 import { ActivityLogType } from '../../activity-logs/entities/activity-log.entity';
 
@@ -738,6 +745,74 @@ export class ReelsService {
         );
       }),
     );
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      hasMore: skip + comments.length < total,
+    };
+  }
+
+  /**
+   * Admin endpoint: Gets paginated comments across all platform reels with filtering & search.
+   */
+  async getAllComments(query?: GetAllCommentsQueryDto) {
+    const page = Math.max(1, query?.page || 1);
+    const limit = Math.min(100, Math.max(1, query?.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const qb = this.commentRepository
+      .createQueryBuilder('comment')
+      .leftJoinAndSelect('comment.user', 'user')
+      .leftJoinAndSelect('comment.reel', 'reel')
+      .orderBy('comment.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    if (query?.reelId) {
+      qb.andWhere('comment.reelId = :reelId', { reelId: query.reelId });
+    }
+
+    if (query?.category && query.category !== 'ALL') {
+      qb.andWhere('reel.category ILIKE :category', {
+        category: `%${query.category}%`,
+      });
+    }
+
+    if (query?.search) {
+      const searchTerm = `%${query.search}%`;
+      qb.andWhere(
+        new Brackets((qbSub) => {
+          qbSub
+            .where('comment.text ILIKE :search', { search: searchTerm })
+            .orWhere('user.name ILIKE :search', { search: searchTerm })
+            .orWhere('user.username ILIKE :search', { search: searchTerm })
+            .orWhere('reel.title ILIKE :search', { search: searchTerm });
+        }),
+      );
+    }
+
+    const [comments, total] = await qb.getManyAndCount();
+
+    const items = comments.map((c) => ({
+      id: c.id,
+      userId: c.userId,
+      userName: c.user?.name || 'Vastu User',
+      userHandle:
+        c.user?.username ||
+        c.user?.name?.toLowerCase().replace(/\s+/g, '') ||
+        'user',
+      userIsVerified: c.user?.isVerified || false,
+      text: c.text,
+      reelId: c.reelId,
+      reelTitle: c.reel?.title || 'Vastu Reel',
+      reelCategory: c.reel?.category || 'General',
+      createdAt: c.createdAt
+        ? c.createdAt.toISOString()
+        : new Date().toISOString(),
+    }));
 
     return {
       items,

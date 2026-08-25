@@ -158,6 +158,16 @@ export const usersApi = {
     return response.data;
   },
 
+  toggleVerification: async (id: string, isVerified: boolean) => {
+    const response = await apiClient.patch(`/users/${id}/verify`, { isVerified });
+    return response.data;
+  },
+
+  getLeaderboard: async (params?: { limit?: number; sortBy?: string }) => {
+    const response = await apiClient.get('/users/leaderboard/creators', { params });
+    return response.data;
+  },
+
   create: async (data: any) => {
     const response = await apiClient.post('/users', data);
     return response.data;
@@ -214,6 +224,17 @@ export const reelsApi = {
 
   delete: async (id: string) => {
     const response = await apiClient.delete(`/reels/${id}`);
+    return response.data;
+  },
+
+  getAllComments: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    reelId?: string;
+  }) => {
+    const response = await apiClient.get('/reels/comments/all', { params });
     return response.data;
   },
 

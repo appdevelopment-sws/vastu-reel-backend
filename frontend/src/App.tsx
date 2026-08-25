@@ -8,6 +8,7 @@ import { DashboardOverviewPage } from './pages/dashboard/DashboardOverviewPage';
 import { UsersPage } from './pages/dashboard/UsersPage';
 import { CreatorDetailPage } from './pages/dashboard/CreatorDetailPage';
 import { ReelsPage } from './pages/dashboard/ReelsPage';
+import { CommentsPage } from './pages/dashboard/CommentsPage';
 import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
 import { RolesPage } from './pages/dashboard/RolesPage';
 import { ActivityLogsPage } from './pages/dashboard/ActivityLogsPage';
@@ -50,6 +51,14 @@ export function App() {
               element={
                 <ProtectedRoute requireAdmin>
                   <CreatorDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="comments"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <CommentsPage />
                 </ProtectedRoute>
               }
             />

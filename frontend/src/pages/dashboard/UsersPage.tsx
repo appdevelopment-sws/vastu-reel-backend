@@ -19,6 +19,8 @@ import {
   Edit3,
   Sparkles,
   SlidersHorizontal,
+  CheckCircle2,
+  BadgeCheck,
 } from 'lucide-react';
 
 export const UsersPage: React.FC = () => {
@@ -30,6 +32,22 @@ export const UsersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const handleToggleVerification = async (user: any) => {
+    const nextState = !user.isVerified;
+    setVerifyingId(user.id);
+    try {
+      await usersApi.toggleVerification(user.id, nextState);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, isVerified: nextState } : u))
+      );
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Failed to update verification status');
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
   // Modals State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -321,6 +339,9 @@ export const UsersPage: React.FC = () => {
                           <div>
                             <div className="font-bold text-foreground group-hover:text-primary transition flex items-center gap-1.5">
                               <span>{u.name}</span>
+                              {u.isVerified && (
+                                <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" title="Verified Vastu Expert" />
+                              )}
                               <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition text-primary" />
                             </div>
                             <div className="text-[11px] text-muted-foreground">
@@ -420,6 +441,24 @@ export const UsersPage: React.FC = () => {
                             title="View Creator Analytics & Reels"
                           >
                             Details
+                          </button>
+
+                          {/* Verify / Unverify Badge Toggle */}
+                          <button
+                            onClick={() => handleToggleVerification(u)}
+                            disabled={verifyingId === u.id}
+                            className={`rounded-lg p-1.5 transition cursor-pointer disabled:opacity-50 ${
+                              u.isVerified
+                                ? 'text-primary hover:bg-primary/10'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
+                            title={u.isVerified ? 'Remove Verification Badge' : 'Grant Verified Vastu Badge'}
+                          >
+                            {verifyingId === u.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                            ) : (
+                              <BadgeCheck className={`h-4 w-4 ${u.isVerified ? 'text-primary fill-primary/20' : ''}`} />
+                            )}
                           </button>
 
                           {/* Edit User button */}

@@ -91,6 +91,36 @@ export class CommentQueryDto {
   parentId?: string;
 }
 
+export class GetAllCommentsQueryDto {
+  @ApiProperty({ example: 1, required: false, default: 1 })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  page?: number;
+
+  @ApiProperty({ example: 20, required: false, default: 20 })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  limit?: number;
+
+  @ApiProperty({ example: 'vastu', required: false })
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @ApiProperty({ example: 'living_room', required: false })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @ApiProperty({ example: 'uuid', required: false })
+  @IsString()
+  @IsOptional()
+  reelId?: string;
+}
+
+
 export class FeedQueryDto {
   @ApiProperty({ example: 1, required: false, default: 1 })
   @Type(() => Number)
