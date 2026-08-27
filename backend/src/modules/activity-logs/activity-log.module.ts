@@ -5,9 +5,13 @@ import { ActivityLogService } from './activity-log.service';
 import { ActivityLogController } from './activity-log.controller';
 import { Reel } from '../reels/entities/reel.entity';
 import { User } from '../users/entities/user.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ActivityLog, User, Reel])],
+  imports: [
+    TypeOrmModule.forFeature([ActivityLog, User, Reel]),
+    NotificationsModule,
+  ],
   controllers: [ActivityLogController],
   providers: [ActivityLogService],
   exports: [ActivityLogService],

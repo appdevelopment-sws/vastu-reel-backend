@@ -16,6 +16,7 @@ import { PresenceService } from './services/presence.service';
 import { MessagingGateway } from './gateways/messaging.gateway';
 import { MessagingController } from './messaging.controller';
 import { StorageService } from '../reels/services/storage.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { StorageService } from '../reels/services/storage.service';
         },
       }),
     }),
+    NotificationsModule,
   ],
   controllers: [MessagingController],
   providers: [MessagingService, PresenceService, MessagingGateway, StorageService],

@@ -26,6 +26,8 @@ import { PresenceService } from './presence.service';
 import { ReportMessageDto } from '../dto/report-message.dto';
 import { MessagingGateway } from '../gateways/messaging.gateway';
 
+import { NotificationsService } from '../../notifications/services/notifications.service';
+
 @Injectable()
 export class MessagingService {
   private readonly logger = new Logger(MessagingService.name);
@@ -50,6 +52,7 @@ export class MessagingService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly presenceService: PresenceService,
+    private readonly notificationsService: NotificationsService,
     private readonly dataSource: DataSource,
     @Inject(forwardRef(() => MessagingGateway))
     private readonly messagingGateway: MessagingGateway,
@@ -507,6 +510,20 @@ export class MessagingService {
       userId,
       otherP?.userId,
     );
+
+    // Dispatch background push notification to recipient
+    if (otherP?.userId) {
+      this.notificationsService
+        .sendMessagePush(
+          fullMessage?.sender?.name || 'New Message',
+          fullMessage?.sender?.avatarUrl,
+          otherP.userId,
+          fullMessage?.content || 'Sent an attachment',
+          dto.conversationId,
+          fullMessage?.messageType || 'TEXT',
+        )
+        .catch(() => {});
+    }
 
     return formatted;
   }

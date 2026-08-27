@@ -11,6 +11,7 @@ import { FollowsModule } from './modules/follows/follows.module';
 import { ActivityLogModule } from './modules/activity-logs/activity-log.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -57,6 +58,7 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
     ActivityLogModule,
     AnalyticsModule,
     MessagingModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

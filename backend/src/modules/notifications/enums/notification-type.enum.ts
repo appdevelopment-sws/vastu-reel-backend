@@ -1,0 +1,9 @@
+export enum NotificationType {
+  MESSAGE = 'MESSAGE',
+  LIKE = 'LIKE',
+  COMMENT = 'COMMENT',
+  FOLLOW = 'FOLLOW',
+  REEL_PUBLISHED = 'REEL_PUBLISHED',
+  BROADCAST = 'BROADCAST',
+  SYSTEM = 'SYSTEM',
+}

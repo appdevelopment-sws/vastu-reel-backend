@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ActivityLog, ActivityLogType } from './entities/activity-log.entity';
+import { NotificationsService } from '../notifications/services/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type.enum';
 
 export interface CreateActivityLogDto {
   type: ActivityLogType;
@@ -18,6 +20,7 @@ export class ActivityLogService {
   constructor(
     @InjectRepository(ActivityLog)
     private readonly logRepository: Repository<ActivityLog>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -35,6 +38,41 @@ export class ActivityLogService {
         metadata: dto.metadata ?? null,
       });
       await this.logRepository.save(entry);
+
+      // Dispatch push notification for targeted activity (likes, comments, follows)
+      if (dto.targetUserId && dto.targetUserId !== dto.actorId) {
+        let notifType = NotificationType.SYSTEM;
+        let title = 'New Activity';
+        if (dto.type === ActivityLogType.LIKE) {
+          notifType = NotificationType.LIKE;
+          title = 'New Like ❤️';
+        } else if (dto.type === ActivityLogType.COMMENT) {
+          notifType = NotificationType.COMMENT;
+          title = 'New Comment 💬';
+        } else if (dto.type === ActivityLogType.FOLLOW) {
+          notifType = NotificationType.FOLLOW;
+          title = 'New Follower 👤';
+        } else if (dto.type === ActivityLogType.REEL_PUBLISHED) {
+          notifType = NotificationType.REEL_PUBLISHED;
+          title = 'New Reel 🎬';
+        }
+
+        this.notificationsService
+          .sendActivityPush(
+            'Vastu App',
+            dto.targetUserId,
+            notifType,
+            title,
+            dto.message,
+            {
+              reelId: dto.reelId,
+              actorId: dto.actorId,
+              activityType: dto.type,
+              ...(dto.metadata || {}),
+            },
+          )
+          .catch(() => {});
+      }
     } catch (err) {
       // Non-fatal: log errors should never break the primary flow
       console.error('[ActivityLogService] Failed to log activity:', err);
