@@ -513,6 +513,12 @@ export class MessagingService {
 
     // Dispatch background push notification to recipient
     if (otherP?.userId) {
+      const firstAttachment = fullMessage?.attachments?.[0];
+      const imagePreview =
+        fullMessage?.messageType === MessageType.IMAGE
+          ? firstAttachment?.thumbnailUrl || firstAttachment?.url
+          : undefined;
+
       this.notificationsService
         .sendMessagePush(
           fullMessage?.sender?.name || 'New Message',
@@ -521,6 +527,7 @@ export class MessagingService {
           fullMessage?.content || 'Sent an attachment',
           dto.conversationId,
           fullMessage?.messageType || 'TEXT',
+          imagePreview,
         )
         .catch(() => {});
     }

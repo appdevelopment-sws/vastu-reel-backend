@@ -382,6 +382,7 @@ export class NotificationsService implements OnModuleInit {
     messageContent: string,
     conversationId: string,
     messageType: string,
+    attachmentImageUrl?: string,
   ) {
     let bodyPreview = messageContent;
     if (messageType === 'IMAGE') bodyPreview = '📷 Sent a photo';
@@ -395,10 +396,11 @@ export class NotificationsService implements OnModuleInit {
       title: senderName || 'New Message',
       body: bodyPreview,
       type: NotificationType.MESSAGE,
-      imageUrl: senderAvatar,
+      imageUrl: attachmentImageUrl,
       data: {
         conversationId,
         senderName,
+        senderAvatar: senderAvatar || '',
         messageType,
       },
     }).catch((err) => {
