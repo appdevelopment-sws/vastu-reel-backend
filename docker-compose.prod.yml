@@ -82,6 +82,8 @@ services:
       - ./backend/.env.prod
     ports:
       - "3002:8008"
+    volumes:
+      - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro
     depends_on:
       mysql:
         condition: service_healthy
