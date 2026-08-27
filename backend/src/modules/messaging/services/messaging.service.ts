@@ -716,7 +716,14 @@ export class MessagingService {
       message.isDeleted = true;
       message.deletedAt = new Date();
       message.content = 'This message was deleted';
+      message.metadata = null as any;
       await this.messageRepo.save(message);
+
+      // Clean up attachments and reactions for deleted message
+      await this.attachmentRepo.delete({ messageId });
+      await this.reactionRepo.delete({ messageId });
+      message.attachments = [];
+      message.reactions = [];
 
       // Broadcast delete to conversation room
       this.messagingGateway.broadcastMessageDelete(
@@ -889,22 +896,26 @@ export class MessagingService {
             messageType: m.replyToMessage.messageType,
           }
         : null,
-      metadata: m.metadata,
-      attachments: (m.attachments || []).map((a) => ({
-        id: a.id,
-        storageKey: a.storageKey,
-        url: a.url,
-        fileType: a.fileType,
-        fileName: a.fileName,
-        fileSize: Number(a.fileSize),
-        thumbnailUrl: a.thumbnailUrl,
-      })),
-      reactions: (m.reactions || []).map((r) => ({
-        id: r.id,
-        userId: r.userId,
-        userName: r.user?.name || 'User',
-        reaction: r.reaction,
-      })),
+      metadata: m.isDeleted ? null : m.metadata,
+      attachments: m.isDeleted
+        ? []
+        : (m.attachments || []).map((a) => ({
+            id: a.id,
+            storageKey: a.storageKey,
+            url: a.url,
+            fileType: a.fileType,
+            fileName: a.fileName,
+            fileSize: Number(a.fileSize),
+            thumbnailUrl: a.thumbnailUrl,
+          })),
+      reactions: m.isDeleted
+        ? []
+        : (m.reactions || []).map((r) => ({
+            id: r.id,
+            userId: r.userId,
+            userName: r.user?.name || 'User',
+            reaction: r.reaction,
+          })),
       status: deliveryStatus,
       isMine,
       createdAt: m.createdAt,
