@@ -1,0 +1,16 @@
+export enum DeliveryStatus {
+  SENDING = 'SENDING',
+  SENT = 'SENT',
+  DELIVERED = 'DELIVERED',
+  READ = 'READ',
+  FAILED = 'FAILED',
+}
+
+export enum ReportReason {
+  SPAM = 'SPAM',
+  HARASSMENT = 'HARASSMENT',
+  FRAUD = 'FRAUD',
+  INAPPROPRIATE_CONTENT = 'INAPPROPRIATE_CONTENT',
+  FAKE_PROPERTY = 'FAKE_PROPERTY',
+  OTHER = 'OTHER',
+}
