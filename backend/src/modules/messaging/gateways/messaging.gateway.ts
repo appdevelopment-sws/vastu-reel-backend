@@ -8,7 +8,7 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -35,6 +35,7 @@ export class MessagingGateway
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => MessagingService))
     private readonly messagingService: MessagingService,
     private readonly presenceService: PresenceService,
   ) {}
@@ -138,7 +139,73 @@ export class MessagingGateway
   }
 
   /**
-   * Send real-time message.
+   * Broadcast a new message to conversation room and recipient personal inbox room.
+   */
+  broadcastNewMessage(
+    conversationId: string,
+    message: any,
+    senderId: string,
+    recipientUserId?: string,
+  ) {
+    if (!this.server) return;
+    this.server
+      .to(`conversation_${conversationId}`)
+      .emit('message:new', message);
+
+    if (recipientUserId) {
+      this.server.to(`user_${recipientUserId}`).emit('conversation:update', {
+        conversationId,
+        lastMessage: message,
+        senderId,
+      });
+    }
+  }
+
+  /**
+   * Broadcast message read receipt to conversation room.
+   */
+  broadcastMessageRead(
+    conversationId: string,
+    readerId: string,
+    lastReadMessageId: string,
+  ) {
+    if (!this.server) return;
+    this.server.to(`conversation_${conversationId}`).emit('message:read', {
+      conversationId,
+      readerId,
+      lastReadMessageId,
+    });
+  }
+
+  /**
+   * Broadcast emoji reaction to conversation room.
+   */
+  broadcastReaction(conversationId: string, data: any) {
+    if (!this.server) return;
+    this.server.to(`conversation_${conversationId}`).emit('message:reaction', {
+      conversationId,
+      ...data,
+    });
+  }
+
+  /**
+   * Broadcast message deletion to conversation room.
+   */
+  broadcastMessageDelete(
+    conversationId: string,
+    messageId: string,
+    deleteForEveryone: boolean,
+  ) {
+    if (!this.server) return;
+    this.server.to(`conversation_${conversationId}`).emit('message:delete', {
+      conversationId,
+      messageId,
+      deleteForEveryone,
+    });
+  }
+
+  /**
+   * Send real-time message via socket.
    */
   @SubscribeMessage('message:send')
   async handleSendMessage(
@@ -150,29 +217,6 @@ export class MessagingGateway
 
     try {
       const message = await this.messagingService.sendMessage(userId, dto);
-
-      // Broadcast to all sockets in conversation room
-      this.server
-        .to(`conversation_${dto.conversationId}`)
-        .emit('message:new', message);
-
-      // Also notify participants' personal rooms for inbox refresh
-      const details = await this.messagingService.getConversationDetails(
-        dto.conversationId,
-        userId,
-      );
-
-      if (details.otherUser) {
-        this.server
-          .to(`user_${details.otherUser.id}`)
-          .emit('conversation:update', {
-            conversationId: dto.conversationId,
-            lastMessage: message,
-            senderId: userId,
-          });
-      }
-
-      // Acknowledge back to sender
       return { status: 'success', message };
     } catch (err: any) {
       this.logger.error(`Error sending message: ${err.message}`);
@@ -181,7 +225,7 @@ export class MessagingGateway
   }
 
   /**
-   * Mark messages as read.
+   * Mark messages as read via socket.
    */
   @SubscribeMessage('message:read')
   async handleMarkRead(
@@ -197,16 +241,6 @@ export class MessagingGateway
         data.conversationId,
         data.lastReadMessageId,
       );
-
-      // Broadcast read receipt to conversation room
-      this.server
-        .to(`conversation_${data.conversationId}`)
-        .emit('message:read', {
-          conversationId: data.conversationId,
-          readerId: userId,
-          lastReadMessageId: data.lastReadMessageId,
-        });
-
       return result;
     } catch (err: any) {
       this.logger.error(`Error marking read: ${err.message}`);
@@ -267,14 +301,6 @@ export class MessagingGateway
         data.messageId,
         data.reaction,
       );
-
-      this.server
-        .to(`conversation_${data.conversationId}`)
-        .emit('message:reaction', {
-          conversationId: data.conversationId,
-          ...result,
-        });
-
       return result;
     } catch (err: any) {
       this.logger.error(`Error reacting: ${err.message}`);

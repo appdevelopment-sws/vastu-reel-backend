@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, LessThan, Not } from 'typeorm';
@@ -22,6 +24,7 @@ import { SendMessageDto } from '../dto/send-message.dto';
 import { GetMessagesQueryDto } from '../dto/get-messages-query.dto';
 import { PresenceService } from './presence.service';
 import { ReportMessageDto } from '../dto/report-message.dto';
+import { MessagingGateway } from '../gateways/messaging.gateway';
 
 @Injectable()
 export class MessagingService {
@@ -48,6 +51,8 @@ export class MessagingService {
     private readonly userRepo: Repository<User>,
     private readonly presenceService: PresenceService,
     private readonly dataSource: DataSource,
+    @Inject(forwardRef(() => MessagingGateway))
+    private readonly messagingGateway: MessagingGateway,
   ) {}
 
   /**
@@ -226,12 +231,17 @@ export class MessagingService {
         const otherP = conv.participants.find((p) => p.userId !== userId);
         const otherUser = otherP?.user;
 
-        // Calculate unread count
-        const unreadCount = await this.calculateUnreadCount(
-          conv.id,
-          userId,
-          myP.lastReadMessageId,
-        );
+        // Calculate unread count (if lastReadMessageId equals conversation's lastMessageId, unread is 0)
+        let unreadCount = 0;
+        if (conv.lastMessageId && myP.lastReadMessageId === conv.lastMessageId) {
+          unreadCount = 0;
+        } else {
+          unreadCount = await this.calculateUnreadCount(
+            conv.id,
+            userId,
+            myP.lastReadMessageId,
+          );
+        }
 
         // Presence
         const presence = otherUser
@@ -345,6 +355,13 @@ export class MessagingService {
         ? messages[messages.length - 1].createdAt.toISOString()
         : null;
 
+    // Automatically mark conversation as read when opening (first page)
+    if (!query.cursor && messages.length > 0) {
+      this.markConversationRead(userId, conversationId, messages[0].id).catch(
+        () => {},
+      );
+    }
+
     return {
       messages: messages.map((m) => this.formatMessage(m, userId)),
       nextCursor,
@@ -445,6 +462,13 @@ export class MessagingService {
         updatedAt: saved.createdAt,
       });
 
+      // Update sender's last_read_message_id so sender always has 0 unread
+      await manager.update(
+        ConversationParticipant,
+        { conversationId: dto.conversationId, userId },
+        { lastReadMessageId: saved.id },
+      );
+
       // Resurface conversation for participants who deleted it previously
       await manager
         .createQueryBuilder()
@@ -474,7 +498,17 @@ export class MessagingService {
       },
     });
 
-    return this.formatMessage(fullMessage!, userId);
+    const formatted = this.formatMessage(fullMessage!, userId);
+
+    // Broadcast real-time event to conversation room and other user's inbox
+    this.messagingGateway.broadcastNewMessage(
+      dto.conversationId,
+      formatted,
+      userId,
+      otherP?.userId,
+    );
+
+    return formatted;
   }
 
   /**
@@ -483,7 +517,7 @@ export class MessagingService {
   async markConversationRead(
     userId: string,
     conversationId: string,
-    lastReadMessageId: string,
+    lastReadMessageId?: string,
   ) {
     const participant = await this.participantRepo.findOne({
       where: { conversationId, userId },
@@ -494,24 +528,41 @@ export class MessagingService {
       );
     }
 
-    const lastReadMsg = await this.messageRepo.findOne({
-      where: { id: lastReadMessageId, conversationId },
-    });
-    if (!lastReadMsg) {
-      return { success: false, unreadCount: 0 };
+    let targetMsg: Message | null = null;
+    if (lastReadMessageId) {
+      targetMsg = await this.messageRepo.findOne({
+        where: { id: lastReadMessageId, conversationId },
+      });
+    }
+
+    // If no specific message ID provided or not found, use latest message in conversation
+    if (!targetMsg) {
+      targetMsg = await this.messageRepo.findOne({
+        where: { conversationId },
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    if (!targetMsg) {
+      return {
+        success: true,
+        conversationId,
+        unreadCount: 0,
+        globalUnreadCount: 0,
+      };
     }
 
     // Update participant last_read_message_id
     await this.participantRepo.update(
       { id: participant.id },
-      { lastReadMessageId },
+      { lastReadMessageId: targetMsg.id },
     );
 
     // Update or create delivery read records for received messages
     const unreadMessages = await this.messageRepo.find({
       where: {
         conversationId,
-        createdAt: LessThan(new Date(lastReadMsg.createdAt.getTime() + 1000)),
+        createdAt: LessThan(new Date(targetMsg.createdAt.getTime() + 1000)),
       },
     });
 
@@ -542,14 +593,21 @@ export class MessagingService {
     const unreadCount = await this.calculateUnreadCount(
       conversationId,
       userId,
-      lastReadMessageId,
+      targetMsg.id,
     );
     const globalUnreadCount = await this.getGlobalUnreadCount(userId);
+
+    // Broadcast read receipt to conversation room
+    this.messagingGateway.broadcastMessageRead(
+      conversationId,
+      userId,
+      targetMsg.id,
+    );
 
     return {
       success: true,
       conversationId,
-      lastReadMessageId,
+      lastReadMessageId: targetMsg.id,
       unreadCount,
       globalUnreadCount,
     };
@@ -606,7 +664,7 @@ export class MessagingService {
       },
     });
 
-    return {
+    const result = {
       messageId,
       reactions: allReactions.map((r) => ({
         id: r.id,
@@ -615,6 +673,11 @@ export class MessagingService {
         reaction: r.reaction,
       })),
     };
+
+    // Broadcast reaction to conversation room
+    this.messagingGateway.broadcastReaction(message.conversationId, result);
+
+    return result;
   }
 
   /**
@@ -654,6 +717,13 @@ export class MessagingService {
       message.deletedAt = new Date();
       message.content = 'This message was deleted';
       await this.messageRepo.save(message);
+
+      // Broadcast delete to conversation room
+      this.messagingGateway.broadcastMessageDelete(
+        message.conversationId,
+        messageId,
+        true,
+      );
     }
 
     return this.formatMessage(message, userId);
@@ -769,6 +839,7 @@ export class MessagingService {
       .createQueryBuilder('m')
       .where('m.conversationId = :conversationId', { conversationId })
       .andWhere('m.senderId != :userId', { userId })
+      .andWhere('m.id != :lastReadId', { lastReadId: lastReadMsg.id })
       .andWhere('m.createdAt > :lastReadDate', {
         lastReadDate: lastReadMsg.createdAt,
       });

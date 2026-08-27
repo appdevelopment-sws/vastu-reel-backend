@@ -122,13 +122,13 @@ export class MessagingController {
   async markRead(
     @Req() req: any,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: MarkReadDto,
+    @Body() dto?: MarkReadDto,
   ) {
     const userId = req.user.sub;
     return this.messagingService.markConversationRead(
       userId,
       id,
-      dto.lastReadMessageId,
+      dto?.lastReadMessageId,
     );
   }
 

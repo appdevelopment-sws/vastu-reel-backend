@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID } from 'class-validator';
+import { IsOptional, IsUUID } from 'class-validator';
 
 export class MarkReadDto {
-  @ApiProperty({ description: 'Last read message UUID' })
+  @ApiProperty({ description: 'Last read message UUID (optional; defaults to latest message)', required: false })
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  lastReadMessageId: string;
+  lastReadMessageId?: string;
 }
