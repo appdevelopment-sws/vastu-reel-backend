@@ -34,7 +34,8 @@ export class StorageService implements OnModuleInit {
 
     this.bucketName = this.configService.get<string>(
       'S3_BUCKET_NAME',
-      'vastu-video',
+      'vastu-reels',
+      // 'vastu-video',
     );
     this.clientEndpoint = this.configService.get<string>('S3_CLIENT_ENDPOINT');
 
