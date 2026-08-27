@@ -21,12 +21,11 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
 import * as path from 'path';
-import * as fs from 'fs';
 import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MessagingService } from './services/messaging.service';
+import { StorageService } from '../reels/services/storage.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { GetMessagesQueryDto } from './dto/get-messages-query.dto';
@@ -35,18 +34,15 @@ import { MarkReadDto } from './dto/mark-read.dto';
 import { BlockUserDto } from './dto/block-user.dto';
 import { ReportMessageDto } from './dto/report-message.dto';
 
-// Ensure public uploads directory exists
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'messaging');
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-
 @ApiTags('Direct Messaging (DM)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('messaging')
 export class MessagingController {
-  constructor(private readonly messagingService: MessagingService) {}
+  constructor(
+    private readonly messagingService: MessagingService,
+    private readonly storageService: StorageService,
+  ) {}
 
   @Get('conversations')
   @ApiOperation({
@@ -204,16 +200,6 @@ export class MessagingController {
   })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          cb(null, UPLOADS_DIR);
-        },
-        filename: (req, file, cb) => {
-          const ext = path.extname(file.originalname).toLowerCase();
-          const filename = `${randomUUID()}${ext}`;
-          cb(null, filename);
-        },
-      }),
       limits: {
         fileSize: 104857600, // 100 MB max upload limit
       },
@@ -229,9 +215,17 @@ export class MessagingController {
       );
     }
 
-    const host = `${req.protocol}://${req.get('host')}`;
-    const storageKey = `messaging/${file.filename}`;
-    const url = `${host}/uploads/messaging/${file.filename}`;
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const storageKey = `messaging/${randomUUID()}${ext}`;
+    const requestHost = req.get('host');
+
+    // Upload directly to Cloudflare R2 / S3 storage
+    const url = await this.storageService.uploadBuffer(
+      file.buffer,
+      storageKey,
+      file.mimetype,
+      requestHost,
+    );
 
     return {
       storageKey,

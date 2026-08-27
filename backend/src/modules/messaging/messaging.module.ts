@@ -15,6 +15,7 @@ import { MessagingService } from './services/messaging.service';
 import { PresenceService } from './services/presence.service';
 import { MessagingGateway } from './gateways/messaging.gateway';
 import { MessagingController } from './messaging.controller';
+import { StorageService } from '../reels/services/storage.service';
 
 @Module({
   imports: [
@@ -41,7 +42,7 @@ import { MessagingController } from './messaging.controller';
     }),
   ],
   controllers: [MessagingController],
-  providers: [MessagingService, PresenceService, MessagingGateway],
-  exports: [MessagingService, PresenceService, MessagingGateway],
+  providers: [MessagingService, PresenceService, MessagingGateway, StorageService],
+  exports: [MessagingService, PresenceService, MessagingGateway, StorageService],
 })
 export class MessagingModule {}
