@@ -22,6 +22,7 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { AssignUserRolesDto } from './dto/assign-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -343,6 +344,36 @@ export class AuthService implements OnModuleInit {
     await this.userRepository.save(user);
 
     return this.getProfile(userId);
+  }
+
+  /**
+   * Change current user password with current password verification
+   */
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :userId', { userId })
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (dto.currentPassword && user.password) {
+      const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
+      if (!isMatch) {
+        throw new BadRequestException('Current password is incorrect');
+      }
+    }
+
+    user.password = await bcrypt.hash(dto.newPassword, 10);
+    await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: 'Password changed successfully',
+    };
   }
 
   /**

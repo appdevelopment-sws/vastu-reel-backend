@@ -252,6 +252,16 @@ export const reelsApi = {
     const response = await apiClient.delete(`/reels/comments/${commentId}`);
     return response.data;
   },
+
+  pinComment: async (commentId: string) => {
+    const response = await apiClient.post(`/reels/comments/${commentId}/pin`);
+    return response.data;
+  },
+
+  unpinComment: async (commentId: string) => {
+    const response = await apiClient.delete(`/reels/comments/${commentId}/pin`);
+    return response.data;
+  },
 };
 
 // Analytics API

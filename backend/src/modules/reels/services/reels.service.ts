@@ -696,7 +696,7 @@ export class ReelsService {
     const [comments, total] = await this.commentRepository.findAndCount({
       where: { reelId, parentId: IsNull() },
       relations: { user: true },
-      order: { createdAt: 'DESC' },
+      order: { isPinned: 'DESC', createdAt: 'DESC' },
       skip,
       take: limit,
     });
@@ -808,6 +808,8 @@ export class ReelsService {
         'user',
       userIsVerified: c.user?.isVerified || false,
       text: c.text,
+      isPinned: c.isPinned || false,
+      pinnedAt: c.pinnedAt ? c.pinnedAt.toISOString() : null,
       reelId: c.reelId,
       reelTitle: c.reel?.title || 'Vastu Reel',
       reelCategory: c.reel?.category || 'General',
@@ -888,6 +890,140 @@ export class ReelsService {
     return { success: true, isLiked: false, likesCount };
   }
 
+  /**
+   * Pins or unpins a top-level comment on a Reel (creator of the reel or admin only).
+   */
+  async pinComment(userId: string, commentId: string, userRoles?: string[]) {
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId },
+      relations: { user: true, reel: true },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comment not found.');
+    }
+
+    if (comment.parentId) {
+      throw new BadRequestException('Only top-level comments can be pinned.');
+    }
+
+    const reel =
+      comment.reel ||
+      (await this.reelRepository.findOne({ where: { id: comment.reelId } }));
+    if (!reel) {
+      throw new NotFoundException('Associated reel not found.');
+    }
+
+    const isAdmin =
+      userRoles?.includes('SUPER_ADMIN') ||
+      userRoles?.includes('ADMIN') ||
+      false;
+    const isReelOwner = reel.userId === userId;
+
+    if (!isReelOwner && !isAdmin) {
+      throw new ForbiddenException(
+        'Only the video creator or an admin can pin comments on this reel.',
+      );
+    }
+
+    if (comment.isPinned) {
+      // Toggle off pin
+      comment.isPinned = false;
+      comment.pinnedAt = null;
+      await this.commentRepository.save(comment);
+      return {
+        success: true,
+        isPinned: false,
+        message: 'Comment unpinned successfully.',
+      };
+    }
+
+    // Unpin any previously pinned comment on this reel
+    await this.commentRepository.update(
+      { reelId: comment.reelId, isPinned: true },
+      { isPinned: false, pinnedAt: null },
+    );
+
+    // Pin target comment
+    comment.isPinned = true;
+    comment.pinnedAt = new Date();
+    await this.commentRepository.save(comment);
+
+    // Send activity log notification to comment author if not the one pinning
+    if (comment.userId !== userId) {
+      const actor = await this.userRepository.findOne({ where: { id: userId } });
+      const actorDisplayName = actor?.username
+        ? `@${actor.username}`
+        : actor?.name || 'The creator';
+
+      await this.activityLogService.log({
+        type: ActivityLogType.COMMENT,
+        actorId: userId,
+        targetUserId: comment.userId,
+        reelId: comment.reelId,
+        message: `${actorDisplayName} pinned your comment on "${reel.title}": "${comment.text.substring(0, 50)}${comment.text.length > 50 ? '...' : ''}"`,
+        isGlobal: false,
+        metadata: {
+          reelId: comment.reelId,
+          reelTitle: reel.title,
+          commentId: comment.id,
+          commentText: comment.text,
+          actorName: actorDisplayName,
+          action: 'PIN',
+        },
+      });
+    }
+
+    return {
+      success: true,
+      isPinned: true,
+      message: 'Comment pinned successfully.',
+    };
+  }
+
+  /**
+   * Unpins a comment on a Reel (creator of the reel or admin only).
+   */
+  async unpinComment(userId: string, commentId: string, userRoles?: string[]) {
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId },
+      relations: { reel: true },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comment not found.');
+    }
+
+    const reel =
+      comment.reel ||
+      (await this.reelRepository.findOne({ where: { id: comment.reelId } }));
+    if (!reel) {
+      throw new NotFoundException('Associated reel not found.');
+    }
+
+    const isAdmin =
+      userRoles?.includes('SUPER_ADMIN') ||
+      userRoles?.includes('ADMIN') ||
+      false;
+    const isReelOwner = reel.userId === userId;
+
+    if (!isReelOwner && !isAdmin) {
+      throw new ForbiddenException(
+        'Only the video creator or an admin can unpin comments on this reel.',
+      );
+    }
+
+    if (comment.isPinned) {
+      comment.isPinned = false;
+      comment.pinnedAt = null;
+      await this.commentRepository.save(comment);
+    }
+
+    return {
+      success: true,
+      isPinned: false,
+      message: 'Comment unpinned successfully.',
+    };
+  }
+
   private formatComment(
     c: Comment,
     currentUserId?: string | null,
@@ -906,6 +1042,8 @@ export class ReelsService {
       commentText: c.text,
       timestamp: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
       parentId: c.parentId || null,
+      isPinned: c.isPinned || false,
+      pinnedAt: c.pinnedAt ? c.pinnedAt.toISOString() : null,
       likesCount,
       isLiked,
       repliesCount,

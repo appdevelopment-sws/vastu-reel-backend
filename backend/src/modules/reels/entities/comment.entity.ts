@@ -7,12 +7,14 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Reel } from './reel.entity';
 import { User } from '../../users/entities/user.entity';
 import { CommentLike } from './comment-like.entity';
 
 @Entity('comments')
+@Index(['reelId', 'isPinned'])
 export class Comment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -49,6 +51,12 @@ export class Comment {
 
   @OneToMany(() => CommentLike, (like) => like.comment)
   likes: CommentLike[];
+
+  @Column({ name: 'is_pinned', type: 'boolean', default: false })
+  isPinned: boolean;
+
+  @Column({ name: 'pinned_at', type: 'timestamp', nullable: true })
+  pinnedAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

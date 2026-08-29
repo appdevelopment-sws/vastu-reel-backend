@@ -277,6 +277,33 @@ export class ReelsController {
     return this.reelsService.unlikeComment(userId, commentId);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Pin or unpin a comment on a reel (creator or admin only)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Comment pinned/unpinned successfully.',
+  })
+  @Post('comments/:commentId/pin')
+  @HttpCode(HttpStatus.OK)
+  pinComment(@Req() req: any, @Param('commentId') commentId: string) {
+    const userId = req.user.sub;
+    const userRoles = req.user.roles || [];
+    return this.reelsService.pinComment(userId, commentId, userRoles);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Unpin a comment on a reel (creator or admin only)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Comment unpinned successfully.',
+  })
+  @Delete('comments/:commentId/pin')
+  unpinComment(@Req() req: any, @Param('commentId') commentId: string) {
+    const userId = req.user.sub;
+    const userRoles = req.user.roles || [];
+    return this.reelsService.unpinComment(userId, commentId, userRoles);
+  }
+
   @Public()
   @ApiOperation({ summary: 'Record a view on a reel' })
   @ApiResponse({ status: HttpStatus.OK, description: 'View tracked.' })

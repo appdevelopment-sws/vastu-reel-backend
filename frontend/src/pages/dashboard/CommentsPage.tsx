@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Play,
   Film,
+  Pin,
 } from 'lucide-react';
 
 export const CommentsPage: React.FC = () => {
@@ -270,9 +271,17 @@ export const CommentsPage: React.FC = () => {
 
                     {/* Comment Content */}
                     <td className="px-5 py-4 font-medium text-foreground">
-                      <p className="line-clamp-2 max-w-md bg-muted/20 p-2 rounded-xl border border-border/40 text-xs">
-                        "{comment.text}"
-                      </p>
+                      <div className="space-y-1">
+                        {comment.isPinned && (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary">
+                            <Pin className="h-2.5 w-2.5 fill-primary/30 rotate-45" />
+                            <span>Pinned by creator</span>
+                          </div>
+                        )}
+                        <p className="line-clamp-2 max-w-md bg-muted/20 p-2 rounded-xl border border-border/40 text-xs">
+                          "{comment.text}"
+                        </p>
+                      </div>
                     </td>
 
                     {/* Target Reel */}

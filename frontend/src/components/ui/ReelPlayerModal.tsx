@@ -21,6 +21,7 @@ import {
   RefreshCw,
   CornerDownRight,
   Info,
+  Pin,
 } from "lucide-react"
 
 export interface ReelItem {
@@ -158,6 +159,20 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
       alert(err.response?.data?.message || 'Failed to delete comment')
     } finally {
       setDeletingCommentId(null)
+    }
+  }
+
+  const [pinningCommentId, setPinningCommentId] = useState<string | null>(null)
+
+  const handleTogglePinComment = async (commentId: string) => {
+    setPinningCommentId(commentId)
+    try {
+      await reelsApi.pinComment(commentId)
+      await fetchComments()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update pin status')
+    } finally {
+      setPinningCommentId(null)
     }
   }
 
@@ -456,7 +471,18 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                 ) : (
                   <div className="space-y-3 divide-y divide-border/40">
                     {comments.map((comment) => (
-                      <div key={comment.id} className="pt-2.5 space-y-1.5">
+                      <div
+                        key={comment.id}
+                        className={`pt-2.5 space-y-1.5 rounded-lg px-2 py-1.5 transition-colors ${
+                          comment.isPinned ? 'bg-primary/5 border border-primary/20' : ''
+                        }`}
+                      >
+                        {comment.isPinned && (
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-primary mb-1">
+                            <Pin className="h-3 w-3 fill-primary/30 rotate-45" />
+                            <span>Pinned by creator</span>
+                          </div>
+                        )}
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
@@ -474,14 +500,29 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                             </div>
                           </div>
 
-                          <button
-                            onClick={() => handleDeleteComment(comment.id)}
-                            disabled={deletingCommentId === comment.id}
-                            className="p-1 text-muted-foreground hover:text-destructive transition cursor-pointer"
-                            title="Delete comment"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleTogglePinComment(comment.id)}
+                              disabled={pinningCommentId === comment.id}
+                              className={`p-1 transition cursor-pointer ${
+                                comment.isPinned
+                                  ? 'text-primary hover:text-primary/70'
+                                  : 'text-muted-foreground hover:text-primary'
+                              }`}
+                              title={comment.isPinned ? 'Unpin comment' : 'Pin comment'}
+                            >
+                              <Pin className={`h-3 w-3 ${comment.isPinned ? 'fill-primary' : ''}`} />
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              disabled={deletingCommentId === comment.id}
+                              className="p-1 text-muted-foreground hover:text-destructive transition cursor-pointer"
+                              title="Delete comment"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
 
                         <p className="text-xs text-foreground/90 pl-8 leading-relaxed">
