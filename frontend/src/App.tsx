@@ -11,6 +11,7 @@ import { ReelsPage } from './pages/dashboard/ReelsPage';
 import { CommentsPage } from './pages/dashboard/CommentsPage';
 import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
 import { RolesPage } from './pages/dashboard/RolesPage';
+import { CategoriesPage } from './pages/dashboard/CategoriesPage';
 import { ActivityLogsPage } from './pages/dashboard/ActivityLogsPage';
 import { SettingsPage } from './pages/dashboard/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -38,6 +39,14 @@ export function App() {
           >
             <Route index element={<DashboardOverviewPage />} />
             <Route path="reels" element={<ReelsPage />} />
+            <Route
+              path="categories"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <CategoriesPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="users"
               element={

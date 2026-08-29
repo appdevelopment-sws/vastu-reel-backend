@@ -5,6 +5,7 @@ import {
   Compass,
   LayoutDashboard,
   Film,
+  FolderTree,
   Users,
   BarChart3,
   ShieldCheck,
@@ -37,6 +38,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: "/dashboard/reels",
       icon: Film,
       badge: "Live",
+    },
+    {
+      label: "Categories & Taxonomies",
+      path: "/dashboard/categories",
+      icon: FolderTree,
+      badge: "Taxonomy",
+      adminOnly: true,
     },
     {
       label: "Users & Creators",

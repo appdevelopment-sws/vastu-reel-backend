@@ -336,17 +336,90 @@ export const activityApi = {
     return response.data;
   },
 
-  getMyActivity: async (page = 1, limit = 20) => {
-    const response = await apiClient.get('/activity', {
-      params: { page, limit },
-    });
-    return response.data;
-  },
-
   getGlobalActivity: async (page = 1, limit = 20) => {
     const response = await apiClient.get('/activity/global', {
       params: { page, limit },
     });
+    return response.data;
+  },
+};
+
+// Categories & Subcategories Admin API
+export const categoriesApi = {
+  getAllAdmin: async () => {
+    const response = await apiClient.get('/categories/admin');
+    return response.data;
+  },
+
+  getAllPublic: async () => {
+    const response = await apiClient.get('/categories');
+    return response.data;
+  },
+
+  createCategory: async (data: {
+    name: string;
+    slug: string;
+    icon?: string;
+    order?: number;
+    isActive?: boolean;
+  }) => {
+    const response = await apiClient.post('/categories', data);
+    return response.data;
+  },
+
+  updateCategory: async (
+    id: string,
+    data: {
+      name?: string;
+      slug?: string;
+      icon?: string;
+      order?: number;
+      isActive?: boolean;
+    }
+  ) => {
+    const response = await apiClient.put(`/categories/${id}`, data);
+    return response.data;
+  },
+
+  deleteCategory: async (id: string) => {
+    const response = await apiClient.delete(`/categories/${id}`);
+    return response.data;
+  },
+
+  createSubCategory: async (
+    categoryId: string,
+    data: {
+      name: string;
+      slug: string;
+      order?: number;
+      isActive?: boolean;
+    }
+  ) => {
+    const response = await apiClient.post(
+      `/categories/${categoryId}/sub-categories`,
+      data
+    );
+    return response.data;
+  },
+
+  updateSubCategory: async (
+    subId: string,
+    data: {
+      name?: string;
+      slug?: string;
+      order?: number;
+      isActive?: boolean;
+    }
+  ) => {
+    const response = await apiClient.put(
+      `/categories/sub-categories/${subId}`,
+      data
+    );
+    return response.data;
+  },
+
+  deleteSubCategory: async (subId: string) => {
+    const response = await apiClient.delete(`/categories/sub-categories/${subId}`);
     return response.data;
   },
 };

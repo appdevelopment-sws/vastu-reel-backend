@@ -80,6 +80,8 @@ export class ReelsService {
       propertyType: dto.propertyType || '',
       element: dto.element || '',
       location: dto.location || '',
+      latitude: dto.latitude,
+      longitude: dto.longitude,
       status: ReelStatus.UPLOADING,
       visibility: ReelVisibility.PUBLIC,
     });

@@ -19,8 +19,8 @@ export class Category {
   @Column({ unique: true })
   slug: string;
 
-  @Column({ nullable: true })
-  icon: string;
+  @Column({ type: 'varchar', nullable: true })
+  icon?: string | null;
 
   @Column({ type: 'int', default: 0 })
   order: number;

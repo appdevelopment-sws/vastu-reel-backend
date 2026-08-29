@@ -1,8 +1,21 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  Logger,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from '../entities/category.entity';
 import { SubCategory } from '../entities/sub-category.entity';
+import { Reel } from '../../reels/entities/reel.entity';
+import {
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  CreateSubCategoryDto,
+  UpdateSubCategoryDto,
+} from '../dto/category.dto';
 
 @Injectable()
 export class CategoriesService implements OnModuleInit {
@@ -13,6 +26,8 @@ export class CategoriesService implements OnModuleInit {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(SubCategory)
     private readonly subCategoryRepo: Repository<SubCategory>,
+    @InjectRepository(Reel)
+    private readonly reelRepo: Repository<Reel>,
   ) {}
 
   async onModuleInit() {
@@ -23,6 +38,9 @@ export class CategoriesService implements OnModuleInit {
     }
   }
 
+  /**
+   * Used by mobile app: returns only active categories and their active subcategories
+   */
   async findAll(): Promise<Category[]> {
     const categories = await this.categoryRepo.find({
       where: { isActive: true },
@@ -30,7 +48,6 @@ export class CategoriesService implements OnModuleInit {
       relations: { subCategories: true },
     });
 
-    // Sort subcategories by order
     return categories.map((cat) => {
       if (cat.subCategories && cat.subCategories.length > 0) {
         cat.subCategories = cat.subCategories
@@ -41,11 +58,238 @@ export class CategoriesService implements OnModuleInit {
     });
   }
 
+  /**
+   * Used by Admin Panel: returns all categories (both active and inactive) with linked reel counts
+   */
+  async findAllAdmin(): Promise<any[]> {
+    const categories = await this.categoryRepo.find({
+      order: { order: 'ASC', name: 'ASC' },
+      relations: { subCategories: true },
+    });
+
+    const result = await Promise.all(
+      categories.map(async (cat) => {
+        // Count reels linked to this category
+        const catReelCount = await this.reelRepo.count({
+          where: [{ category: cat.slug }, { category: cat.name }, { category: cat.id }],
+        });
+
+        const subCatsWithCounts = await Promise.all(
+          (cat.subCategories || [])
+            .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+            .map(async (sub) => {
+              const subReelCount = await this.reelRepo.count({
+                where: [{ subCategory: sub.name }, { subCategory: sub.slug }],
+              });
+              return {
+                ...sub,
+                reelsCount: subReelCount,
+              };
+            }),
+        );
+
+        return {
+          ...cat,
+          reelsCount: catReelCount,
+          subCategories: subCatsWithCounts,
+        };
+      }),
+    );
+
+    return result;
+  }
+
   async findBySlug(slug: string): Promise<Category | null> {
     return this.categoryRepo.findOne({
       where: { slug, isActive: true },
       relations: { subCategories: true },
     });
+  }
+
+  async createCategory(dto: CreateCategoryDto): Promise<Category> {
+    const existing = await this.categoryRepo.findOne({
+      where: { slug: dto.slug },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `A category with slug '${dto.slug}' already exists.`,
+      );
+    }
+
+    const category = this.categoryRepo.create({
+      name: dto.name,
+      slug: dto.slug,
+      icon: dto.icon || null,
+      order: dto.order ?? 0,
+      isActive: dto.isActive ?? true,
+    });
+
+    return this.categoryRepo.save(category);
+  }
+
+  async updateCategory(
+    id: string,
+    dto: UpdateCategoryDto,
+  ): Promise<Category> {
+    const category = await this.categoryRepo.findOne({ where: { id } });
+    if (!category) {
+      throw new NotFoundException(`Category with ID '${id}' not found.`);
+    }
+
+    if (dto.slug && dto.slug !== category.slug) {
+      const existing = await this.categoryRepo.findOne({
+        where: { slug: dto.slug },
+      });
+      if (existing && existing.id !== id) {
+        throw new ConflictException(
+          `A category with slug '${dto.slug}' already exists.`,
+        );
+      }
+      category.slug = dto.slug;
+    }
+
+    if (dto.name !== undefined) category.name = dto.name;
+    if (dto.icon !== undefined) category.icon = dto.icon;
+    if (dto.order !== undefined) category.order = dto.order;
+    if (dto.isActive !== undefined) category.isActive = dto.isActive;
+
+    return this.categoryRepo.save(category);
+  }
+
+  /**
+   * Smart deletion:
+   * If any reel is linked to this category, it CANNOT be hard deleted.
+   * Instead, it is deactivated (isActive = false) so it won't be shown in the app for future videos.
+   */
+  async deleteCategory(id: string): Promise<{
+    success: boolean;
+    deactivated: boolean;
+    linkedReelsCount: number;
+    message: string;
+  }> {
+    const category = await this.categoryRepo.findOne({
+      where: { id },
+      relations: { subCategories: true },
+    });
+    if (!category) {
+      throw new NotFoundException(`Category with ID '${id}' not found.`);
+    }
+
+    // Check linked reels
+    const linkedReelsCount = await this.reelRepo.count({
+      where: [
+        { category: category.slug },
+        { category: category.name },
+        { category: category.id },
+      ],
+    });
+
+    if (linkedReelsCount > 0) {
+      category.isActive = false;
+      await this.categoryRepo.save(category);
+      return {
+        success: true,
+        deactivated: true,
+        linkedReelsCount,
+        message: `Category is linked with ${linkedReelsCount} video(s) and cannot be deleted. It has been deactivated so it will not appear for new video uploads.`,
+      };
+    }
+
+    // If no linked reels, delete category
+    await this.categoryRepo.remove(category);
+    return {
+      success: true,
+      deactivated: false,
+      linkedReelsCount: 0,
+      message: 'Category deleted permanently.',
+    };
+  }
+
+  async createSubCategory(
+    categoryId: string,
+    dto: CreateSubCategoryDto,
+  ): Promise<SubCategory> {
+    const category = await this.categoryRepo.findOne({
+      where: { id: categoryId },
+    });
+    if (!category) {
+      throw new NotFoundException(
+        `Category with ID '${categoryId}' not found.`,
+      );
+    }
+
+    const subCategory = this.subCategoryRepo.create({
+      categoryId,
+      name: dto.name,
+      slug: dto.slug,
+      order: dto.order ?? 0,
+      isActive: dto.isActive ?? true,
+    });
+
+    return this.subCategoryRepo.save(subCategory);
+  }
+
+  async updateSubCategory(
+    subId: string,
+    dto: UpdateSubCategoryDto,
+  ): Promise<SubCategory> {
+    const subCategory = await this.subCategoryRepo.findOne({
+      where: { id: subId },
+    });
+    if (!subCategory) {
+      throw new NotFoundException(`SubCategory with ID '${subId}' not found.`);
+    }
+
+    if (dto.name !== undefined) subCategory.name = dto.name;
+    if (dto.slug !== undefined) subCategory.slug = dto.slug;
+    if (dto.order !== undefined) subCategory.order = dto.order;
+    if (dto.isActive !== undefined) subCategory.isActive = dto.isActive;
+
+    return this.subCategoryRepo.save(subCategory);
+  }
+
+  /**
+   * Smart deletion for subcategories:
+   * If any reel is linked to this subcategory, it is deactivated instead of hard deleted.
+   */
+  async deleteSubCategory(subId: string): Promise<{
+    success: boolean;
+    deactivated: boolean;
+    linkedReelsCount: number;
+    message: string;
+  }> {
+    const subCategory = await this.subCategoryRepo.findOne({
+      where: { id: subId },
+    });
+    if (!subCategory) {
+      throw new NotFoundException(`SubCategory with ID '${subId}' not found.`);
+    }
+
+    const linkedReelsCount = await this.reelRepo.count({
+      where: [
+        { subCategory: subCategory.name },
+        { subCategory: subCategory.slug },
+      ],
+    });
+
+    if (linkedReelsCount > 0) {
+      subCategory.isActive = false;
+      await this.subCategoryRepo.save(subCategory);
+      return {
+        success: true,
+        deactivated: true,
+        linkedReelsCount,
+        message: `Subcategory is linked with ${linkedReelsCount} video(s) and cannot be deleted. It has been deactivated so it will not appear for new video uploads.`,
+      };
+    }
+
+    await this.subCategoryRepo.remove(subCategory);
+    return {
+      success: true,
+      deactivated: false,
+      linkedReelsCount: 0,
+      message: 'Subcategory deleted permanently.',
+    };
   }
 
   private async seedDefaultCategories() {

@@ -51,6 +51,16 @@ export class InitUploadDto {
   @IsString()
   @IsOptional()
   location?: string;
+
+  @ApiProperty({ example: 19.0760, required: false })
+  @IsNumber()
+  @IsOptional()
+  latitude?: number;
+
+  @ApiProperty({ example: 72.8777, required: false })
+  @IsNumber()
+  @IsOptional()
+  longitude?: number;
 }
 
 export class CompleteUploadDto {
