@@ -12,6 +12,7 @@ import { ActivityLogModule } from './modules/activity-logs/activity-log.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -59,6 +60,7 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
     AnalyticsModule,
     MessagingModule,
     NotificationsModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
