@@ -1,17 +1,49 @@
-import { Controller, Get, Query, Req, UseGuards, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import {
   AnalyticsQueryDto,
   TopReelsQueryDto,
   ChartQueryDto,
+  WeeklyLeaderboardQueryDto,
 } from './dto/analytics.dto';
+
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
 @Controller('analytics')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
+
+  @ApiOperation({ summary: 'Get weekly weighted creator leaderboard and top rankings' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Weekly leaderboard retrieved.' })
+  @Get('leaderboard/weekly')
+  getWeeklyLeaderboard(@Req() req: any, @Query() query: WeeklyLeaderboardQueryDto) {
+    const currentUserId = req?.user?.sub;
+    const requestHost = req?.headers?.host;
+    return this.analyticsService.getWeeklyCreatorLeaderboard(
+      query.limit ? Number(query.limit) : 10,
+      currentUserId,
+      requestHost,
+    );
+  }
+
+  @ApiOperation({ summary: 'Get weekly ranking, percentile, and badges for current creator' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Creator rank retrieved.' })
+  @Get('creators/me/weekly-rank')
+  getMyWeeklyRank(@Req() req: any) {
+    const userId = req.user.sub;
+    const requestHost = req.headers?.host;
+    return this.analyticsService.getUserWeeklyRank(userId, requestHost);
+  }
+
+  @ApiOperation({ summary: 'Get weekly ranking, percentile, and badges for specific creator by ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Creator rank retrieved.' })
+  @Get('creators/:id/weekly-rank')
+  getCreatorWeeklyRank(@Param('id') id: string, @Req() req: any) {
+    const requestHost = req?.headers?.host;
+    return this.analyticsService.getUserWeeklyRank(id, requestHost);
+  }
 
   @ApiOperation({ summary: 'Get creator overview analytics KPIs and percentage growth' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Overview metrics retrieved successfully.' })
@@ -20,6 +52,7 @@ export class AnalyticsController {
     const userId = req.user.sub;
     return this.analyticsService.getOverview(userId, query.timeframe);
   }
+
 
   @ApiOperation({ summary: 'Get interactive time-series chart data for graphing' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Chart data points retrieved.' })

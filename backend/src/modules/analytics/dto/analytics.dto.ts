@@ -55,3 +55,14 @@ export class ChartQueryDto extends AnalyticsQueryDto {
   @IsString()
   metric?: string = 'views';
 }
+
+export class WeeklyLeaderboardQueryDto extends AnalyticsQueryDto {
+  @ApiPropertyOptional({ default: 10, description: 'Number of top creators to return' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
+}
+

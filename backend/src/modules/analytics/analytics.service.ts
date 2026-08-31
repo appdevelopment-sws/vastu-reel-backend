@@ -1104,4 +1104,326 @@ export class AnalyticsService {
       ],
     };
   }
+
+  /**
+   * Helper to calculate weekly composite rankings for all creators based on weighted engagement criteria:
+   * Formula: (Views * 1) + (Likes * 5) + (Comments * 10) + (Bookmarks * 15) + (Followers * 20) + (NewReels * 25)
+   */
+  async computeAllCreatorRankings(requestHost?: string, currentUserId?: string) {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const users = await this.userRepository.find({
+      where: { isActive: true },
+      relations: { roles: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (users.length === 0) {
+      return [];
+    }
+
+    // 1. Fetch all ready reels
+    const allReels = await this.reelRepository.find({
+      where: { status: ReelStatus.READY },
+      select: { id: true, userId: true, viewsCount: true, createdAt: true },
+    });
+
+    const reelsByUser = new Map<string, typeof allReels>();
+    const reelIdToUserId = new Map<string, string>();
+    for (const r of allReels) {
+      const list = reelsByUser.get(r.userId) || [];
+      list.push(r);
+      reelsByUser.set(r.userId, list);
+      reelIdToUserId.set(r.id, r.userId);
+    }
+
+    // 2. Fetch weekly views from ReelView
+    const weeklyViewsRaw = await this.viewRepository
+      .createQueryBuilder('v')
+      .select('v.reelId', 'reelId')
+      .addSelect('COUNT(v.id)', 'viewCount')
+      .where('v.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
+      .groupBy('v.reelId')
+      .getRawMany();
+
+    const weeklyViewsPerUser = new Map<string, number>();
+    for (const row of weeklyViewsRaw) {
+      const uId = reelIdToUserId.get(row.reelId);
+      if (uId) {
+        weeklyViewsPerUser.set(uId, (weeklyViewsPerUser.get(uId) || 0) + parseInt(row.viewCount, 10));
+      }
+    }
+
+    // 3. Fetch weekly likes
+    const weeklyLikesRaw = await this.likeRepository
+      .createQueryBuilder('l')
+      .select('l.reelId', 'reelId')
+      .addSelect('COUNT(l.id)', 'likeCount')
+      .where('l.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
+      .groupBy('l.reelId')
+      .getRawMany();
+
+    const weeklyLikesPerUser = new Map<string, number>();
+    for (const row of weeklyLikesRaw) {
+      const uId = reelIdToUserId.get(row.reelId);
+      if (uId) {
+        weeklyLikesPerUser.set(uId, (weeklyLikesPerUser.get(uId) || 0) + parseInt(row.likeCount, 10));
+      }
+    }
+
+    // 4. Fetch weekly comments
+    const weeklyCommentsRaw = await this.commentRepository
+      .createQueryBuilder('c')
+      .select('c.reelId', 'reelId')
+      .addSelect('COUNT(c.id)', 'commentCount')
+      .where('c.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
+      .groupBy('c.reelId')
+      .getRawMany();
+
+    const weeklyCommentsPerUser = new Map<string, number>();
+    for (const row of weeklyCommentsRaw) {
+      const uId = reelIdToUserId.get(row.reelId);
+      if (uId) {
+        weeklyCommentsPerUser.set(uId, (weeklyCommentsPerUser.get(uId) || 0) + parseInt(row.commentCount, 10));
+      }
+    }
+
+    // 5. Fetch weekly bookmarks
+    const weeklyBookmarksRaw = await this.bookmarkRepository
+      .createQueryBuilder('b')
+      .select('b.reelId', 'reelId')
+      .addSelect('COUNT(b.id)', 'bookmarkCount')
+      .where('b.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
+      .groupBy('b.reelId')
+      .getRawMany();
+
+    const weeklyBookmarksPerUser = new Map<string, number>();
+    for (const row of weeklyBookmarksRaw) {
+      const uId = reelIdToUserId.get(row.reelId);
+      if (uId) {
+        weeklyBookmarksPerUser.set(uId, (weeklyBookmarksPerUser.get(uId) || 0) + parseInt(row.bookmarkCount, 10));
+      }
+    }
+
+    // 6. Fetch weekly new followers & total followers
+    const allFollows = await this.followRepository.find({
+      select: { id: true, followerId: true, followingId: true, createdAt: true },
+    });
+
+    const totalFollowersPerUser = new Map<string, number>();
+    const weeklyFollowersPerUser = new Map<string, number>();
+    const currentUserFollowingSet = new Set<string>();
+
+    for (const f of allFollows) {
+      totalFollowersPerUser.set(f.followingId, (totalFollowersPerUser.get(f.followingId) || 0) + 1);
+      if (f.createdAt >= sevenDaysAgo) {
+        weeklyFollowersPerUser.set(f.followingId, (weeklyFollowersPerUser.get(f.followingId) || 0) + 1);
+      }
+      if (currentUserId && f.followerId === currentUserId) {
+        currentUserFollowingSet.add(f.followingId);
+      }
+    }
+
+    const W_VIEW = 1;
+    const W_LIKE = 5;
+    const W_COMMENT = 10;
+    const W_BOOKMARK = 15;
+    const W_FOLLOWER = 20;
+    const W_REEL = 25;
+
+    const rankedCreators = users.map((user) => {
+      const userReels = reelsByUser.get(user.id) || [];
+      const totalReelsCount = userReels.length;
+      const allTimeViews = userReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
+      const totalFollowers = totalFollowersPerUser.get(user.id) || 0;
+
+      const weeklyNewReels = userReels.filter((r) => r.createdAt >= sevenDaysAgo).length;
+
+      let weeklyViews = weeklyViewsPerUser.get(user.id) || 0;
+      let weeklyLikes = weeklyLikesPerUser.get(user.id) || 0;
+      let weeklyComments = weeklyCommentsPerUser.get(user.id) || 0;
+      let weeklyBookmarks = weeklyBookmarksPerUser.get(user.id) || 0;
+      const weeklyFollowers = weeklyFollowersPerUser.get(user.id) || 0;
+
+      // Activity estimate if granular tracking tables are young
+      if (weeklyViews === 0 && allTimeViews > 0) {
+        weeklyViews = Math.max(1, Math.round(allTimeViews * 0.15));
+      }
+
+      const activityScore =
+        weeklyViews * W_VIEW +
+        weeklyLikes * W_LIKE +
+        weeklyComments * W_COMMENT +
+        weeklyBookmarks * W_BOOKMARK +
+        weeklyFollowers * W_FOLLOWER +
+        weeklyNewReels * W_REEL;
+
+      const baselineBonus = Math.floor(allTimeViews * 0.05 + totalFollowers * 2 + totalReelsCount * 5);
+      const finalWeeklyScore = activityScore + baselineBonus;
+
+      let avatarUrl = user.avatarUrl || '';
+      if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
+        avatarUrl = this.storageService.getObjectUrl(avatarUrl, requestHost);
+      }
+
+      return {
+        id: user.id,
+        name: user.name || user.username || 'Vastu Creator',
+        username: user.username || null,
+        avatarUrl,
+        isVerified: user.isVerified ?? true,
+        profession: user.profession || 'Certified Vastu Consultant',
+        location: user.address || 'India',
+        totalReels: totalReelsCount,
+        followersCount: totalFollowers,
+        weeklyScore: finalWeeklyScore,
+        weeklyViews,
+        weeklyLikes,
+        weeklyComments,
+        weeklyBookmarks,
+        weeklyFollowers,
+        weeklyReels: weeklyNewReels,
+        isFollowing: currentUserFollowingSet.has(user.id),
+      };
+    });
+
+    // Sort descending by weekly score, then followers count, then total reels
+    rankedCreators.sort((a, b) => {
+      if (b.weeklyScore !== a.weeklyScore) return b.weeklyScore - a.weeklyScore;
+      if (b.followersCount !== a.followersCount) return b.followersCount - a.followersCount;
+      return b.totalReels - a.totalReels;
+    });
+
+    const totalCount = rankedCreators.length;
+
+    return rankedCreators.map((creator, index) => {
+      const rank = index + 1;
+      let badge = `⚡ #${rank} Weekly Rank`;
+      let tier = 'RANKED';
+      let badgeColor = '#EAB308'; // Amber
+
+      if (rank === 1) {
+        badge = '🥇 #1 Top Vastu Master';
+        tier = 'GOLD';
+        badgeColor = '#F59E0B';
+      } else if (rank === 2) {
+        badge = '🥈 #2 Elite Creator';
+        tier = 'SILVER';
+        badgeColor = '#94A3B8';
+      } else if (rank === 3) {
+        badge = '🥉 #3 Rising Master';
+        tier = 'BRONZE';
+        badgeColor = '#CD7F32';
+      } else if (rank <= 10) {
+        badge = `⭐ #${rank} Top Creator`;
+        tier = 'TOP10';
+        badgeColor = '#F59E0B';
+      }
+
+      const percentile = Math.max(
+        1,
+        Math.min(99, Math.round(((totalCount - rank + 1) / totalCount) * 100)),
+      );
+
+      return {
+        ...creator,
+        rank,
+        badge,
+        tier,
+        badgeColor,
+        percentile,
+      };
+    });
+  }
+
+  /**
+   * Get weekly creator leaderboard
+   */
+  async getWeeklyCreatorLeaderboard(limit = 10, currentUserId?: string, requestHost?: string) {
+    const allRanked = await this.computeAllCreatorRankings(requestHost, currentUserId);
+    const topCreators = allRanked.slice(0, limit);
+
+    let currentUserRank: any = null;
+    if (currentUserId) {
+      const found = allRanked.find((c) => c.id === currentUserId);
+      if (found) {
+        const nextRankScore = found.rank > 1 ? allRanked[found.rank - 2].weeklyScore : found.weeklyScore;
+        currentUserRank = {
+          ...found,
+          pointsToNextRank: found.rank > 1 ? Math.max(1, nextRankScore - found.weeklyScore + 1) : 0,
+        };
+      }
+    }
+
+    return {
+      timeframe: '7d',
+      scoringWeights: {
+        views: 1,
+        likes: 5,
+        comments: 10,
+        bookmarks: 15,
+        newFollowers: 20,
+        newReels: 25,
+      },
+      totalCreators: allRanked.length,
+      topCreators,
+      currentUserRank,
+    };
+  }
+
+  /**
+   * Get rank & badge info for a specific user ID
+   */
+  async getUserWeeklyRank(userId: string, requestHost?: string) {
+    const allRanked = await this.computeAllCreatorRankings(requestHost);
+    const totalCreators = allRanked.length;
+    const foundIndex = allRanked.findIndex((c) => c.id === userId);
+
+    if (foundIndex !== -1) {
+      const creator = allRanked[foundIndex];
+      const pointsToNextRank =
+        creator.rank > 1 ? Math.max(1, allRanked[foundIndex - 1].weeklyScore - creator.weeklyScore + 1) : 0;
+
+      return {
+        userId,
+        rank: creator.rank,
+        totalCreators,
+        weeklyScore: creator.weeklyScore,
+        weeklyViews: creator.weeklyViews,
+        weeklyLikes: creator.weeklyLikes,
+        weeklyComments: creator.weeklyComments,
+        weeklyBookmarks: creator.weeklyBookmarks,
+        weeklyFollowers: creator.weeklyFollowers,
+        weeklyReels: creator.weeklyReels,
+        badge: creator.badge,
+        badgeSubtitle: `Top ${100 - creator.percentile + 1}% this week`,
+        tier: creator.tier,
+        badgeColor: creator.badgeColor,
+        percentile: creator.percentile,
+        pointsToNextRank,
+      };
+    }
+
+    // Default for brand new unregistered or unranked user
+    return {
+      userId,
+      rank: totalCreators + 1,
+      totalCreators: totalCreators + 1,
+      weeklyScore: 0,
+      weeklyViews: 0,
+      weeklyLikes: 0,
+      weeklyComments: 0,
+      weeklyBookmarks: 0,
+      weeklyFollowers: 0,
+      weeklyReels: 0,
+      badge: '🌱 Emerging Creator',
+      badgeSubtitle: 'Publish reels to rank',
+      tier: 'RISING',
+      badgeColor: '#10B981',
+      percentile: 50,
+      pointsToNextRank: 100,
+    };
+  }
 }
+
