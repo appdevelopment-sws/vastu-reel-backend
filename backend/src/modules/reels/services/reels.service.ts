@@ -20,6 +20,7 @@ import {
   CreateCommentDto,
   CommentQueryDto,
   FeedQueryDto,
+  FeedSortBy,
   UpdateReelDto,
   GetAllCommentsQueryDto,
 } from '../dto/reels.dto';
@@ -208,6 +209,12 @@ export class ReelsService {
     if (query.category) {
       qb.andWhere('reel.category = :category', { category: query.category });
     }
+    if (query.subCategory) {
+      qb.andWhere('reel.subCategory = :subCategory', { subCategory: query.subCategory });
+    }
+    if (query.propertyType) {
+      qb.andWhere('reel.propertyType = :propertyType', { propertyType: query.propertyType });
+    }
     if (query.element) {
       qb.andWhere('reel.element = :element', { element: query.element });
     }
@@ -235,9 +242,12 @@ export class ReelsService {
       );
     }
 
-    qb.orderBy('reel.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit);
+    if (query.sortBy === FeedSortBy.VIEWS) {
+      qb.orderBy('reel.viewsCount', 'DESC').addOrderBy('reel.createdAt', 'DESC');
+    } else {
+      qb.orderBy('reel.createdAt', 'DESC');
+    }
+    qb.skip(skip).take(limit);
 
     const [reels, total] = await qb.getManyAndCount();
 

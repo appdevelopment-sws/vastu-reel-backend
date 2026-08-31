@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export class InitUploadDto {
@@ -131,6 +131,13 @@ export class GetAllCommentsQueryDto {
 }
 
 
+export enum FeedSortBy {
+  RECENT = 'recent',
+  VIEWS = 'views',
+  LIKES = 'likes',
+  SAVED = 'saved',
+}
+
 export class FeedQueryDto {
   @ApiProperty({ example: 1, required: false, default: 1 })
   @Type(() => Number)
@@ -148,6 +155,16 @@ export class FeedQueryDto {
   @IsString()
   @IsOptional()
   category?: string;
+
+  @ApiProperty({ example: 'desk_facing', required: false })
+  @IsString()
+  @IsOptional()
+  subCategory?: string;
+
+  @ApiProperty({ example: 'flat', required: false })
+  @IsString()
+  @IsOptional()
+  propertyType?: string;
 
   @ApiProperty({ example: 'Air', required: false })
   @IsString()
@@ -175,6 +192,11 @@ export class FeedQueryDto {
   @IsString()
   @IsOptional()
   search?: string;
+
+  @ApiProperty({ enum: FeedSortBy, example: FeedSortBy.RECENT, required: false })
+  @IsEnum(FeedSortBy)
+  @IsOptional()
+  sortBy?: FeedSortBy;
 }
 
 export class UpdateReelDto {
