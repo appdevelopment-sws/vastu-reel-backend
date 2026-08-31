@@ -12,12 +12,14 @@ import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
 import { ConfigService } from '@nestjs/config';
+import { OAuth2Client } from 'google-auth-library';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../roles/entities/role.entity';
 import { Permission } from '../permissions/entities/permission.entity';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { AssignUserRolesDto } from './dto/assign-role.dto';
@@ -26,6 +28,8 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private readonly googleClient = new OAuth2Client();
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -94,6 +98,11 @@ export class AuthService implements OnModuleInit {
       where: { email: emailNormalized },
     });
     if (existingEmail) {
+      if (existingEmail.authProvider === 'GOOGLE') {
+        throw new ConflictException(
+          'An account with this email was registered using Google Sign-In. Please sign in with Google.',
+        );
+      }
       throw new ConflictException('Email already registered');
     }
 
@@ -129,6 +138,7 @@ export class AuthService implements OnModuleInit {
       age: dto.age,
       address: dto.address,
       password: hashedPassword,
+      authProvider: 'LOCAL',
       roles: [role],
     });
 
@@ -157,6 +167,13 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    // Edge case: Account registered via Google OAuth without password (or has GOOGLE provider)
+    if (user.authProvider === 'GOOGLE' || !user.password) {
+      throw new BadRequestException(
+        'This account was registered using Google Sign-In. Please sign in with Google.',
+      );
+    }
+
     const isMatch = await bcrypt.compare(dto.password, user.password);
     if (!isMatch) {
       throw new UnauthorizedException('Invalid email or password');
@@ -165,6 +182,170 @@ export class AuthService implements OnModuleInit {
     if (!user.isActive) {
       throw new UnauthorizedException('User account is deactivated');
     }
+
+    return this.generateAuthResponse(user);
+  }
+
+  /**
+   * Login or Register via Google OAuth
+   */
+  async googleLogin(dto: GoogleAuthDto) {
+    if (!dto || !dto.idToken) {
+      throw new BadRequestException('Google token must be provided');
+    }
+
+    let payload: any = null;
+
+    // 1. Collect configured client IDs from environment
+    const configuredAudience = [
+      this.configService.get<string>('GOOGLE_CLIENT_ID'),
+      this.configService.get<string>('GOOGLE_ANDROID_CLIENT_ID'),
+      this.configService.get<string>('GOOGLE_IOS_CLIENT_ID'),
+      this.configService.get<string>('GOOGLE_WEB_CLIENT_ID'),
+    ]
+      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+      .map((id) => id.trim());
+
+    // 2. Attempt token verification using official Google OAuth client
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: dto.idToken,
+        audience: configuredAudience.length > 0 ? configuredAudience : undefined,
+      });
+      payload = ticket.getPayload();
+    } catch (err: any) {
+      // Fallback verification: Token might be an OAuth access token or from different client ID
+      try {
+        const tokenInfoRes = await fetch(
+          `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(dto.idToken)}`,
+        );
+        if (tokenInfoRes.ok) {
+          payload = await tokenInfoRes.json();
+        } else {
+          // If id_token param failed, attempt userinfo query with Bearer token
+          const userInfoRes = await fetch(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            {
+              headers: { Authorization: `Bearer ${dto.idToken}` },
+            },
+          );
+          if (userInfoRes.ok) {
+            payload = await userInfoRes.json();
+          }
+        }
+      } catch (fallbackErr) {
+        // Fallback also failed
+      }
+    }
+
+    if (!payload || (!payload.email && !payload.sub)) {
+      throw new UnauthorizedException(
+        'Invalid Google authentication token or unable to verify identity',
+      );
+    }
+
+    const email = (payload.email || '').toLowerCase().trim();
+    if (!email) {
+      throw new BadRequestException(
+        'Google account does not provide an email address',
+      );
+    }
+
+    const googleSub = (payload.sub || payload.id || '').toString();
+    const name = (
+      payload.name ||
+      payload.given_name ||
+      email.split('@')[0] ||
+      'User'
+    ).trim();
+    const picture = payload.picture || payload.avatar_url || null;
+    const isEmailVerified =
+      payload.email_verified === true || payload.email_verified === 'true';
+
+    // 3. Check for existing user by email or googleId
+    let user = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'roles')
+      .leftJoinAndSelect('roles.permissions', 'permissions')
+      .where('LOWER(user.email) = :email', { email })
+      .orWhere('user.googleId = :googleSub', { googleSub })
+      .getOne();
+
+    if (user) {
+      // Deactivated check
+      if (!user.isActive) {
+        throw new UnauthorizedException('User account is deactivated');
+      }
+
+      // Link Google ID and sync details if needed
+      let changed = false;
+      if (!user.googleId && googleSub) {
+        user.googleId = googleSub;
+        changed = true;
+      }
+      if (!user.avatarUrl && picture) {
+        user.avatarUrl = picture;
+        changed = true;
+      }
+      if (!user.isVerified && isEmailVerified) {
+        user.isVerified = true;
+        changed = true;
+      }
+      if (changed) {
+        await this.userRepository.save(user);
+      }
+
+      return this.generateAuthResponse(user);
+    }
+
+    // 4. Register new user from Google profile
+    // Auto-generate clean, unique username (e.g. john.doe -> johndoe or johndoe_1)
+    let cleanBase = email.split('@')[0].toLowerCase().replace(/[^a-z0-9._]/g, '');
+    if (cleanBase.length < 3) {
+      cleanBase = `user_${cleanBase}`;
+    }
+    if (cleanBase.length > 20) {
+      cleanBase = cleanBase.slice(0, 20);
+    }
+
+    let uniqueUsername = cleanBase;
+    let suffix = 1;
+    while (
+      await this.userRepository.findOne({ where: { username: uniqueUsername } })
+    ) {
+      uniqueUsername = `${cleanBase.slice(0, 15)}_${suffix++}`;
+    }
+
+    // Resolve target role
+    const targetRoleName = (dto.userType || dto.roleName || 'USER')
+      .trim()
+      .toUpperCase();
+
+    let role = await this.roleRepository.findOne({
+      where: { name: targetRoleName },
+    });
+
+    if (!role) {
+      role = this.roleRepository.create({
+        name: targetRoleName,
+        description: `${targetRoleName} role`,
+      });
+      await this.roleRepository.save(role);
+    }
+
+    user = this.userRepository.create({
+      username: uniqueUsername,
+      name,
+      email,
+      avatarUrl: picture,
+      googleId: googleSub,
+      authProvider: 'GOOGLE',
+      isVerified: isEmailVerified,
+      isActive: true,
+      roles: [role],
+    });
+
+    await this.userRepository.save(user);
 
     return this.generateAuthResponse(user);
   }
@@ -360,7 +541,10 @@ export class AuthService implements OnModuleInit {
       throw new NotFoundException('User not found');
     }
 
-    if (dto.currentPassword && user.password) {
+    if (user.password) {
+      if (!dto.currentPassword) {
+        throw new BadRequestException('Current password is required');
+      }
       const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
       if (!isMatch) {
         throw new BadRequestException('Current password is incorrect');

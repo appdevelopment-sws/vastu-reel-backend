@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags, ApiQuery, ApiOperation } from '@nestjs/swagger'
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -37,6 +38,13 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Public()
+  @Post('google')
+  @ApiOperation({ summary: 'Sign in or register with Google OAuth' })
+  async googleAuth(@Body() dto: GoogleAuthDto) {
+    return this.authService.googleLogin(dto);
   }
 
   @Get('me')

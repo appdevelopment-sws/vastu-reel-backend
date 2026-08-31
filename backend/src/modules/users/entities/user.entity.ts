@@ -62,8 +62,14 @@ export class User {
   @Column({ default: false })
   isVerified: boolean;
 
-  @Column({ select: false })
-  password: string;
+  @Column({ nullable: true, select: false })
+  password?: string;
+
+  @Column({ nullable: true, unique: true })
+  googleId?: string;
+
+  @Column({ default: 'LOCAL', length: 20 })
+  authProvider: string;
 
   @Column({ default: true })
   isActive: boolean;
