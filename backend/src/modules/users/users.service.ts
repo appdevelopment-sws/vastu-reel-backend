@@ -528,32 +528,47 @@ export class UsersService {
       0,
     );
 
+    const reelIds = reels.map((r) => r.id);
+
     for (let i = 0; i < pointsCount; i++) {
-      const pointTime = new Date(currentStart.getTime() + i * stepMs);
-      const isoDate = pointTime.toISOString().split('T')[0];
-      const label = pointTime.toLocaleDateString('en-US', {
+      const bucketStart = new Date(currentStart.getTime() + i * stepMs);
+      const bucketEnd = new Date(bucketStart.getTime() + stepMs);
+      const isoDate = bucketStart.toISOString().split('T')[0];
+      const label = bucketStart.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });
 
-      // Synthetic smooth curve matching creator total if historical granular table is young
-      const factor = Math.sin((i / (pointsCount - 1 || 1)) * Math.PI) * 0.4 + 0.6;
-      const pointViews = Math.round(
-        (totalViews / (pointsCount || 1)) * factor,
-      );
-      const pointLikes = Math.round(
-        (totalLikes / (pointsCount || 1)) * factor,
-      );
-      const pointComments = Math.round(
-        (totalComments / (pointsCount || 1)) * factor,
-      );
+      let views = 0;
+      let likes = 0;
+      let comments = 0;
+
+      if (reelIds.length > 0) {
+        views = await this.viewRepository
+          .createQueryBuilder('view')
+          .where('view.reelId IN (:...reelIds)', { reelIds })
+          .andWhere('view.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .getCount();
+
+        likes = await this.likeRepository
+          .createQueryBuilder('like')
+          .where('like.reelId IN (:...reelIds)', { reelIds })
+          .andWhere('like.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .getCount();
+
+        comments = await this.commentRepository
+          .createQueryBuilder('comment')
+          .where('comment.reelId IN (:...reelIds)', { reelIds })
+          .andWhere('comment.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .getCount();
+      }
 
       dataPoints.push({
         date: isoDate,
         label,
-        views: Math.max(0, pointViews),
-        likes: Math.max(0, pointLikes),
-        comments: Math.max(0, pointComments),
+        views,
+        likes,
+        comments,
       });
     }
 

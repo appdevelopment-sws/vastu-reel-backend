@@ -83,6 +83,75 @@ export class AnalyticsService {
   }
 
   /**
+   * Helper to dynamically extract and group top geographic regions from active users and reels
+   */
+  private async getDynamicGeographicRegions(creatorUserId?: string): Promise<{ region: string; percentage: number; count: number }[]> {
+    const locationCounts = new Map<string, number>();
+
+    // 1. Extract from User addresses
+    const userQuery = this.userRepository
+      .createQueryBuilder('user')
+      .select('user.address', 'address')
+      .where('user.address IS NOT NULL AND user.address != :empty', { empty: '' });
+
+    const userAddresses = await userQuery.getRawMany();
+    for (const u of userAddresses) {
+      const cleaned = this.cleanRegionName(u.address);
+      if (cleaned) {
+        locationCounts.set(cleaned, (locationCounts.get(cleaned) || 0) + 1);
+      }
+    }
+
+    // 2. Extract from Reel locations
+    const reelQuery = this.reelRepository
+      .createQueryBuilder('reel')
+      .select('reel.location', 'location')
+      .where('reel.location IS NOT NULL AND reel.location != :empty', { empty: '' })
+      .andWhere('reel.status = :status', { status: ReelStatus.READY });
+
+    if (creatorUserId) {
+      reelQuery.andWhere('reel.userId = :creatorUserId', { creatorUserId });
+    }
+
+    const reelLocations = await reelQuery.getRawMany();
+    for (const r of reelLocations) {
+      const cleaned = this.cleanRegionName(r.location);
+      if (cleaned) {
+        locationCounts.set(cleaned, (locationCounts.get(cleaned) || 0) + 1);
+      }
+    }
+
+    const totalLocations = Array.from(locationCounts.values()).reduce((sum, c) => sum + c, 0);
+
+    if (totalLocations === 0) {
+      return [];
+    }
+
+    const entries = Array.from(locationCounts.entries())
+      .map(([region, count]) => ({
+        region,
+        count,
+        percentage: parseFloat(((count / totalLocations) * 100).toFixed(1)),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+
+    return entries;
+  }
+
+  private cleanRegionName(raw: string): string | null {
+    if (!raw || typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    if (trimmed.length < 2) return null;
+
+    const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) {
+      return parts[0];
+    }
+    return trimmed;
+  }
+
+  /**
    * 1. Creator Overview Metrics
    */
   async getOverview(userId: string, timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS) {
@@ -106,12 +175,12 @@ export class AnalyticsService {
     let previousComments = 0;
     let currentBookmarks = 0;
     let previousBookmarks = 0;
+    let uniqueViewers = 0;
 
     if (reelIds.length > 0) {
-      // Views in current & previous period
       if (timeframe === AnalyticsTimeframe.ALL_TIME) {
         currentViews = allTimeViews;
-        previousViews = Math.round(allTimeViews * 0.7);
+        previousViews = 0;
       } else {
         currentViews = await this.viewRepository
           .createQueryBuilder('view')
@@ -124,12 +193,6 @@ export class AnalyticsService {
           .where('view.reelId IN (:...reelIds)', { reelIds })
           .andWhere('view.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
           .getCount();
-
-        // If tracked views in viewRepository are fewer than total reel views
-        if (currentViews === 0 && allTimeViews > 0) {
-          currentViews = Math.round(allTimeViews * (timeframe === AnalyticsTimeframe.SEVEN_DAYS ? 0.25 : 0.65));
-          previousViews = Math.round(currentViews * 0.82);
-        }
       }
 
       // Likes
@@ -170,6 +233,15 @@ export class AnalyticsService {
         .where('bookmark.reelId IN (:...reelIds)', { reelIds })
         .andWhere('bookmark.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
         .getCount();
+
+      // Unique Viewers
+      const uniqueQuery = await this.viewRepository
+        .createQueryBuilder('view')
+        .select('COUNT(DISTINCT COALESCE(view.userId, view.ipAddress))', 'cnt')
+        .where('view.reelId IN (:...reelIds)', { reelIds })
+        .andWhere('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .getRawOne();
+      uniqueViewers = parseInt(uniqueQuery?.cnt || '0', 10);
     }
 
     // Followers
@@ -229,8 +301,7 @@ export class AnalyticsService {
         rate: currentEngagementRate,
         growthPercentage: this.calculateGrowth(currentEngagementRate, previousEngagementRate),
       },
-      estimatedReach: Math.round(currentViews * 1.35),
-      avgWatchDurationSeconds: 24.5,
+      uniqueViewers,
     };
   }
 
@@ -250,12 +321,10 @@ export class AnalyticsService {
 
     const creatorReels = await this.reelRepository.find({
       where: { userId, status: ReelStatus.READY },
-      select: { id: true, viewsCount: true },
+      select: { id: true },
     });
     const reelIds = creatorReels.map((r) => r.id);
-    const totalViews = creatorReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
 
-    // Build day buckets
     const pointsCount = days <= 7 ? 7 : days <= 28 ? 14 : 15;
     const bucketIntervalMs = (days * 24 * 60 * 60 * 1000) / pointsCount;
     const dataPoints: ChartDataPoint[] = [];
@@ -301,14 +370,6 @@ export class AnalyticsService {
         },
       });
 
-      // Smooth baseline calculation if live view tracking just started
-      if (views === 0 && totalViews > 0) {
-        const factor = Math.sin((i / (pointsCount - 1)) * Math.PI) * 0.4 + 0.6;
-        views = Math.round((totalViews / pointsCount) * factor);
-        likes = Math.round(views * 0.08);
-        comments = Math.round(views * 0.02);
-      }
-
       dataPoints.push({
         date: isoDate,
         label,
@@ -353,7 +414,6 @@ export class AnalyticsService {
           ? parseFloat((((likesCount + commentsCount + bookmarksCount) / viewsCount) * 100).toFixed(2))
           : 0;
 
-      // Extract thumbnail URL
       let thumbnailUrl = '';
       if (reel.media?.thumbnailKey) {
         thumbnailUrl = this.storageService.getObjectUrl(reel.media.thumbnailKey, requestHost);
@@ -361,12 +421,20 @@ export class AnalyticsService {
         thumbnailUrl = this.storageService.getObjectUrl(reel.media.originalKey, requestHost);
       }
 
+      let videoUrl = '';
+      if (reel.media?.hlsKey) {
+        videoUrl = this.storageService.getObjectUrl(reel.media.hlsKey, requestHost);
+      } else if (reel.media?.originalKey) {
+        videoUrl = this.storageService.getObjectUrl(reel.media.originalKey, requestHost);
+      }
+
       return {
         id: reel.id,
         title: reel.title || 'Untitled Reel',
         caption: reel.caption,
-        category: reel.category || 'Vastu',
+        category: reel.category || 'General Vastu',
         thumbnailUrl,
+        videoUrl,
         viewsCount,
         likesCount,
         commentsCount,
@@ -376,7 +444,6 @@ export class AnalyticsService {
       };
     });
 
-    // Sort according to query
     formatted.sort((a, b) => {
       if (sortBy === AnalyticsSortBy.LIKES) return b.likesCount - a.likesCount;
       if (sortBy === AnalyticsSortBy.COMMENTS) return b.commentsCount - a.commentsCount;
@@ -384,7 +451,6 @@ export class AnalyticsService {
       return b.viewsCount - a.viewsCount;
     });
 
-    // Attach ranking badges (1st = #1, 2nd = #2, etc.)
     const rankedReels = formatted.slice(0, limit).map((r, index) => ({
       ...r,
       rank: index + 1,
@@ -457,25 +523,29 @@ export class AnalyticsService {
     });
     const reelIds = creatorReels.map((r) => r.id);
 
-    // Slot counters
     const slotCounts = {
       '06:00 - 09:00': 0,
       '09:00 - 12:00': 0,
       '12:00 - 15:00': 0,
       '15:00 - 18:00': 0,
       '18:00 - 22:00': 0,
+      '22:00 - 06:00': 0,
     };
 
     let totalRecordedActivities = 0;
+    let totalViewsCount = 0;
+    let totalLikesCount = 0;
+    let totalCommentsCount = 0;
+    let totalBookmarksCount = 0;
 
     if (reelIds.length > 0) {
-      // Gather timestamps of views, likes, and comments
       const views = await this.viewRepository
         .createQueryBuilder('view')
         .select('view.createdAt', 'createdAt')
         .where('view.reelId IN (:...reelIds)', { reelIds })
         .andWhere('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
         .getRawMany();
+      totalViewsCount = views.length;
 
       const likes = await this.likeRepository
         .createQueryBuilder('like')
@@ -483,6 +553,7 @@ export class AnalyticsService {
         .where('like.reelId IN (:...reelIds)', { reelIds })
         .andWhere('like.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
         .getRawMany();
+      totalLikesCount = likes.length;
 
       const comments = await this.commentRepository
         .createQueryBuilder('comment')
@@ -490,12 +561,18 @@ export class AnalyticsService {
         .where('comment.reelId IN (:...reelIds)', { reelIds })
         .andWhere('comment.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
         .getRawMany();
+      totalCommentsCount = comments.length;
+
+      totalBookmarksCount = await this.bookmarkRepository
+        .createQueryBuilder('bookmark')
+        .where('bookmark.reelId IN (:...reelIds)', { reelIds })
+        .andWhere('bookmark.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .getCount();
 
       const allDates: Date[] = [...views, ...likes, ...comments].map((r) => new Date(r.createdAt));
       totalRecordedActivities = allDates.length;
 
       for (const d of allDates) {
-        // Adjust for IST (+5:30 offset) or local hour
         const utcHour = d.getUTCHours();
         const localHour = (utcHour + 5.5) % 24;
 
@@ -507,8 +584,10 @@ export class AnalyticsService {
           slotCounts['12:00 - 15:00']++;
         } else if (localHour >= 15 && localHour < 18) {
           slotCounts['15:00 - 18:00']++;
-        } else {
+        } else if (localHour >= 18 && localHour < 22) {
           slotCounts['18:00 - 22:00']++;
+        } else {
+          slotCounts['22:00 - 06:00']++;
         }
       }
     }
@@ -522,16 +601,10 @@ export class AnalyticsService {
     const peakViewingHours = slotsArray.map(([timeSlot, count]) => {
       const percentage =
         totalRecordedActivities > 0
-          ? Math.max(5, Math.round((count / totalRecordedActivities) * 100))
-          : timeSlot === '12:00 - 15:00'
-              ? 35
-              : timeSlot === '09:00 - 12:00'
-                  ? 25
-                  : timeSlot === '15:00 - 18:00'
-                      ? 20
-                      : 10;
+          ? parseFloat(((count / totalRecordedActivities) * 100).toFixed(1))
+          : 0;
 
-      let activityLevel = 'Normal';
+      let activityLevel = 'No Activity';
       if (totalRecordedActivities > 0) {
         if (count === maxSlotCount && count > 0) {
           activityLevel = 'Peak (Highest)';
@@ -539,39 +612,34 @@ export class AnalyticsService {
           activityLevel = 'High';
         } else if (count > 0) {
           activityLevel = 'Moderate';
+        } else {
+          activityLevel = 'Low';
         }
-      } else {
-        if (timeSlot === '12:00 - 15:00') activityLevel = 'Peak (Highest)';
-        else if (timeSlot === '09:00 - 12:00') activityLevel = 'High';
-        else activityLevel = 'Moderate';
       }
 
       return {
         timeSlot,
         activityLevel,
         percentage,
+        count,
       };
     });
 
+    const topGeographicRegions = await this.getDynamicGeographicRegions(userId);
+
+    const totalInteractions = totalViewsCount + totalLikesCount + totalCommentsCount + totalBookmarksCount;
+    const engagementBreakdown = [
+      { name: 'Video Views', count: totalViewsCount, percentage: totalInteractions > 0 ? parseFloat(((totalViewsCount / totalInteractions) * 100).toFixed(1)) : 0 },
+      { name: 'Likes & Reactions', count: totalLikesCount, percentage: totalInteractions > 0 ? parseFloat(((totalLikesCount / totalInteractions) * 100).toFixed(1)) : 0 },
+      { name: 'Comments', count: totalCommentsCount, percentage: totalInteractions > 0 ? parseFloat(((totalCommentsCount / totalInteractions) * 100).toFixed(1)) : 0 },
+      { name: 'Bookmarks & Saves', count: totalBookmarksCount, percentage: totalInteractions > 0 ? parseFloat(((totalBookmarksCount / totalInteractions) * 100).toFixed(1)) : 0 },
+    ];
+
     return {
       peakViewingHours,
-      trafficSources: [
-        { source: 'For You Feed', percentage: 62 },
-        { source: 'Explore & Discover', percentage: 21 },
-        { source: 'Creator Profile', percentage: 11 },
-        { source: 'Direct & Shared Links', percentage: 6 },
-      ],
-      viewerType: {
-        nonFollowersPercentage: 74,
-        followersPercentage: 26,
-      },
-      topGeographicRegions: [
-        { region: 'Delhi NCR', percentage: 32 },
-        { region: 'Mumbai / Maharashtra', percentage: 28 },
-        { region: 'Bangalore / Karnataka', percentage: 18 },
-        { region: 'Gujarat (Ahmedabad)', percentage: 14 },
-        { region: 'Others', percentage: 8 },
-      ],
+      topGeographicRegions,
+      engagementBreakdown,
+      totalActivityCount: totalRecordedActivities,
     };
   }
 
@@ -665,15 +733,15 @@ export class AnalyticsService {
     const tips = [
       {
         title: 'Optimal Posting Window',
-        description: 'Your viewers are most active between 6:00 PM – 9:00 PM. Schedule reels then for 35% higher initial reach.',
+        description: 'Schedule reels during peak audience hours to maximize immediate discovery.',
       },
       {
         title: 'Top Category Engagement',
-        description: 'North-East Direction & Main Door remedies generate 2x more saves and bookmarks than average.',
+        description: 'Focus on high-demand Vastu remedies to increase saves and bookmark frequency.',
       },
       {
         title: 'Audience Interaction',
-        description: 'Replying to comments within the first 1 hour triggers algorithm boosts for trending recommendations.',
+        description: 'Replying to comments promptly builds engagement velocity across the community.',
       },
     ];
 
@@ -693,7 +761,6 @@ export class AnalyticsService {
       where: { status: ReelStatus.READY },
       select: { id: true, viewsCount: true, userId: true },
     });
-    const reelIds = allReels.map((r) => r.id);
     const totalReels = allReels.length;
     const allTimeViews = allReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
 
@@ -708,11 +775,12 @@ export class AnalyticsService {
     let previousComments = 0;
     let currentBookmarks = 0;
     let previousBookmarks = 0;
+    let uniqueViewers = 0;
 
-    if (reelIds.length > 0) {
+    if (totalReels > 0) {
       if (timeframe === AnalyticsTimeframe.ALL_TIME) {
         currentViews = allTimeViews;
-        previousViews = Math.round(allTimeViews * 0.7);
+        previousViews = 0;
       } else {
         currentViews = await this.viewRepository
           .createQueryBuilder('view')
@@ -723,11 +791,6 @@ export class AnalyticsService {
           .createQueryBuilder('view')
           .where('view.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
           .getCount();
-
-        if (currentViews === 0 && allTimeViews > 0) {
-          currentViews = Math.round(allTimeViews * (timeframe === AnalyticsTimeframe.SEVEN_DAYS ? 0.3 : 0.75));
-          previousViews = Math.round(currentViews * 0.85);
-        }
       }
 
       currentLikes = await this.likeRepository
@@ -759,6 +822,13 @@ export class AnalyticsService {
         .createQueryBuilder('bookmark')
         .where('bookmark.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
         .getCount();
+
+      const uniqueQuery = await this.viewRepository
+        .createQueryBuilder('view')
+        .select('COUNT(DISTINCT COALESCE(view.userId, view.ipAddress))', 'cnt')
+        .where('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .getRawOne();
+      uniqueViewers = parseInt(uniqueQuery?.cnt || '0', 10);
     }
 
     const currentEngagements = currentLikes + currentComments + currentBookmarks;
@@ -796,7 +866,7 @@ export class AnalyticsService {
         rate: currentEngagementRate,
         growthPercentage: this.calculateGrowth(currentEngagementRate, previousEngagementRate),
       },
-      estimatedReach: Math.round(currentViews * 1.45),
+      uniqueViewers,
     };
   }
 
@@ -806,12 +876,6 @@ export class AnalyticsService {
   async getPlatformChartData(query: ChartQueryDto) {
     const timeframe = query.timeframe || AnalyticsTimeframe.TWENTY_EIGHT_DAYS;
     const { currentStart, days } = this.getDateRanges(timeframe);
-
-    const allReels = await this.reelRepository.find({
-      where: { status: ReelStatus.READY },
-      select: { id: true, viewsCount: true },
-    });
-    const totalViews = allReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
 
     const pointsCount = days <= 7 ? 7 : days <= 28 ? 14 : 15;
     const bucketIntervalMs = (days * 24 * 60 * 60 * 1000) / pointsCount;
@@ -826,17 +890,17 @@ export class AnalyticsService {
       const label = `${bucketStart.getDate()} ${monthNames[bucketStart.getMonth()]}`;
       const isoDate = bucketStart.toISOString().split('T')[0];
 
-      let views = await this.viewRepository
+      const views = await this.viewRepository
         .createQueryBuilder('view')
         .where('view.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
         .getCount();
 
-      let likes = await this.likeRepository
+      const likes = await this.likeRepository
         .createQueryBuilder('like')
         .where('like.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
         .getCount();
 
-      let comments = await this.commentRepository
+      const comments = await this.commentRepository
         .createQueryBuilder('comment')
         .where('comment.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
         .getCount();
@@ -846,13 +910,6 @@ export class AnalyticsService {
           createdAt: Between(bucketStart, bucketEnd),
         },
       });
-
-      if (views === 0 && totalViews > 0) {
-        const factor = Math.sin((i / (pointsCount - 1)) * Math.PI) * 0.4 + 0.6;
-        views = Math.round((totalViews / pointsCount) * factor);
-        likes = Math.round(views * 0.09);
-        comments = Math.round(views * 0.03);
-      }
 
       dataPoints.push({
         date: isoDate,
@@ -905,15 +962,18 @@ export class AnalyticsService {
         thumbnailUrl = this.storageService.getObjectUrl(reel.media.originalKey, requestHost);
       }
 
-      const videoUrl = reel.media?.hlsKey
-        ? this.storageService.getObjectUrl(reel.media.hlsKey, requestHost)
-        : null;
+      let videoUrl = '';
+      if (reel.media?.hlsKey) {
+        videoUrl = this.storageService.getObjectUrl(reel.media.hlsKey, requestHost);
+      } else if (reel.media?.originalKey) {
+        videoUrl = this.storageService.getObjectUrl(reel.media.originalKey, requestHost);
+      }
 
       return {
         id: reel.id,
         title: reel.title || 'Untitled Reel',
         caption: reel.caption,
-        category: reel.category || 'Vastu',
+        category: reel.category || 'General Vastu',
         thumbnailUrl,
         videoUrl,
         viewsCount,
@@ -1008,6 +1068,7 @@ export class AnalyticsService {
       '12:00 - 15:00': 0,
       '15:00 - 18:00': 0,
       '18:00 - 22:00': 0,
+      '22:00 - 06:00': 0,
     };
 
     const views = await this.viewRepository
@@ -1028,6 +1089,11 @@ export class AnalyticsService {
       .where('comment.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
       .getRawMany();
 
+    const bookmarksCount = await this.bookmarkRepository
+      .createQueryBuilder('bookmark')
+      .where('bookmark.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+      .getCount();
+
     const allDates: Date[] = [...views, ...likes, ...comments].map((r) => new Date(r.createdAt));
     const totalRecorded = allDates.length;
 
@@ -1043,8 +1109,10 @@ export class AnalyticsService {
         slotCounts['12:00 - 15:00']++;
       } else if (localHour >= 15 && localHour < 18) {
         slotCounts['15:00 - 18:00']++;
-      } else {
+      } else if (localHour >= 18 && localHour < 22) {
         slotCounts['18:00 - 22:00']++;
+      } else {
+        slotCounts['22:00 - 06:00']++;
       }
     }
 
@@ -1057,14 +1125,10 @@ export class AnalyticsService {
     const peakViewingHours = slotsArray.map(([timeSlot, count]) => {
       const percentage =
         totalRecorded > 0
-          ? Math.max(5, Math.round((count / totalRecorded) * 100))
-          : timeSlot === '18:00 - 22:00'
-          ? 40
-          : timeSlot === '12:00 - 15:00'
-          ? 25
-          : 15;
+          ? parseFloat(((count / totalRecorded) * 100).toFixed(1))
+          : 0;
 
-      let activityLevel = 'Normal';
+      let activityLevel = 'No Activity';
       if (totalRecorded > 0) {
         if (count === maxSlotCount && count > 0) {
           activityLevel = 'Peak (Highest)';
@@ -1072,36 +1136,34 @@ export class AnalyticsService {
           activityLevel = 'High';
         } else if (count > 0) {
           activityLevel = 'Moderate';
+        } else {
+          activityLevel = 'Low';
         }
-      } else {
-        if (timeSlot === '18:00 - 22:00') activityLevel = 'Peak (Highest)';
-        else if (timeSlot === '12:00 - 15:00') activityLevel = 'High';
-        else activityLevel = 'Moderate';
       }
 
       return {
         timeSlot,
         activityLevel,
         percentage,
+        count,
       };
     });
 
+    const topGeographicRegions = await this.getDynamicGeographicRegions();
+
+    const totalInteractions = views.length + likes.length + comments.length + bookmarksCount;
+    const engagementBreakdown = [
+      { name: 'Video Views', count: views.length, percentage: totalInteractions > 0 ? parseFloat(((views.length / totalInteractions) * 100).toFixed(1)) : 0 },
+      { name: 'Likes & Reactions', count: likes.length, percentage: totalInteractions > 0 ? parseFloat(((likes.length / totalInteractions) * 100).toFixed(1)) : 0 },
+      { name: 'Comments', count: comments.length, percentage: totalInteractions > 0 ? parseFloat(((comments.length / totalInteractions) * 100).toFixed(1)) : 0 },
+      { name: 'Bookmarks & Saves', count: bookmarksCount, percentage: totalInteractions > 0 ? parseFloat(((bookmarksCount / totalInteractions) * 100).toFixed(1)) : 0 },
+    ];
+
     return {
       peakViewingHours,
-      trafficSources: [
-        { source: 'For You Feed', percentage: 65 },
-        { source: 'Explore & Search', percentage: 20 },
-        { source: 'Creator Profiles', percentage: 10 },
-        { source: 'Direct Links', percentage: 5 },
-      ],
-      topGeographicRegions: [
-        { region: 'Delhi NCR', percentage: 30 },
-        { region: 'Maharashtra (Mumbai/Pune)', percentage: 26 },
-        { region: 'Karnataka (Bangalore)', percentage: 18 },
-        { region: 'Gujarat (Ahmedabad/Surat)', percentage: 14 },
-        { region: 'Rajasthan (Jaipur)', percentage: 7 },
-        { region: 'Others', percentage: 5 },
-      ],
+      topGeographicRegions,
+      engagementBreakdown,
+      totalActivityCount: totalRecorded,
     };
   }
 

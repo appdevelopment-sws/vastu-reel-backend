@@ -20,7 +20,10 @@ import {
   BadgeCheck,
 } from "lucide-react"
 import { Link } from "react-router-dom"
-import { ReelPlayerModal, type ReelItem } from "../../components/ui/ReelPlayerModal"
+import {
+  ReelPlayerModal,
+  type ReelItem,
+} from "../../components/ui/ReelPlayerModal"
 
 export const DashboardOverviewPage: React.FC = () => {
   const { user } = useAuth()
@@ -104,7 +107,8 @@ export const DashboardOverviewPage: React.FC = () => {
       ).length
 
       const fallbackViews = reelsList.reduce(
-        (acc: number, item: any) => acc + Number(item.viewsCount || item.views || 0),
+        (acc: number, item: any) =>
+          acc + Number(item.viewsCount || item.views || 0),
         0
       )
 
@@ -114,8 +118,8 @@ export const DashboardOverviewPage: React.FC = () => {
         totalReels: platformOverview?.totalReels ?? reelsList.length,
         totalViews: Number(
           platformOverview?.views?.allTimeTotal ??
-          platformOverview?.totalViews ??
-          fallbackViews
+            platformOverview?.totalViews ??
+            fallbackViews
         ),
       })
     } finally {
@@ -159,7 +163,7 @@ export const DashboardOverviewPage: React.FC = () => {
       iconColor: "text-purple-500",
     },
     {
-      title: "Total Impressions",
+      title: "Total Views",
       value: stats.totalViews.toLocaleString(),
       change: "Views & Interactions",
       icon: Eye,
@@ -344,7 +348,8 @@ export const DashboardOverviewPage: React.FC = () => {
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {recentReels.length === 0 ? (
                 <div className="col-span-2 py-8 text-center text-sm text-muted-foreground">
-                  No reels published yet. Upload your first reel from the mobile app or web portal!
+                  No reels published yet. Upload your first reel from the mobile
+                  app or web portal!
                 </div>
               ) : (
                 recentReels.map((reel, index) => (
@@ -365,11 +370,16 @@ export const DashboardOverviewPage: React.FC = () => {
                       </span>
                     </div>
                     <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
-                      {reel.description || reel.caption || "No description provided"}
+                      {reel.description ||
+                        reel.caption ||
+                        "No description provided"}
                     </p>
                     <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
                       <span className="font-semibold text-foreground">
-                        @{reel.creator?.username || reel.user?.username || "creator"}
+                        @
+                        {reel.creator?.username ||
+                          reel.user?.username ||
+                          "creator"}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="flex items-center gap-1">
@@ -390,15 +400,15 @@ export const DashboardOverviewPage: React.FC = () => {
         {/* Right Col: Top Creators Leaderboard & Activity Feed */}
         <div className="space-y-6">
           {/* Top Creators Leaderboard */}
-          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4">
+          <div className="space-y-4 rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
                 <Trophy className="h-4 w-4 text-amber-500" />
                 <span>Top Creators Leaderboard</span>
               </h3>
               <Link
                 to="/dashboard/users"
-                className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1"
+                className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
               >
                 <span>View All</span>
                 <ArrowUpRight className="h-3 w-3" />
@@ -407,34 +417,36 @@ export const DashboardOverviewPage: React.FC = () => {
 
             <div className="space-y-2.5 divide-y divide-border/40">
               {topCreators.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-4 text-center">
+                <p className="py-4 text-center text-xs text-muted-foreground">
                   No registered creators found.
                 </p>
               ) : (
                 topCreators.map((creator, idx) => (
                   <div
                     key={creator.id}
-                    onClick={() => window.location.href = `/dashboard/users/${creator.id}`}
-                    className="pt-2 flex items-center justify-between group cursor-pointer hover:bg-muted/30 p-1.5 rounded-xl transition"
+                    onClick={() =>
+                      (window.location.href = `/dashboard/users/${creator.id}`)
+                    }
+                    className="group flex cursor-pointer items-center justify-between rounded-xl p-1.5 pt-2 transition hover:bg-muted/30"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex min-w-0 items-center gap-2.5">
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-bold text-primary">
                         #{creator.rank || idx + 1}
                       </span>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1 font-bold text-xs text-foreground group-hover:text-primary transition">
+                        <div className="flex items-center gap-1 text-xs font-bold text-foreground transition group-hover:text-primary">
                           <span className="truncate">{creator.name}</span>
                           {creator.isVerified && (
-                            <BadgeCheck className="h-3.5 w-3.5 text-primary fill-primary/20 shrink-0" />
+                            <BadgeCheck className="h-3.5 w-3.5 shrink-0 fill-primary/20 text-primary" />
                           )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground truncate">
+                        <p className="truncate text-[10px] text-muted-foreground">
                           @{creator.username} • {creator.videoCount || 0} videos
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0 text-[11px]">
+                    <div className="shrink-0 text-right text-[11px]">
                       <div className="font-bold text-emerald-500">
                         {(creator.totalViews || 0).toLocaleString()} views
                       </div>
@@ -449,15 +461,15 @@ export const DashboardOverviewPage: React.FC = () => {
           </div>
 
           {/* Activity Stream Preview */}
-          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4">
+          <div className="space-y-4 rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
                 <Activity className="h-4 w-4 text-primary" />
                 <span>Live Audit Stream</span>
               </h3>
               <Link
                 to="/dashboard/activity"
-                className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1"
+                className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
               >
                 <span>View All</span>
                 <ArrowUpRight className="h-3 w-3" />
@@ -466,16 +478,23 @@ export const DashboardOverviewPage: React.FC = () => {
 
             <div className="space-y-3 divide-y divide-border/40">
               {activities.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-4 text-center">
+                <p className="py-4 text-center text-xs text-muted-foreground">
                   No activity recorded yet.
                 </p>
               ) : (
                 activities.slice(0, 5).map((act) => (
-                  <div key={act.id} className="pt-2 text-xs space-y-1">
-                    <p className="font-medium text-foreground line-clamp-2">{act.message}</p>
+                  <div key={act.id} className="space-y-1 pt-2 text-xs">
+                    <p className="line-clamp-2 font-medium text-foreground">
+                      {act.message}
+                    </p>
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>{act.actorName || 'System'}</span>
-                      <span>{new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{act.actorName || "System"}</span>
+                      <span>
+                        {new Date(act.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                     </div>
                   </div>
                 ))
