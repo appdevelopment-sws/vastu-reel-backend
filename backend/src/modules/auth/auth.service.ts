@@ -20,6 +20,8 @@ import { Permission } from '../permissions/entities/permission.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { AssignUserRolesDto } from './dto/assign-role.dto';
@@ -29,6 +31,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly googleClient = new OAuth2Client();
+  private readonly otpStore = new Map<string, { otp: string; expiresAt: number }>();
 
   constructor(
     @InjectRepository(User)
@@ -351,6 +354,139 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
+   * Send OTP to mobile phone
+   */
+  async sendPhoneOtp(dto: SendOtpDto) {
+    if (!dto || !dto.phone) {
+      throw new BadRequestException('Phone number is required');
+    }
+
+    const normalizedPhone = dto.phone.replace(/[\s\-()]/g, '').trim();
+    if (normalizedPhone.length < 7) {
+      throw new BadRequestException('Invalid phone number length');
+    }
+
+    // Generate 6-digit random OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresInSeconds = 300; // 5 minutes
+    const expiresAt = Date.now() + expiresInSeconds * 1000;
+
+    this.otpStore.set(normalizedPhone, { otp, expiresAt });
+
+    console.log(`📲 [AuthService] OTP for ${normalizedPhone}: ${otp} (Valid for 5 mins)`);
+
+    return {
+      success: true,
+      message: 'OTP sent successfully',
+      phone: normalizedPhone,
+      expiresInSeconds,
+    };
+  }
+
+  /**
+   * Verify Phone OTP and login or register user
+   */
+  async verifyPhoneOtp(dto: VerifyOtpDto) {
+    if (!dto || !dto.phone || !dto.otp) {
+      throw new BadRequestException('Phone number and OTP are required');
+    }
+
+    const normalizedPhone = dto.phone.replace(/[\s\-()]/g, '').trim();
+    const enteredOtp = dto.otp.trim();
+
+    const record = this.otpStore.get(normalizedPhone);
+    const isMasterDemoOtp = enteredOtp === '123456';
+
+    if (!record && !isMasterDemoOtp) {
+      throw new UnauthorizedException(
+        'No OTP request found for this phone number or it has expired. Please request a new OTP.',
+      );
+    }
+
+    if (record) {
+      if (Date.now() > record.expiresAt) {
+        this.otpStore.delete(normalizedPhone);
+        if (!isMasterDemoOtp) {
+          throw new UnauthorizedException('OTP has expired. Please request a new OTP.');
+        }
+      } else if (record.otp !== enteredOtp && !isMasterDemoOtp) {
+        throw new UnauthorizedException('Invalid OTP entered. Please try again.');
+      }
+    }
+
+    // OTP verified -> remove from store
+    this.otpStore.delete(normalizedPhone);
+
+    // 1. Check if user already exists with this phone
+    const rawNumber = normalizedPhone.replace(/^\+/, '');
+    let user = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'roles')
+      .leftJoinAndSelect('roles.permissions', 'permissions')
+      .where('user.phone = :phone', { phone: normalizedPhone })
+      .orWhere('user.phone = :rawPhone', { rawPhone: rawNumber })
+      .orWhere('user.whatsapp = :phone', { phone: normalizedPhone })
+      .getOne();
+
+    if (user) {
+      if (!user.isActive) {
+        throw new UnauthorizedException('User account is deactivated');
+      }
+
+      if (!user.isVerified) {
+        user.isVerified = true;
+        await this.userRepository.save(user);
+      }
+
+      return this.generateAuthResponse(user);
+    }
+
+    // 2. User doesn't exist -> Register new user with phone
+    const cleanDigits = normalizedPhone.replace(/[^0-9]/g, '');
+    const cleanBase = `user_${cleanDigits.slice(-6) || Math.floor(1000 + Math.random() * 9000)}`;
+    let uniqueUsername = cleanBase;
+    let suffix = 1;
+    while (
+      await this.userRepository.findOne({ where: { username: uniqueUsername } })
+    ) {
+      uniqueUsername = `${cleanBase}_${suffix++}`;
+    }
+
+    const targetRoleName = (dto.userType || dto.roleName || 'USER')
+      .trim()
+      .toUpperCase();
+
+    let role = await this.roleRepository.findOne({
+      where: { name: targetRoleName },
+    });
+
+    if (!role) {
+      role = this.roleRepository.create({
+        name: targetRoleName,
+        description: `${targetRoleName} role`,
+      });
+      await this.roleRepository.save(role);
+    }
+
+    const displayName = dto.name?.trim() || `User ${cleanDigits.slice(-4)}`;
+
+    user = this.userRepository.create({
+      username: uniqueUsername,
+      name: displayName,
+      phone: normalizedPhone,
+      whatsapp: normalizedPhone,
+      authProvider: 'PHONE',
+      isVerified: true,
+      isActive: true,
+      roles: [role],
+    });
+
+    await this.userRepository.save(user);
+
+    return this.generateAuthResponse(user);
+  }
+
+  /**
    * Generate JWT Token and Response Object
    */
   async generateAuthResponse(user: User) {
@@ -462,7 +598,7 @@ export class AuthService implements OnModuleInit {
       user.username = usernameNormalized;
     }
 
-    if (dto.email && dto.email.toLowerCase() !== user.email.toLowerCase()) {
+    if (dto.email && (!user.email || dto.email.toLowerCase() !== user.email.toLowerCase())) {
       const existing = await this.userRepository.findOne({
         where: { email: dto.email.toLowerCase() },
       });

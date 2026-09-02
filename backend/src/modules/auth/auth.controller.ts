@@ -4,6 +4,8 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -45,6 +47,20 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign in or register with Google OAuth' })
   async googleAuth(@Body() dto: GoogleAuthDto) {
     return this.authService.googleLogin(dto);
+  }
+
+  @Public()
+  @Post('phone/send-otp')
+  @ApiOperation({ summary: 'Send OTP to mobile phone number' })
+  async sendPhoneOtp(@Body() dto: SendOtpDto) {
+    return this.authService.sendPhoneOtp(dto);
+  }
+
+  @Public()
+  @Post('phone/verify-otp')
+  @ApiOperation({ summary: 'Verify mobile phone OTP and sign in or sign up' })
+  async verifyPhoneOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyPhoneOtp(dto);
   }
 
   @Get('me')

@@ -23,7 +23,7 @@ export interface FormattedUserResponse {
   id: string;
   username?: string;
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
   age?: number;
   address?: string;
@@ -86,7 +86,7 @@ export class UsersService {
       id: user.id,
       username: user.username,
       name: user.name,
-      email: user.email,
+      email: user.email || undefined,
       phone: user.phone || undefined,
       age: user.age || undefined,
       address: user.address || undefined,
