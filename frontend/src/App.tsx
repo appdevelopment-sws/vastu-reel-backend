@@ -12,6 +12,7 @@ import { CommentsPage } from './pages/dashboard/CommentsPage';
 import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
 import { RolesPage } from './pages/dashboard/RolesPage';
 import { CategoriesPage } from './pages/dashboard/CategoriesPage';
+import { PropertyTypesPage } from './pages/dashboard/PropertyTypesPage';
 import { ActivityLogsPage } from './pages/dashboard/ActivityLogsPage';
 import { SettingsPage } from './pages/dashboard/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -44,6 +45,14 @@ export function App() {
               element={
                 <ProtectedRoute requireAdmin>
                   <CategoriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="property-types"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <PropertyTypesPage />
                 </ProtectedRoute>
               }
             />

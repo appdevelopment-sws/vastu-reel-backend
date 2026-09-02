@@ -8,6 +8,7 @@ import {
   OneToMany,
   OneToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { ReelMedia } from './reel-media.entity';
@@ -62,6 +63,22 @@ export class Reel {
 
   @Column({ nullable: true })
   location: string;
+
+  @Index()
+  @Column({ nullable: true })
+  landmark?: string;
+
+  @Index()
+  @Column({ nullable: true })
+  city?: string;
+
+  @Index()
+  @Column({ nullable: true })
+  state?: string;
+
+  @Index()
+  @Column({ nullable: true })
+  pincode?: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
   latitude?: number | null;

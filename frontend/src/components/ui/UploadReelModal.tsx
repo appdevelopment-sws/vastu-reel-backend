@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { reelsApi } from '../../services/api';
+import { reelsApi, propertyTypesApi } from '../../services/api';
 import {
   Upload,
   X,
@@ -31,7 +31,7 @@ const CATEGORIES = [
 
 const ELEMENTS = ['Fire (Agni)', 'Water (Jal)', 'Air (Vayu)', 'Earth (Prithvi)', 'Space (Akash)'];
 
-const PROPERTY_TYPES = ['Residential', 'Commercial', 'Plot / Land', 'Industrial', 'Villa'];
+const DEFAULT_PROPERTY_TYPES = ['Residential', 'Commercial', 'Plot / Land', 'Industrial', 'Villa'];
 
 export const UploadReelModal: React.FC<UploadReelModalProps> = ({
   isOpen,
@@ -45,9 +45,30 @@ export const UploadReelModal: React.FC<UploadReelModalProps> = ({
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [subCategory, setSubCategory] = useState('');
   const [element, setElement] = useState('');
-  const [propertyType, setPropertyType] = useState(PROPERTY_TYPES[0]);
+  const [propertyTypeList, setPropertyTypeList] = useState<string[]>(DEFAULT_PROPERTY_TYPES);
+  const [propertyType, setPropertyType] = useState(DEFAULT_PROPERTY_TYPES[0]);
   const [location, setLocation] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Fetch dynamic property types on open
+  useEffect(() => {
+    if (isOpen) {
+      propertyTypesApi
+        .getAll()
+        .then((res: any) => {
+          if (Array.isArray(res) && res.length > 0) {
+            const names = res.map((item: any) => item.name);
+            setPropertyTypeList(names);
+            if (!names.includes(propertyType)) {
+              setPropertyType(names[0]);
+            }
+          }
+        })
+        .catch((e) => {
+          console.warn('Could not fetch dynamic property types:', e);
+        });
+    }
+  }, [isOpen]);
 
   // Upload Progress & States
   const [uploading, setUploading] = useState(false);
@@ -335,7 +356,7 @@ export const UploadReelModal: React.FC<UploadReelModalProps> = ({
                 onChange={(e) => setPropertyType(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
               >
-                {PROPERTY_TYPES.map((pt) => (
+                {propertyTypeList.map((pt) => (
                   <option key={pt} value={pt}>
                     {pt}
                   </option>

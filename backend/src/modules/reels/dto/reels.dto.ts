@@ -52,6 +52,26 @@ export class InitUploadDto {
   @IsOptional()
   location?: string;
 
+  @ApiProperty({ example: 'Bandra West', required: false })
+  @IsString()
+  @IsOptional()
+  landmark?: string;
+
+  @ApiProperty({ example: 'Mumbai', required: false })
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiProperty({ example: 'Maharashtra', required: false })
+  @IsString()
+  @IsOptional()
+  state?: string;
+
+  @ApiProperty({ example: '400050', required: false })
+  @IsString()
+  @IsOptional()
+  pincode?: string;
+
   @ApiProperty({ example: 19.0760, required: false })
   @IsNumber()
   @IsOptional()
@@ -234,6 +254,26 @@ export class UpdateReelDto {
   @IsString()
   @IsOptional()
   location?: string;
+
+  @ApiProperty({ example: 'Bandra West', required: false })
+  @IsString()
+  @IsOptional()
+  landmark?: string;
+
+  @ApiProperty({ example: 'Mumbai', required: false })
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiProperty({ example: 'Maharashtra', required: false })
+  @IsString()
+  @IsOptional()
+  state?: string;
+
+  @ApiProperty({ example: '400050', required: false })
+  @IsString()
+  @IsOptional()
+  pincode?: string;
 
   @ApiProperty({ example: 'https://images.unsplash.com/...', required: false })
   @IsString()

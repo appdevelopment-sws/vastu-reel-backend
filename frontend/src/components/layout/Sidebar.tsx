@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Film,
   FolderTree,
+  Building2,
   Users,
   BarChart3,
   ShieldCheck,
@@ -44,6 +45,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: "/dashboard/categories",
       icon: FolderTree,
       badge: "Taxonomy",
+      adminOnly: true,
+    },
+    {
+      label: "Property Types",
+      path: "/dashboard/property-types",
+      icon: Building2,
+      badge: "Master",
       adminOnly: true,
     },
     {

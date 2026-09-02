@@ -13,6 +13,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { PropertyTypesModule } from './modules/property-types/property-types.module';
+import { LocationModule } from './modules/location/location.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -61,6 +63,8 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
     MessagingModule,
     NotificationsModule,
     CategoriesModule,
+    PropertyTypesModule,
+    LocationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

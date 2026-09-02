@@ -434,4 +434,49 @@ export const categoriesApi = {
   },
 };
 
+// Property Types API
+export const propertyTypesApi = {
+  getAll: async () => {
+    const response = await apiClient.get('/property-types');
+    return response.data;
+  },
+
+  getAllAdmin: async () => {
+    const response = await apiClient.get('/property-types/admin');
+    return response.data;
+  },
+
+  create: async (data: {
+    name: string;
+    slug: string;
+    icon?: string;
+    description?: string;
+    order?: number;
+    isActive?: boolean;
+  }) => {
+    const response = await apiClient.post('/property-types', data);
+    return response.data;
+  },
+
+  update: async (
+    id: string,
+    data: {
+      name?: string;
+      slug?: string;
+      icon?: string;
+      description?: string;
+      order?: number;
+      isActive?: boolean;
+    }
+  ) => {
+    const response = await apiClient.put(`/property-types/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    const response = await apiClient.delete(`/property-types/${id}`);
+    return response.data;
+  },
+};
+
 export default apiClient;

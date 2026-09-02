@@ -81,6 +81,10 @@ export class ReelsService {
       propertyType: dto.propertyType || '',
       element: dto.element || '',
       location: dto.location || '',
+      landmark: dto.landmark || '',
+      city: dto.city || '',
+      state: dto.state || '',
+      pincode: dto.pincode || '',
       latitude: dto.latitude,
       longitude: dto.longitude,
       status: ReelStatus.UPLOADING,
@@ -1233,6 +1237,10 @@ export class ReelsService {
     if (dto.propertyType !== undefined) reel.propertyType = dto.propertyType;
     if (dto.element !== undefined) reel.element = dto.element;
     if (dto.location !== undefined) reel.location = dto.location;
+    if (dto.landmark !== undefined) reel.landmark = dto.landmark;
+    if (dto.city !== undefined) reel.city = dto.city;
+    if (dto.state !== undefined) reel.state = dto.state;
+    if (dto.pincode !== undefined) reel.pincode = dto.pincode;
 
     if (dto.thumbnailUrl !== undefined) {
       if (reel.media) {
