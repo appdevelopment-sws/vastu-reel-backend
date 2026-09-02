@@ -11,7 +11,6 @@ import {
   XCircle,
   AlertTriangle,
   Film,
-  Tag,
   ShieldAlert,
   Layers,
   Home,
