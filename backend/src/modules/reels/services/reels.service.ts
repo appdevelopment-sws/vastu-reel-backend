@@ -14,6 +14,7 @@ import { ReelView } from '../entities/reel-view.entity';
 import { ReelBookmark } from '../entities/reel-bookmark.entity';
 import { User } from '../../users/entities/user.entity';
 import { Follow } from '../../follows/entities/follow.entity';
+import { FavoriteProfile } from '../../favorite-profiles/entities/favorite-profile.entity';
 import { StorageService } from './storage.service';
 import {
   InitUploadDto,
@@ -53,6 +54,8 @@ export class ReelsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Follow)
     private readonly followRepository: Repository<Follow>,
+    @InjectRepository(FavoriteProfile)
+    private readonly favoriteProfileRepository: Repository<FavoriteProfile>,
     @InjectQueue('video-processing')
     private readonly videoQueue: Queue,
     private readonly storageService: StorageService,
@@ -265,12 +268,14 @@ export class ReelsService {
         let isLiked = false;
         let isBookmarked = false;
         let isFollowingCreator = false;
+        let isFavoriteCreator = false;
 
         if (userId) {
           isLiked = await this.likeRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
           isBookmarked = await this.bookmarkRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
           if (reel.userId) {
             isFollowingCreator = await this.followRepository.count({ where: { followerId: userId, followingId: reel.userId } }).then(c => c > 0);
+            isFavoriteCreator = await this.favoriteProfileRepository.count({ where: { userId, favoriteProfileId: reel.userId } }).then(c => c > 0);
           }
         }
 
@@ -314,6 +319,7 @@ export class ReelsService {
             isVerified: reel.user?.isVerified ?? true,
             title: reel.user?.profession || 'Certified Consultant',
             isFollowing: isFollowingCreator,
+            isFavorite: isFavoriteCreator,
           },
         };
       })

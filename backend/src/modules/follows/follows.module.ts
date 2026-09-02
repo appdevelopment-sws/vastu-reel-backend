@@ -5,11 +5,13 @@ import { FollowsService } from './follows.service';
 import { FollowsController } from './follows.controller';
 import { ActivityLogModule } from '../activity-logs/activity-log.module';
 import { User } from '../users/entities/user.entity';
+import { FavoriteProfilesModule } from '../favorite-profiles/favorite-profiles.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Follow, User]),
     ActivityLogModule,
+    FavoriteProfilesModule,
   ],
   controllers: [FollowsController],
   providers: [FollowsService],

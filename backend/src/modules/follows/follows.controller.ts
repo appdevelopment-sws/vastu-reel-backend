@@ -15,11 +15,15 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { FollowsService } from './follows.service';
+import { FavoriteProfilesService } from '../favorite-profiles/favorite-profiles.service';
 
 @ApiTags('Follows')
 @Controller('users')
 export class FollowsController {
-  constructor(private readonly followsService: FollowsService) {}
+  constructor(
+    private readonly followsService: FollowsService,
+    private readonly favoriteProfilesService: FavoriteProfilesService,
+  ) {}
 
   /**
    * Follow a user
@@ -75,8 +79,14 @@ export class FollowsController {
     ]);
 
     let isFollowing = false;
+    let isFavorite = false;
     if (requestingUserId && requestingUserId !== targetId) {
-      isFollowing = await this.followsService.isFollowing(requestingUserId, targetId);
+      const [following, favorite] = await Promise.all([
+        this.followsService.isFollowing(requestingUserId, targetId),
+        this.favoriteProfilesService.isFavorite(requestingUserId, targetId),
+      ]);
+      isFollowing = following;
+      isFavorite = favorite;
     }
 
     return {
@@ -84,6 +94,7 @@ export class FollowsController {
       followersCount,
       followingCount,
       isFollowing,
+      isFavorite,
     };
   }
 }

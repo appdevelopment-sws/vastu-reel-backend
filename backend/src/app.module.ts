@@ -15,6 +15,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { CategoriesModule } from './modules/categories/categories.module';
 import { PropertyTypesModule } from './modules/property-types/property-types.module';
 import { LocationModule } from './modules/location/location.module';
+import { FavoriteProfilesModule } from './modules/favorite-profiles/favorite-profiles.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -65,6 +66,7 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
     CategoriesModule,
     PropertyTypesModule,
     LocationModule,
+    FavoriteProfilesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
