@@ -10,6 +10,33 @@ import { Follow } from './entities/follow.entity';
 import { ActivityLogService } from '../activity-logs/activity-log.service';
 import { ActivityLogType } from '../activity-logs/entities/activity-log.entity';
 import { User } from '../users/entities/user.entity';
+import { Reel, ReelStatus } from '../reels/entities/reel.entity';
+import { FavoriteProfile } from '../favorite-profiles/entities/favorite-profile.entity';
+import { QueryFollowsDto } from './dto/query-follows.dto';
+
+export interface FormattedFollowUserItem {
+  id: string;
+  name: string;
+  username: string;
+  avatarUrl: string;
+  coverImageUrl: string;
+  isVerified: boolean;
+  title: string;
+  profession: string;
+  location: string;
+  bio: string;
+  highlights: string;
+  rating: number;
+  ratingsCount: number;
+  postsCount: number;
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  isFavorite: boolean;
+  whatsapp: string;
+  website: string;
+  followedAt: Date;
+}
 
 @Injectable()
 export class FollowsService {
@@ -18,6 +45,10 @@ export class FollowsService {
     private readonly followRepository: Repository<Follow>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Reel)
+    private readonly reelRepository: Repository<Reel>,
+    @InjectRepository(FavoriteProfile)
+    private readonly favoriteProfileRepository: Repository<FavoriteProfile>,
     private readonly activityLogService: ActivityLogService,
   ) {}
 
@@ -111,5 +142,195 @@ export class FollowsService {
       select: { followingId: true },
     });
     return follows.map((f) => f.followingId);
+  }
+
+  /**
+   * Get paginated, searchable list of followers for a user.
+   */
+  async getFollowers(
+    targetUserId: string,
+    requestingUserId: string | null,
+    query: QueryFollowsDto,
+  ): Promise<{
+    items: FormattedFollowUserItem[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const page = query.page && query.page > 0 ? Number(query.page) : 1;
+    const limit = query.limit && query.limit > 0 ? Number(query.limit) : 20;
+    const skip = (page - 1) * limit;
+
+    const qb = this.followRepository
+      .createQueryBuilder('follow')
+      .innerJoinAndSelect('follow.follower', 'user')
+      .where('follow.followingId = :targetUserId', { targetUserId });
+
+    if (query.search && query.search.trim()) {
+      const searchPattern = `%${query.search.trim().toLowerCase()}%`;
+      qb.andWhere(
+        '(LOWER(user.name) LIKE :search OR LOWER(user.username) LIKE :search OR LOWER(user.profession) LIKE :search OR LOWER(user.address) LIKE :search)',
+        { search: searchPattern },
+      );
+    }
+
+    qb.orderBy('follow.createdAt', 'DESC');
+    qb.skip(skip).take(limit);
+
+    const [follows, total] = await qb.getManyAndCount();
+
+    const items: FormattedFollowUserItem[] = await Promise.all(
+      follows.map(async (f) => {
+        const u = f.follower;
+        const uId = u.id;
+
+        const [followersCount, followingCount, isFollowing, isFavorite, reelsCount] =
+          await Promise.all([
+            this.followRepository.count({ where: { followingId: uId } }),
+            this.followRepository.count({ where: { followerId: uId } }),
+            requestingUserId
+              ? this.followRepository.count({
+                  where: { followerId: requestingUserId, followingId: uId },
+                }).then((c) => c > 0)
+              : Promise.resolve(false),
+            requestingUserId
+              ? this.favoriteProfileRepository.count({
+                  where: { userId: requestingUserId, favoriteProfileId: uId },
+                }).then((c) => c > 0)
+              : Promise.resolve(false),
+            this.reelRepository.count({
+              where: { userId: uId, status: ReelStatus.READY },
+            }),
+          ]);
+
+        return {
+          id: u.id,
+          name: u.name || u.username || 'User',
+          username: u.username || '',
+          avatarUrl: u.avatarUrl || '',
+          coverImageUrl: u.coverImageUrl || '',
+          isVerified: u.isVerified ?? false,
+          title: u.profession || 'Vastu Member',
+          profession: u.profession || 'Real Estate Member',
+          location: u.address || 'Patna, Bihar',
+          bio: u.bio || '',
+          highlights: u.highlights || '',
+          rating: u.rating !== undefined ? Number(u.rating) : 4.8,
+          ratingsCount: u.ratingsCount || 0,
+          postsCount: reelsCount,
+          followersCount,
+          followingCount,
+          isFollowing,
+          isFavorite,
+          whatsapp: u.whatsapp || u.phone || '',
+          website: u.website || '',
+          followedAt: f.createdAt,
+        };
+      }),
+    );
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  /**
+   * Get paginated, searchable list of users that a target user is following.
+   */
+  async getFollowing(
+    targetUserId: string,
+    requestingUserId: string | null,
+    query: QueryFollowsDto,
+  ): Promise<{
+    items: FormattedFollowUserItem[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const page = query.page && query.page > 0 ? Number(query.page) : 1;
+    const limit = query.limit && query.limit > 0 ? Number(query.limit) : 20;
+    const skip = (page - 1) * limit;
+
+    const qb = this.followRepository
+      .createQueryBuilder('follow')
+      .innerJoinAndSelect('follow.following', 'user')
+      .where('follow.followerId = :targetUserId', { targetUserId });
+
+    if (query.search && query.search.trim()) {
+      const searchPattern = `%${query.search.trim().toLowerCase()}%`;
+      qb.andWhere(
+        '(LOWER(user.name) LIKE :search OR LOWER(user.username) LIKE :search OR LOWER(user.profession) LIKE :search OR LOWER(user.address) LIKE :search)',
+        { search: searchPattern },
+      );
+    }
+
+    qb.orderBy('follow.createdAt', 'DESC');
+    qb.skip(skip).take(limit);
+
+    const [follows, total] = await qb.getManyAndCount();
+
+    const items: FormattedFollowUserItem[] = await Promise.all(
+      follows.map(async (f) => {
+        const u = f.following;
+        const uId = u.id;
+
+        const [followersCount, followingCount, isFollowing, isFavorite, reelsCount] =
+          await Promise.all([
+            this.followRepository.count({ where: { followingId: uId } }),
+            this.followRepository.count({ where: { followerId: uId } }),
+            requestingUserId
+              ? this.followRepository.count({
+                  where: { followerId: requestingUserId, followingId: uId },
+                }).then((c) => c > 0)
+              : Promise.resolve(false),
+            requestingUserId
+              ? this.favoriteProfileRepository.count({
+                  where: { userId: requestingUserId, favoriteProfileId: uId },
+                }).then((c) => c > 0)
+              : Promise.resolve(false),
+            this.reelRepository.count({
+              where: { userId: uId, status: ReelStatus.READY },
+            }),
+          ]);
+
+        return {
+          id: u.id,
+          name: u.name || u.username || 'User',
+          username: u.username || '',
+          avatarUrl: u.avatarUrl || '',
+          coverImageUrl: u.coverImageUrl || '',
+          isVerified: u.isVerified ?? false,
+          title: u.profession || 'Vastu Member',
+          profession: u.profession || 'Real Estate Member',
+          location: u.address || 'Patna, Bihar',
+          bio: u.bio || '',
+          highlights: u.highlights || '',
+          rating: u.rating !== undefined ? Number(u.rating) : 4.8,
+          ratingsCount: u.ratingsCount || 0,
+          postsCount: reelsCount,
+          followersCount,
+          followingCount,
+          isFollowing,
+          isFavorite,
+          whatsapp: u.whatsapp || u.phone || '',
+          website: u.website || '',
+          followedAt: f.createdAt,
+        };
+      }),
+    );
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
   }
 }

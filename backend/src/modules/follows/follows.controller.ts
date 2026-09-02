@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Query,
   Req,
   HttpCode,
   HttpStatus,
@@ -16,9 +17,11 @@ import {
 } from '@nestjs/swagger';
 import { FollowsService } from './follows.service';
 import { FavoriteProfilesService } from '../favorite-profiles/favorite-profiles.service';
+import { QueryFollowsDto } from './dto/query-follows.dto';
 
 @ApiTags('Follows')
-@Controller('users')
+@ApiBearerAuth()
+@Controller(['users', 'api/v1/users'])
 export class FollowsController {
   constructor(
     private readonly followsService: FollowsService,
@@ -28,7 +31,6 @@ export class FollowsController {
   /**
    * Follow a user
    */
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Follow a user by ID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Followed successfully.' })
   @Post(':id/follow')
@@ -41,7 +43,6 @@ export class FollowsController {
   /**
    * Unfollow a user
    */
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Unfollow a user by ID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Unfollowed successfully.' })
   @Delete(':id/follow')
@@ -53,7 +54,6 @@ export class FollowsController {
   /**
    * Check follow status between current user and target user
    */
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Check if you are following a user' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Follow status returned.' })
   @Get(':id/follow-status')
@@ -64,9 +64,38 @@ export class FollowsController {
   }
 
   /**
+   * Get list of followers for a user profile
+   */
+  @ApiOperation({ summary: 'Get followers of a user profile' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Followers list returned.' })
+  @Get(':id/followers')
+  async getFollowers(
+    @Req() req: any,
+    @Param('id') targetId: string,
+    @Query() query: QueryFollowsDto,
+  ) {
+    const requestingUserId: string | null = req?.user?.sub ?? null;
+    return this.followsService.getFollowers(targetId, requestingUserId, query);
+  }
+
+  /**
+   * Get list of users that a target user is following
+   */
+  @ApiOperation({ summary: 'Get list of users followed by a user profile' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Following list returned.' })
+  @Get(':id/following')
+  async getFollowing(
+    @Req() req: any,
+    @Param('id') targetId: string,
+    @Query() query: QueryFollowsDto,
+  ) {
+    const requestingUserId: string | null = req?.user?.sub ?? null;
+    return this.followsService.getFollowing(targetId, requestingUserId, query);
+  }
+
+  /**
    * Get follower + following counts + reels count for a user profile
    */
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get profile stats (followers, following, reels)' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Profile stats returned.' })
   @Get(':id/stats')
