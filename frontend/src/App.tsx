@@ -9,6 +9,7 @@ import { UsersPage } from './pages/dashboard/UsersPage';
 import { CreatorDetailPage } from './pages/dashboard/CreatorDetailPage';
 import { ReelsPage } from './pages/dashboard/ReelsPage';
 import { CommentsPage } from './pages/dashboard/CommentsPage';
+import { ReviewsPage } from './pages/dashboard/ReviewsPage';
 import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
 import { RolesPage } from './pages/dashboard/RolesPage';
 import { CategoriesPage } from './pages/dashboard/CategoriesPage';
@@ -77,6 +78,14 @@ export function App() {
               element={
                 <ProtectedRoute requireAdmin>
                   <CommentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="reviews"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <ReviewsPage />
                 </ProtectedRoute>
               }
             />

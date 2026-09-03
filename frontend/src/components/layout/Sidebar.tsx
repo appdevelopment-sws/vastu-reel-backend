@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Sparkles,
   MessageCircle,
+  Star,
   User as UserIcon,
 } from "lucide-react"
 
@@ -66,6 +67,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: "/dashboard/comments",
       icon: MessageCircle,
       badge: "New",
+      adminOnly: true,
+    },
+    {
+      label: "Reviews & Ratings",
+      path: "/dashboard/reviews",
+      icon: Star,
+      badge: "Pending",
       adminOnly: true,
     },
     {

@@ -53,7 +53,7 @@ export class User {
   @Column({ nullable: true })
   website: string;
 
-  @Column({ type: 'decimal', precision: 3, scale: 1, default: 4.8 })
+  @Column({ type: 'decimal', precision: 3, scale: 1, default: 0.0 })
   rating: number;
 
   @Column({ default: 0 })

@@ -479,4 +479,48 @@ export const propertyTypesApi = {
   },
 };
 
+export interface AdminReview {
+  id: string;
+  rating: number;
+  comment: string;
+  propertyDetails?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  reviewer?: {
+    id: string;
+    name: string;
+    username: string;
+    avatarUrl?: string;
+    email?: string;
+  };
+  targetUser?: {
+    id: string;
+    name: string;
+    username: string;
+    avatarUrl?: string;
+  };
+}
+
+export const reviewsApi = {
+  getAll: async (status?: string): Promise<AdminReview[]> => {
+    const response = await apiClient.get('/reviews/admin/all', {
+      params: status && status !== 'ALL' ? { status } : undefined,
+    });
+    return response.data;
+  },
+
+  getPending: async (): Promise<AdminReview[]> => {
+    const response = await apiClient.get('/reviews/admin/pending');
+    return response.data;
+  },
+
+  updateStatus: async (
+    id: string,
+    status: 'APPROVED' | 'REJECTED'
+  ): Promise<{ message: string; review: AdminReview }> => {
+    const response = await apiClient.patch(`/reviews/${id}/status`, { status });
+    return response.data;
+  },
+};
+
 export default apiClient;
