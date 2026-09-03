@@ -10,6 +10,10 @@ import {
   RefreshCw,
   Building2,
   AlertCircle,
+  Mail,
+  Phone,
+  Tag,
+  Trash2,
 } from 'lucide-react';
 
 export const ReviewsPage: React.FC = () => {
@@ -55,23 +59,54 @@ export const ReviewsPage: React.FC = () => {
     }
   };
 
+  const handleDeleteReview = async (id: string) => {
+    if (
+      !window.confirm(
+        'Are you sure you want to permanently delete this review? This action cannot be undone and will recalculate the agent\'s rating.'
+      )
+    ) {
+      return;
+    }
+    setActionLoadingId(id);
+    setAlertMessage(null);
+    try {
+      await reviewsApi.delete(id);
+      setAlertMessage({
+        type: 'success',
+        text: 'Review permanently deleted successfully. Target agent rating recalculated.',
+      });
+      await fetchReviews();
+    } catch (e) {
+      console.error('Failed to delete review', e);
+      setAlertMessage({ type: 'error', text: 'Failed to delete review.' });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   // Filter reviews by search query
   const filteredReviews = reviews.filter((r) => {
     if (!searchTerm) return true;
     const q = searchTerm.toLowerCase();
-    const reviewerName = r.reviewer?.name?.toLowerCase() || '';
+    const reviewerName = r.reviewerName?.toLowerCase() || r.reviewer?.name?.toLowerCase() || '';
     const reviewerUser = r.reviewer?.username?.toLowerCase() || '';
+    const reviewerEmail = r.reviewerEmail?.toLowerCase() || r.reviewer?.email?.toLowerCase() || '';
+    const reviewerPhone = r.reviewerPhone?.toLowerCase() || '';
     const targetName = r.targetUser?.name?.toLowerCase() || '';
     const targetUser = r.targetUser?.username?.toLowerCase() || '';
     const comment = r.comment.toLowerCase();
     const prop = r.propertyDetails?.toLowerCase() || '';
+    const tag = r.experienceTag?.toLowerCase() || '';
     return (
       reviewerName.includes(q) ||
       reviewerUser.includes(q) ||
+      reviewerEmail.includes(q) ||
+      reviewerPhone.includes(q) ||
       targetName.includes(q) ||
       targetUser.includes(q) ||
       comment.includes(q) ||
-      prop.includes(q)
+      prop.includes(q) ||
+      tag.includes(q)
     );
   });
 
@@ -309,16 +344,64 @@ export const ReviewsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Comment Body */}
-                <div className="space-y-2">
+                {/* Comment & Tags Body */}
+                <div className="space-y-2.5">
+                  {/* Experience Tag & Property Tag */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {review.experienceTag && (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                          review.experienceTag.toLowerCase().includes('not')
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : review.experienceTag.toLowerCase().includes('best') ||
+                              review.experienceTag.toLowerCase().includes('expert')
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-primary/10 text-primary border-primary/20'
+                        }`}
+                      >
+                        <Tag className="h-3 w-3" />
+                        {review.experienceTag}
+                      </span>
+                    )}
+
+                    {review.propertyDetails && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-muted/60 text-xs text-muted-foreground border border-border/60">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>Property: {review.propertyDetails}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Comment Text */}
                   <p className="text-sm text-foreground leading-relaxed font-normal">
                     "{review.comment}"
                   </p>
 
-                  {review.propertyDetails && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/60 text-xs text-muted-foreground border border-border/60">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>Property: {review.propertyDetails}</span>
+                  {/* Contact Verification Row */}
+                  {(review.reviewerEmail || review.reviewerPhone || review.reviewerName) && (
+                    <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-xl border border-border/50">
+                      <span className="font-semibold text-foreground">Verified Contact:</span>
+                      {review.reviewerName && (
+                        <span className="font-medium text-foreground">{review.reviewerName}</span>
+                      )}
+                      {review.reviewerEmail && (
+                        <a
+                          href={`mailto:${review.reviewerEmail}`}
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <Mail className="h-3 w-3" />
+                          {review.reviewerEmail}
+                        </a>
+                      )}
+                      {review.reviewerPhone && (
+                        <a
+                          href={`tel:${review.reviewerPhone}`}
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <Phone className="h-3 w-3" />
+                          {review.reviewerPhone}
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
@@ -359,6 +442,17 @@ export const ReviewsPage: React.FC = () => {
                         Reject
                       </button>
                     )}
+
+                    {/* Delete Action */}
+                    <button
+                      onClick={() => handleDeleteReview(review.id)}
+                      disabled={isProcessing}
+                      title="Permanently delete review"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-rose-50 hover:border-rose-200 text-muted-foreground hover:text-rose-700 font-semibold shadow-xs transition disabled:opacity-50 cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>

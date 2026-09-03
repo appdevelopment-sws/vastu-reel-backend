@@ -55,6 +55,10 @@ export class ReviewsService {
       rating: dto.rating,
       comment: dto.comment,
       propertyDetails: dto.propertyDetails,
+      experienceTag: dto.experienceTag,
+      reviewerName: dto.reviewerName,
+      reviewerEmail: dto.reviewerEmail,
+      reviewerPhone: dto.reviewerPhone,
       status: ReviewStatus.PENDING,
     });
 
@@ -201,6 +205,30 @@ export class ReviewsService {
         createdAt: 'DESC',
       },
     });
+  }
+
+  /**
+   * Admin: Permanently delete a review and recalculate target user's ratings.
+   */
+  async deleteReview(id: string) {
+    const review = await this.reviewRepository.findOne({
+      where: { id },
+    });
+
+    if (!review) {
+      throw new NotFoundException(`Review with ID ${id} not found`);
+    }
+
+    const targetUserId = review.targetUserId;
+    await this.reviewRepository.remove(review);
+
+    // Recalculate target user's aggregated rating in users table
+    await this.recalculateUserRating(targetUserId);
+
+    return {
+      message: 'Review permanently deleted successfully',
+      deletedId: id,
+    };
   }
 
   /**

@@ -484,6 +484,10 @@ export interface AdminReview {
   rating: number;
   comment: string;
   propertyDetails?: string;
+  experienceTag?: string;
+  reviewerName?: string;
+  reviewerEmail?: string;
+  reviewerPhone?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
   reviewer?: {
@@ -519,6 +523,11 @@ export const reviewsApi = {
     status: 'APPROVED' | 'REJECTED'
   ): Promise<{ message: string; review: AdminReview }> => {
     const response = await apiClient.patch(`/reviews/${id}/status`, { status });
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<{ message: string; deletedId: string }> => {
+    const response = await apiClient.delete(`/reviews/${id}`);
     return response.data;
   },
 };

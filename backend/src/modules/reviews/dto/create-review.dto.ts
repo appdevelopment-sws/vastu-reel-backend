@@ -49,4 +49,44 @@ export class CreateReviewDto {
   @IsString()
   @MaxLength(255)
   propertyDetails?: string;
+
+  @ApiPropertyOptional({
+    description: 'Quick experience tag (e.g. Good Information, Best Creator, Not Good Experience)',
+    maxLength: 100,
+    example: 'Good Information',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  experienceTag?: string;
+
+  @ApiPropertyOptional({
+    description: 'Reviewer contact name',
+    maxLength: 150,
+    example: 'Rohit Sharma',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  reviewerName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Reviewer contact email',
+    maxLength: 150,
+    example: 'rohit@example.com',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  reviewerEmail?: string;
+
+  @ApiPropertyOptional({
+    description: 'Reviewer contact phone number',
+    maxLength: 50,
+    example: '+919876543210',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  reviewerPhone?: string;
 }

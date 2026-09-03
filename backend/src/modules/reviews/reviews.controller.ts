@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -92,5 +93,12 @@ export class ReviewsController {
   @Get('admin/all')
   async getAllReviews(@Query('status') status?: ReviewStatus) {
     return this.reviewsService.getAllReviewsForAdmin(status);
+  }
+
+  @ApiOperation({ summary: 'Admin: Permanently delete a review' })
+  @ApiBearerAuth()
+  @Delete(':id')
+  async deleteReview(@Param('id') id: string) {
+    return this.reviewsService.deleteReview(id);
   }
 }

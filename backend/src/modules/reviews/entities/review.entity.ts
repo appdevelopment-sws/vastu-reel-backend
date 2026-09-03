@@ -49,6 +49,18 @@ export class Review {
   @Column({ name: 'property_details', nullable: true, length: 255 })
   propertyDetails?: string;
 
+  @Column({ name: 'experience_tag', nullable: true, length: 100 })
+  experienceTag?: string;
+
+  @Column({ name: 'reviewer_name', nullable: true, length: 150 })
+  reviewerName?: string;
+
+  @Column({ name: 'reviewer_email', nullable: true, length: 150 })
+  reviewerEmail?: string;
+
+  @Column({ name: 'reviewer_phone', nullable: true, length: 50 })
+  reviewerPhone?: string;
+
   @Column({
     type: 'enum',
     enum: ReviewStatus,
