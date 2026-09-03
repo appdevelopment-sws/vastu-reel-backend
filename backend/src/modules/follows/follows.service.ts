@@ -223,7 +223,7 @@ export class FollowsService {
           followingCount,
           isFollowing,
           isFavorite,
-          whatsapp: u.whatsapp || u.phone || '',
+          whatsapp: u.whatsapp || '',
           website: u.website || '',
           followedAt: f.createdAt,
         };
@@ -318,7 +318,7 @@ export class FollowsService {
           followingCount,
           isFollowing,
           isFavorite,
-          whatsapp: u.whatsapp || u.phone || '',
+          whatsapp: u.whatsapp || '',
           website: u.website || '',
           followedAt: f.createdAt,
         };

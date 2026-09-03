@@ -237,7 +237,7 @@ export class FavoriteProfilesService {
           followingCount,
           isFollowing,
           isFavorite: true,
-          whatsapp: u.whatsapp || u.phone || '',
+          whatsapp: u.whatsapp || '',
           website: u.website || '',
           favoritedAt: fav.createdAt,
         };
