@@ -14,6 +14,8 @@ import {
   Compass,
   MessageCircle,
   Upload,
+  MapPin,
+  ExternalLink,
 } from "lucide-react"
 
 export const ReelsPage: React.FC = () => {
@@ -259,6 +261,16 @@ export const ReelsPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* GPS Tagged Badge Overlay */}
+                  {reel.latitude != null && reel.longitude != null && (
+                    <div className="absolute top-3 right-11 z-10">
+                      <span className="flex items-center gap-1 rounded-lg bg-black/75 px-2 py-1 text-[9px] font-bold text-emerald-400 backdrop-blur-md border border-emerald-500/30 shadow-xs">
+                        <MapPin className="h-2.5 w-2.5" />
+                        GPS
+                      </span>
+                    </div>
+                  )}
+
                   {/* Delete button overlay on Top Right */}
                   <div
                     className="absolute top-3 right-3 z-20 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
@@ -285,6 +297,37 @@ export const ReelsPage: React.FC = () => {
                       reel.caption ||
                       "Short video reel explaining vastu guidelines."}
                   </p>
+
+                  {/* Exact GPS Coordinates Row */}
+                  {reel.latitude != null && reel.longitude != null ? (
+                    <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 px-2 py-1 text-[10px] text-foreground">
+                      <span
+                        className="flex items-center gap-1 font-mono text-[10px] text-primary truncate"
+                        title={`Exact GPS: ${Number(reel.latitude).toFixed(7)}, ${Number(reel.longitude).toFixed(7)}`}
+                      >
+                        <MapPin className="h-3 w-3 shrink-0 text-primary" />
+                        <span className="truncate">
+                          {Number(reel.latitude).toFixed(5)}°, {Number(reel.longitude).toFixed(5)}°
+                        </span>
+                      </span>
+                      <a
+                        href={`https://www.google.com/maps?q=${reel.latitude},${reel.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-0.5 text-[10px] font-semibold text-primary hover:underline ml-1 shrink-0"
+                        title="Open exact coordinates on Google Maps"
+                      >
+                        <ExternalLink className="h-2.5 w-2.5" />
+                        Maps
+                      </a>
+                    </div>
+                  ) : reel.location ? (
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{reel.location}</span>
+                    </div>
+                  ) : null}
 
                   <div className="flex items-center justify-between border-t border-border/60 pt-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5 truncate">

@@ -28,6 +28,7 @@ import {
   Film,
   UserCheck,
   AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
 
 export const CreatorDetailPage: React.FC = () => {
@@ -224,6 +225,12 @@ export const CreatorDetailPage: React.FC = () => {
     propertyType: r.propertyType,
     element: r.element,
     location: r.location,
+    landmark: r.landmark,
+    city: r.city,
+    state: r.state,
+    pincode: r.pincode,
+    latitude: r.latitude != null ? Number(r.latitude) : null,
+    longitude: r.longitude != null ? Number(r.longitude) : null,
     status: r.status,
     viewsCount: r.viewsCount || 0,
     likesCount: r.likesCount || 0,
@@ -844,6 +851,35 @@ export const CreatorDetailPage: React.FC = () => {
                             {reel.caption}
                           </p>
                         )}
+                        {reel.latitude != null && reel.longitude != null ? (
+                          <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 px-2 py-1 text-[10px] text-foreground mt-1.5">
+                            <span
+                              className="flex items-center gap-1 font-mono text-[10px] text-primary truncate"
+                              title={`Exact GPS: ${Number(reel.latitude).toFixed(7)}, ${Number(reel.longitude).toFixed(7)}`}
+                            >
+                              <MapPin className="h-3 w-3 shrink-0 text-primary" />
+                              <span className="truncate">
+                                {Number(reel.latitude).toFixed(5)}°, {Number(reel.longitude).toFixed(5)}°
+                              </span>
+                            </span>
+                            <a
+                              href={`https://www.google.com/maps?q=${reel.latitude},${reel.longitude}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-0.5 text-[10px] font-semibold text-primary hover:underline ml-1 shrink-0"
+                              title="Open exact coordinates on Google Maps"
+                            >
+                              <ExternalLink className="h-2.5 w-2.5" />
+                              Maps
+                            </a>
+                          </div>
+                        ) : reel.location ? (
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate mt-1">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{reel.location}</span>
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="flex items-center justify-between pt-2 border-t border-border/60">

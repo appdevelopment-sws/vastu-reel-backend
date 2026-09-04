@@ -18,6 +18,7 @@ import {
   Play,
   Trophy,
   BadgeCheck,
+  MapPin,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
@@ -374,6 +375,17 @@ export const DashboardOverviewPage: React.FC = () => {
                         reel.caption ||
                         "No description provided"}
                     </p>
+                    {reel.latitude != null && reel.longitude != null ? (
+                      <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-primary">
+                        <MapPin className="h-2.5 w-2.5 shrink-0" />
+                        <span>{Number(reel.latitude).toFixed(5)}°, {Number(reel.longitude).toFixed(5)}°</span>
+                      </div>
+                    ) : reel.location ? (
+                      <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground truncate">
+                        <MapPin className="h-2.5 w-2.5 shrink-0" />
+                        <span className="truncate">{reel.location}</span>
+                      </div>
+                    ) : null}
                     <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
                       <span className="font-semibold text-foreground">
                         @

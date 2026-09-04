@@ -22,6 +22,8 @@ import {
   CornerDownRight,
   Info,
   Pin,
+  Copy,
+  Check,
 } from "lucide-react"
 
 export interface ReelItem {
@@ -34,6 +36,12 @@ export interface ReelItem {
   propertyType?: string
   element?: string
   location?: string
+  landmark?: string | null
+  city?: string | null
+  state?: string | null
+  pincode?: string | null
+  latitude?: number | null
+  longitude?: number | null
   createdAt?: string
   likesCount?: number
   commentsCount?: number
@@ -76,25 +84,33 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
   const currentReel = reels[currentIndex]
 
   // Tab State: 'info' or 'comments'
-  const [activeDrawerTab, setActiveDrawerTab] = useState<'info' | 'comments'>('info')
+  const [activeDrawerTab, setActiveDrawerTab] = useState<"info" | "comments">(
+    "info"
+  )
+  const [copiedCoords, setCopiedCoords] = useState(false)
 
   // Comments State
   const [comments, setComments] = useState<any[]>([])
   const [commentsLoading, setCommentsLoading] = useState(false)
-  const [newCommentText, setNewCommentText] = useState('')
+  const [newCommentText, setNewCommentText] = useState("")
   const [submittingComment, setSubmittingComment] = useState(false)
   const [replyToCommentId, setReplyToCommentId] = useState<string | null>(null)
-  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
+    null
+  )
 
   const fetchComments = async () => {
     if (!currentReel?.id) return
     setCommentsLoading(true)
     try {
-      const res = await reelsApi.getComments(currentReel.id, { page: 1, limit: 50 })
+      const res = await reelsApi.getComments(currentReel.id, {
+        page: 1,
+        limit: 50,
+      })
       const list = Array.isArray(res) ? res : res.items || []
       setComments(list)
     } catch (err) {
-      console.warn('Failed to load comments', err)
+      console.warn("Failed to load comments", err)
     } finally {
       setCommentsLoading(false)
     }
@@ -105,7 +121,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
     if (isOpen && currentReel?.id) {
       fetchComments()
       setReplyToCommentId(null)
-      setNewCommentText('')
+      setNewCommentText("")
     }
   }, [currentReel?.id, isOpen])
 
@@ -125,7 +141,11 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
         setComments((prev) =>
           prev.map((c) =>
             c.id === replyToCommentId
-              ? { ...c, replies: [...(c.replies || []), added], repliesCount: (c.repliesCount || 0) + 1 }
+              ? {
+                  ...c,
+                  replies: [...(c.replies || []), added],
+                  repliesCount: (c.repliesCount || 0) + 1,
+                }
               : c
           )
         )
@@ -133,17 +153,17 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
         setComments((prev) => [added, ...prev])
       }
 
-      setNewCommentText('')
+      setNewCommentText("")
       setReplyToCommentId(null)
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to post comment')
+      alert(err.response?.data?.message || "Failed to post comment")
     } finally {
       setSubmittingComment(false)
     }
   }
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!window.confirm('Delete this comment?')) return
+    if (!window.confirm("Delete this comment?")) return
     setDeletingCommentId(commentId)
     try {
       await reelsApi.deleteComment(commentId)
@@ -156,7 +176,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
           }))
       )
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete comment')
+      alert(err.response?.data?.message || "Failed to delete comment")
     } finally {
       setDeletingCommentId(null)
     }
@@ -170,7 +190,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
       await reelsApi.pinComment(commentId)
       await fetchComments()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update pin status')
+      alert(err.response?.data?.message || "Failed to update pin status")
     } finally {
       setPinningCommentId(null)
     }
@@ -182,7 +202,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't intercept arrow keys if user is typing in textarea / input
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+      if (["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)) {
         return
       }
 
@@ -234,7 +254,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-2 backdrop-blur-md sm:p-4 md:p-6 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex animate-in items-center justify-center bg-black/85 p-2 backdrop-blur-md duration-200 fade-in sm:p-4 md:p-6">
       {/* Backdrop click to close */}
       <div className="absolute inset-0" onClick={onClose} />
 
@@ -255,11 +275,11 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
           </div>
 
           {/* Quick Reel Navigation Buttons on Video Side */}
-          <div className="absolute right-4 top-1/2 flex -translate-y-1/2 flex-col gap-3">
+          <div className="absolute top-1/2 right-4 flex -translate-y-1/2 flex-col gap-3">
             <button
               onClick={() => onNavigate(currentIndex - 1)}
               disabled={currentIndex === 0}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:scale-110 hover:bg-primary disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-black/60 cursor-pointer"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:scale-110 hover:bg-primary disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-black/60"
               title="Previous Reel (Up Arrow)"
             >
               <ChevronUp className="h-5 w-5" />
@@ -268,7 +288,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
             <button
               onClick={() => onNavigate(currentIndex + 1)}
               disabled={currentIndex === reels.length - 1}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:scale-110 hover:bg-primary disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-black/60 cursor-pointer"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition hover:scale-110 hover:bg-primary disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-black/60"
               title="Next Reel (Down Arrow)"
             >
               <ChevronDown className="h-5 w-5" />
@@ -286,7 +306,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
               </span>
               <button
                 onClick={onClose}
-                className="rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground cursor-pointer"
+                className="cursor-pointer rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
                 title="Close (Esc)"
               >
                 <X className="h-5 w-5" />
@@ -296,11 +316,11 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
             {/* Tab switch */}
             <div className="flex space-x-4">
               <button
-                onClick={() => setActiveDrawerTab('info')}
-                className={`flex items-center gap-1.5 pb-2 text-xs font-semibold border-b-2 transition cursor-pointer ${
-                  activeDrawerTab === 'info'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                onClick={() => setActiveDrawerTab("info")}
+                className={`flex cursor-pointer items-center gap-1.5 border-b-2 pb-2 text-xs font-semibold transition ${
+                  activeDrawerTab === "info"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Info className="h-3.5 w-3.5" />
@@ -308,11 +328,11 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
               </button>
 
               <button
-                onClick={() => setActiveDrawerTab('comments')}
-                className={`flex items-center gap-1.5 pb-2 text-xs font-semibold border-b-2 transition cursor-pointer ${
-                  activeDrawerTab === 'comments'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                onClick={() => setActiveDrawerTab("comments")}
+                className={`flex cursor-pointer items-center gap-1.5 border-b-2 pb-2 text-xs font-semibold transition ${
+                  activeDrawerTab === "comments"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <MessageCircle className="h-3.5 w-3.5" />
@@ -323,11 +343,11 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
 
           {/* Drawer Body */}
           <div className="flex-1 overflow-y-auto p-5">
-            {activeDrawerTab === 'info' ? (
+            {activeDrawerTab === "info" ? (
               <div className="space-y-4">
                 {/* Creator Profile Info */}
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-purple-500/20 font-bold text-primary ring-2 ring-primary/20 text-sm">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-purple-500/20 text-sm font-bold text-primary ring-2 ring-primary/20">
                     {creatorName.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -350,7 +370,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                   <h3 className="text-sm font-bold text-foreground">
                     {currentReel.title || "Untitled Reel"}
                   </h3>
-                  <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-line">
+                  <p className="text-xs leading-relaxed whitespace-pre-line text-muted-foreground">
                     {currentReel.description ||
                       currentReel.caption ||
                       "No additional caption provided for this reel."}
@@ -387,6 +407,132 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                       <MapPin className="h-3 w-3" />
                       {currentReel.location}
                     </span>
+                  )}
+                </div>
+
+                {/* Admin Location & Exact Coordinates Card */}
+                <div className="space-y-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                      <MapPin className="h-3.5 w-3.5 text-primary" />
+                      Admin GPS & Location Data
+                    </span>
+                    <span className="rounded border border-primary/20 bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-primary">
+                      ADMIN ONLY
+                    </span>
+                  </div>
+
+                  {currentReel.latitude != null &&
+                  currentReel.longitude != null ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg border border-border/60 bg-background/80 p-2.5 shadow-xs">
+                          <span className="block text-[10px] font-medium text-muted-foreground">
+                            Exact Latitude
+                          </span>
+                          <span className="font-mono text-xs font-bold text-foreground select-all">
+                            {Number(currentReel.latitude).toFixed(7)}°
+                          </span>
+                        </div>
+                        <div className="rounded-lg border border-border/60 bg-background/80 p-2.5 shadow-xs">
+                          <span className="block text-[10px] font-medium text-muted-foreground">
+                            Exact Longitude
+                          </span>
+                          <span className="font-mono text-xs font-bold text-foreground select-all">
+                            {Number(currentReel.longitude).toFixed(7)}°
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Address / Landmark Breakdown */}
+                      <div className="space-y-1 pt-0.5 text-xs text-muted-foreground">
+                        {currentReel.landmark && (
+                          <div className="flex items-start gap-1">
+                            <span className="shrink-0 font-medium text-foreground">
+                              Landmark:
+                            </span>
+                            <span className="text-foreground/90">
+                              {currentReel.landmark}
+                            </span>
+                          </div>
+                        )}
+                        {(currentReel.city || currentReel.state) && (
+                          <div className="flex items-start gap-1">
+                            <span className="shrink-0 font-medium text-foreground">
+                              City/State:
+                            </span>
+                            <span className="text-foreground/90">
+                              {[currentReel.city, currentReel.state]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </span>
+                          </div>
+                        )}
+                        {currentReel.location && (
+                          <div className="flex items-start gap-1">
+                            <span className="shrink-0 font-medium text-foreground">
+                              Full Address:
+                            </span>
+                            <span className="text-foreground/90">
+                              {currentReel.location}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action buttons */}
+                      {/* <div className="flex items-center gap-2 pt-1">
+                        <a
+                          href={`https://www.google.com/maps?q=${currentReel.latitude},${currentReel.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline bg-primary/10 hover:bg-primary/20 px-2.5 py-1.5 rounded-lg border border-primary/20 transition cursor-pointer"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View on Google Maps
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const coords = `${Number(currentReel.latitude).toFixed(7)}, ${Number(currentReel.longitude).toFixed(7)}`
+                            navigator.clipboard.writeText(coords)
+                            setCopiedCoords(true)
+                            setTimeout(() => setCopiedCoords(false), 2000)
+                          }}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground hover:text-primary bg-muted hover:bg-muted/80 px-2.5 py-1.5 rounded-lg border border-border/60 transition cursor-pointer"
+                        >
+                          {copiedCoords ? (
+                            <>
+                              <Check className="h-3 w-3 text-emerald-500" />
+                              <span className="text-emerald-500 font-bold">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              <span>Copy Lat, Long</span>
+                            </>
+                          )}
+                        </button>
+                      </div> */}
+                    </div>
+                  ) : (
+                    <div className="py-1 text-xs text-muted-foreground">
+                      {currentReel.location ? (
+                        <span>
+                          Address:{" "}
+                          <strong className="text-foreground">
+                            {currentReel.location}
+                          </strong>{" "}
+                          (No GPS coordinates recorded)
+                        </span>
+                      ) : (
+                        <span>
+                          No location or GPS coordinates recorded for this
+                          video.
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -452,16 +598,18 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                   </span>
                   <button
                     onClick={fetchComments}
-                    className="p-1 text-muted-foreground hover:text-foreground transition cursor-pointer"
+                    className="cursor-pointer p-1 text-muted-foreground transition hover:text-foreground"
                     title="Refresh comments"
                   >
-                    <RefreshCw className={`h-3 w-3 ${commentsLoading ? 'animate-spin' : ''}`} />
+                    <RefreshCw
+                      className={`h-3 w-3 ${commentsLoading ? "animate-spin" : ""}`}
+                    />
                   </button>
                 </div>
 
                 {commentsLoading ? (
                   <div className="py-8 text-center text-xs text-muted-foreground">
-                    <RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary mb-1" />
+                    <RefreshCw className="mx-auto mb-1 h-5 w-5 animate-spin text-primary" />
                     <span>Loading comments...</span>
                   </div>
                 ) : comments.length === 0 ? (
@@ -473,27 +621,30 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                     {comments.map((comment) => (
                       <div
                         key={comment.id}
-                        className={`pt-2.5 space-y-1.5 rounded-lg px-2 py-1.5 transition-colors ${
-                          comment.isPinned ? 'bg-primary/5 border border-primary/20' : ''
+                        className={`space-y-1.5 rounded-lg px-2 py-1.5 pt-2.5 transition-colors ${
+                          comment.isPinned
+                            ? "border border-primary/20 bg-primary/5"
+                            : ""
                         }`}
                       >
                         {comment.isPinned && (
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-primary mb-1">
-                            <Pin className="h-3 w-3 fill-primary/30 rotate-45" />
+                          <div className="mb-1 flex items-center gap-1 text-[10px] font-bold text-primary">
+                            <Pin className="h-3 w-3 rotate-45 fill-primary/30" />
                             <span>Pinned by creator</span>
                           </div>
                         )}
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                              {comment.userName?.charAt(0)?.toUpperCase() || 'U'}
+                              {comment.userName?.charAt(0)?.toUpperCase() ||
+                                "U"}
                             </div>
                             <div>
-                              <span className="font-bold text-xs text-foreground">
-                                {comment.userName || 'User'}
+                              <span className="text-xs font-bold text-foreground">
+                                {comment.userName || "User"}
                               </span>
                               {comment.username && (
-                                <span className="text-[10px] text-muted-foreground ml-1">
+                                <span className="ml-1 text-[10px] text-muted-foreground">
                                   @{comment.username}
                                 </span>
                               )}
@@ -504,20 +655,26 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                             <button
                               onClick={() => handleTogglePinComment(comment.id)}
                               disabled={pinningCommentId === comment.id}
-                              className={`p-1 transition cursor-pointer ${
+                              className={`cursor-pointer p-1 transition ${
                                 comment.isPinned
-                                  ? 'text-primary hover:text-primary/70'
-                                  : 'text-muted-foreground hover:text-primary'
+                                  ? "text-primary hover:text-primary/70"
+                                  : "text-muted-foreground hover:text-primary"
                               }`}
-                              title={comment.isPinned ? 'Unpin comment' : 'Pin comment'}
+                              title={
+                                comment.isPinned
+                                  ? "Unpin comment"
+                                  : "Pin comment"
+                              }
                             >
-                              <Pin className={`h-3 w-3 ${comment.isPinned ? 'fill-primary' : ''}`} />
+                              <Pin
+                                className={`h-3 w-3 ${comment.isPinned ? "fill-primary" : ""}`}
+                              />
                             </button>
 
                             <button
                               onClick={() => handleDeleteComment(comment.id)}
                               disabled={deletingCommentId === comment.id}
-                              className="p-1 text-muted-foreground hover:text-destructive transition cursor-pointer"
+                              className="cursor-pointer p-1 text-muted-foreground transition hover:text-destructive"
                               title="Delete comment"
                             >
                               <Trash2 className="h-3 w-3" />
@@ -525,17 +682,19 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                           </div>
                         </div>
 
-                        <p className="text-xs text-foreground/90 pl-8 leading-relaxed">
+                        <p className="pl-8 text-xs leading-relaxed text-foreground/90">
                           {comment.commentText}
                         </p>
 
                         <div className="flex items-center gap-3 pl-8 text-[10px] text-muted-foreground">
-                          <span>{new Date(comment.timestamp).toLocaleDateString()}</span>
+                          <span>
+                            {new Date(comment.timestamp).toLocaleDateString()}
+                          </span>
                           <button
                             onClick={() => {
                               setReplyToCommentId(comment.id)
                             }}
-                            className="text-primary hover:underline font-semibold cursor-pointer"
+                            className="cursor-pointer font-semibold text-primary hover:underline"
                           >
                             Reply
                           </button>
@@ -543,15 +702,17 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
 
                         {/* Nested Replies */}
                         {comment.replies && comment.replies.length > 0 && (
-                          <div className="ml-8 mt-2 space-y-2 border-l-2 border-primary/20 pl-3">
+                          <div className="mt-2 ml-8 space-y-2 border-l-2 border-primary/20 pl-3">
                             {comment.replies.map((reply: any) => (
                               <div key={reply.id} className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <span className="font-bold text-[11px] text-foreground">
-                                    {reply.userName || 'Admin'}
+                                  <span className="text-[11px] font-bold text-foreground">
+                                    {reply.userName || "Admin"}
                                   </span>
                                   <button
-                                    onClick={() => handleDeleteComment(reply.id)}
+                                    onClick={() =>
+                                      handleDeleteComment(reply.id)
+                                    }
                                     disabled={deletingCommentId === reply.id}
                                     className="p-0.5 text-muted-foreground hover:text-destructive"
                                   >
@@ -574,14 +735,15 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
           </div>
 
           {/* Drawer Footer Actions */}
-          <div className="border-t border-border/60 p-4 space-y-3">
-            {activeDrawerTab === 'comments' ? (
+          <div className="space-y-3 border-t border-border/60 p-4">
+            {activeDrawerTab === "comments" ? (
               /* Comment Input Box */
               <form onSubmit={handleAddComment} className="space-y-2">
                 {replyToCommentId && (
                   <div className="flex items-center justify-between rounded-lg bg-primary/10 px-2 py-1 text-[10px] text-primary">
                     <span className="flex items-center gap-1 font-semibold">
-                      <CornerDownRight className="h-3 w-3" /> Replying to comment
+                      <CornerDownRight className="h-3 w-3" /> Replying to
+                      comment
                     </span>
                     <button
                       type="button"
@@ -603,7 +765,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                   <button
                     type="submit"
                     disabled={submittingComment || !newCommentText.trim()}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition cursor-pointer"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl bg-primary text-primary-foreground transition hover:bg-primary/90 disabled:opacity-40"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </button>
@@ -615,7 +777,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                 <div className="flex gap-2">
                   <button
                     onClick={handleShare}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-muted cursor-pointer"
+                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-muted"
                   >
                     <Share2 className="h-3.5 w-3.5" />
                     <span>Copy Stream URL</span>
@@ -626,7 +788,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                       href={currentReel.videoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center rounded-xl border border-border bg-card p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground cursor-pointer"
+                      className="flex cursor-pointer items-center justify-center rounded-xl border border-border bg-card p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
                       title="Open video in new tab"
                     >
                       <ExternalLink className="h-4 w-4" />
@@ -640,7 +802,7 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                       onClose()
                       onDelete(currentReel.id, currentReel.title)
                     }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/10 py-2 text-xs font-semibold text-destructive transition hover:bg-destructive hover:text-white cursor-pointer"
+                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/10 py-2 text-xs font-semibold text-destructive transition hover:bg-destructive hover:text-white"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     <span>Delete Reel</span>
