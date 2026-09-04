@@ -304,7 +304,7 @@ export class UsersService {
   /**
    * Get detailed Creator Summary & Performance KPIs
    */
-  async getCreatorSummary(userId: string) {
+  async getCreatorSummary(userId: string, currentUserId?: string | null) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: { roles: true },
@@ -343,6 +343,15 @@ export class UsersService {
       where: { followerId: userId },
     });
 
+    let isFollowing = false;
+    if (currentUserId && currentUserId !== userId) {
+      isFollowing = await this.followRepository
+        .count({
+          where: { followerId: currentUserId, followingId: userId },
+        })
+        .then((c) => c > 0);
+    }
+
     const totalEngagements = totalLikes + totalComments + totalBookmarks;
     const engagementRate =
       totalViews > 0
@@ -359,6 +368,7 @@ export class UsersService {
         totalLikes,
         followersCount,
       }),
+      isFollowing,
       stats: {
         totalReels: readyReels,
         allUploadedReels: totalReels,
@@ -371,6 +381,7 @@ export class UsersService {
         totalBookmarks,
         followersCount,
         followingCount,
+        isFollowing,
         engagementRate,
         avgViewsPerReel,
         estimatedReach: Math.round(totalViews * 1.35),

@@ -123,8 +123,9 @@ export class UsersController {
 
   @Get(':id/creator-summary')
   @ApiOperation({ summary: 'Get creator summary and performance KPIs' })
-  getCreatorSummary(@Param('id') id: string) {
-    return this.usersService.getCreatorSummary(id);
+  getCreatorSummary(@Param('id') id: string, @Req() req?: any) {
+    const currentUserId = req?.user?.sub || null;
+    return this.usersService.getCreatorSummary(id, currentUserId);
   }
 
   @Get(':id/reels')
