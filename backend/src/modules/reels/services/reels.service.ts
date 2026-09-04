@@ -564,7 +564,12 @@ export class ReelsService {
   /**
    * Adds a Comment or Reply to a Reel (strictly enforces max 2-level depth).
    */
-  async addComment(userId: string, reelId: string, dto: CreateCommentDto) {
+  async addComment(
+    userId: string,
+    reelId: string,
+    dto: CreateCommentDto,
+    requestHost?: string,
+  ) {
     const reel = await this.reelRepository.findOne({
       where: { id: reelId },
       relations: { user: true },
@@ -676,7 +681,7 @@ export class ReelsService {
       relations: { user: true },
     });
 
-    return this.formatComment(loaded!, userId, 0, []);
+    return this.formatComment(loaded!, userId, 0, [], 0, false, requestHost);
   }
 
   /**
@@ -686,6 +691,7 @@ export class ReelsService {
     reelId: string,
     query?: CommentQueryDto,
     userId?: string | null,
+    requestHost?: string,
   ) {
     const page = Math.max(1, query?.page || 1);
     const limit = Math.min(50, Math.max(1, query?.limit || 20));
@@ -711,7 +717,7 @@ export class ReelsService {
                 .count({ where: { commentId: reply.id, userId } })
                 .then((c) => c > 0)
             : false;
-          return this.formatComment(reply, userId, 0, [], likesCount, isLiked);
+          return this.formatComment(reply, userId, 0, [], likesCount, isLiked, requestHost);
         }),
       );
 
@@ -765,7 +771,7 @@ export class ReelsService {
                   .count({ where: { commentId: r.id, userId } })
                   .then((c) => c > 0)
               : false;
-            return this.formatComment(r, userId, 0, [], rLikesCount, rIsLiked);
+            return this.formatComment(r, userId, 0, [], rLikesCount, rIsLiked, requestHost);
           }),
         );
 
@@ -776,6 +782,7 @@ export class ReelsService {
           previewReplies,
           likesCount,
           isLiked,
+          requestHost,
         );
       }),
     );
@@ -792,7 +799,7 @@ export class ReelsService {
   /**
    * Admin endpoint: Gets paginated comments across all platform reels with filtering & search.
    */
-  async getAllComments(query?: GetAllCommentsQueryDto) {
+  async getAllComments(query?: GetAllCommentsQueryDto, requestHost?: string) {
     const page = Math.max(1, query?.page || 1);
     const limit = Math.min(100, Math.max(1, query?.limit || 20));
     const skip = (page - 1) * limit;
@@ -830,25 +837,34 @@ export class ReelsService {
 
     const [comments, total] = await qb.getManyAndCount();
 
-    const items = comments.map((c) => ({
-      id: c.id,
-      userId: c.userId,
-      userName: c.user?.name || 'Vastu User',
-      userHandle:
-        c.user?.username ||
-        c.user?.name?.toLowerCase().replace(/\s+/g, '') ||
-        'user',
-      userIsVerified: c.user?.isVerified || false,
-      text: c.text,
-      isPinned: c.isPinned || false,
-      pinnedAt: c.pinnedAt ? c.pinnedAt.toISOString() : null,
-      reelId: c.reelId,
-      reelTitle: c.reel?.title || 'Vastu Reel',
-      reelCategory: c.reel?.category || 'General',
-      createdAt: c.createdAt
-        ? c.createdAt.toISOString()
-        : new Date().toISOString(),
-    }));
+    const items = comments.map((c) => {
+      let avatarUrl = c.user?.avatarUrl || '';
+      if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
+        avatarUrl = this.storageService.getObjectUrl(avatarUrl, requestHost);
+      }
+      return {
+        id: c.id,
+        userId: c.userId,
+        userName: c.user?.name || 'Vastu User',
+        userHandle:
+          c.user?.username ||
+          c.user?.name?.toLowerCase().replace(/\s+/g, '') ||
+          'user',
+        userIsVerified: c.user?.isVerified || false,
+        userAvatarUrl: avatarUrl || null,
+        avatarUrl: avatarUrl || null,
+        userAvatar: avatarUrl || null,
+        text: c.text,
+        isPinned: c.isPinned || false,
+        pinnedAt: c.pinnedAt ? c.pinnedAt.toISOString() : null,
+        reelId: c.reelId,
+        reelTitle: c.reel?.title || 'Vastu Reel',
+        reelCategory: c.reel?.category || 'General',
+        createdAt: c.createdAt
+          ? c.createdAt.toISOString()
+          : new Date().toISOString(),
+      };
+    });
 
     return {
       items,
@@ -1063,14 +1079,21 @@ export class ReelsService {
     replies: any[] = [],
     likesCount = 0,
     isLiked = false,
+    requestHost?: string,
   ): any {
+    let userAvatarUrl = c.user?.avatarUrl || '';
+    if (userAvatarUrl && !userAvatarUrl.startsWith('http') && !userAvatarUrl.startsWith('data:')) {
+      userAvatarUrl = this.storageService.getObjectUrl(userAvatarUrl, requestHost);
+    }
+
     return {
       id: c.id,
       userId: c.userId,
       userName: c.user?.name || 'Vastu User',
       username: c.user?.username || null,
-      userAvatarUrl:
-        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+      userAvatarUrl: userAvatarUrl || null,
+      avatarUrl: userAvatarUrl || null,
+      userAvatar: userAvatarUrl || null,
       commentText: c.text,
       timestamp: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
       parentId: c.parentId || null,

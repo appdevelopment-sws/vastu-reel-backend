@@ -226,7 +226,7 @@ export class ReelsController {
     @Body() dto: CreateCommentDto,
   ) {
     const userId = req.user.sub;
-    return this.reelsService.addComment(userId, id, dto);
+    return this.reelsService.addComment(userId, id, dto, req.headers?.host);
   }
 
   @Public()
@@ -235,8 +235,11 @@ export class ReelsController {
   })
   @ApiResponse({ status: HttpStatus.OK, description: 'All comments list.' })
   @Get('comments/all')
-  getAllComments(@Query() query: GetAllCommentsQueryDto) {
-    return this.reelsService.getAllComments(query);
+  getAllComments(
+    @Req() req: Request,
+    @Query() query: GetAllCommentsQueryDto,
+  ) {
+    return this.reelsService.getAllComments(query, req.headers?.host);
   }
 
   @Public()
@@ -249,7 +252,7 @@ export class ReelsController {
     @Query() query: CommentQueryDto,
   ) {
     const userId = this.tryExtractUserId(req);
-    return this.reelsService.getComments(id, query, userId);
+    return this.reelsService.getComments(id, query, userId, req.headers?.host);
   }
 
   @ApiBearerAuth()

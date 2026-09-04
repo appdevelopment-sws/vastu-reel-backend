@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { VideoPlayer } from "./VideoPlayer"
 import { reelsApi } from "../../services/api"
+import { useAuth } from "../../context/AuthContext"
 import {
   X,
   ChevronUp,
@@ -22,8 +24,6 @@ import {
   CornerDownRight,
   Info,
   Pin,
-  Copy,
-  Check,
 } from "lucide-react"
 
 export interface ReelItem {
@@ -81,13 +81,14 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
   onNavigate,
   onDelete,
 }) => {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const currentReel = reels[currentIndex]
 
   // Tab State: 'info' or 'comments'
   const [activeDrawerTab, setActiveDrawerTab] = useState<"info" | "comments">(
     "info"
   )
-  const [copiedCoords, setCopiedCoords] = useState(false)
 
   // Comments State
   const [comments, setComments] = useState<any[]>([])
@@ -634,13 +635,48 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                           </div>
                         )}
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                              {comment.userName?.charAt(0)?.toUpperCase() ||
-                                "U"}
-                            </div>
+                          <div
+                            onClick={() => {
+                              if (comment.userId) {
+                                onClose()
+                                navigate(`/dashboard/users/${comment.userId}`)
+                              }
+                            }}
+                            className={`flex items-center gap-2 ${comment.userId ? "cursor-pointer group" : ""}`}
+                            title={comment.userId ? `View ${comment.userName || "user"}'s profile` : undefined}
+                          >
+                            {(() => {
+                              const avatarSrc =
+                                comment.userAvatarUrl ||
+                                comment.avatarUrl ||
+                                comment.userAvatar ||
+                                comment.user?.avatarUrl
+                              return (
+                                <div className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-[10px] font-bold text-primary border border-border/50 group-hover:border-primary transition-colors">
+                                  {avatarSrc && (
+                                    <img
+                                      src={avatarSrc}
+                                      alt={comment.userName || "User"}
+                                      className="h-full w-full object-cover"
+                                      onError={(e) => {
+                                        ;(e.currentTarget as HTMLElement).style.display = "none"
+                                      }}
+                                    />
+                                  )}
+                                  <span
+                                    className={
+                                      avatarSrc
+                                        ? "absolute inset-0 -z-10 flex items-center justify-center"
+                                        : ""
+                                    }
+                                  >
+                                    {comment.userName?.charAt(0)?.toUpperCase() || "U"}
+                                  </span>
+                                </div>
+                              )
+                            })()}
                             <div>
-                              <span className="text-xs font-bold text-foreground">
+                              <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                                 {comment.userName || "User"}
                               </span>
                               {comment.username && (
@@ -682,11 +718,11 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                           </div>
                         </div>
 
-                        <p className="pl-8 text-xs leading-relaxed text-foreground/90">
+                        <p className="pl-9 text-xs leading-relaxed text-foreground/90">
                           {comment.commentText}
                         </p>
 
-                        <div className="flex items-center gap-3 pl-8 text-[10px] text-muted-foreground">
+                        <div className="flex items-center gap-3 pl-9 text-[10px] text-muted-foreground">
                           <span>
                             {new Date(comment.timestamp).toLocaleDateString()}
                           </span>
@@ -703,27 +739,72 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                         {/* Nested Replies */}
                         {comment.replies && comment.replies.length > 0 && (
                           <div className="mt-2 ml-8 space-y-2 border-l-2 border-primary/20 pl-3">
-                            {comment.replies.map((reply: any) => (
-                              <div key={reply.id} className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] font-bold text-foreground">
-                                    {reply.userName || "Admin"}
-                                  </span>
-                                  <button
-                                    onClick={() =>
-                                      handleDeleteComment(reply.id)
-                                    }
-                                    disabled={deletingCommentId === reply.id}
-                                    className="p-0.5 text-muted-foreground hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-2.5 w-2.5" />
-                                  </button>
+                            {comment.replies.map((reply: any) => {
+                              const replyAvatar =
+                                reply.userAvatarUrl ||
+                                reply.avatarUrl ||
+                                reply.userAvatar ||
+                                reply.user?.avatarUrl
+                              return (
+                                <div key={reply.id} className="space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <div
+                                      onClick={() => {
+                                        if (reply.userId) {
+                                          onClose()
+                                          navigate(`/dashboard/users/${reply.userId}`)
+                                        }
+                                      }}
+                                      className={`flex items-center gap-1.5 ${reply.userId ? "cursor-pointer group" : ""}`}
+                                      title={reply.userId ? `View ${reply.userName || "user"}'s profile` : undefined}
+                                    >
+                                      <div className="relative flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-[9px] font-bold text-primary border border-border/40 group-hover:border-primary transition-colors">
+                                        {replyAvatar && (
+                                          <img
+                                            src={replyAvatar}
+                                            alt={reply.userName || "User"}
+                                            className="h-full w-full object-cover"
+                                            onError={(e) => {
+                                              ;(e.currentTarget as HTMLElement).style.display = "none"
+                                            }}
+                                          />
+                                        )}
+                                        <span
+                                          className={
+                                            replyAvatar
+                                              ? "absolute inset-0 -z-10 flex items-center justify-center"
+                                              : ""
+                                          }
+                                        >
+                                          {reply.userName?.charAt(0)?.toUpperCase() || "U"}
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] font-bold text-foreground group-hover:text-primary transition-colors">
+                                        {reply.userName || "Admin"}
+                                      </span>
+                                      {reply.username && (
+                                        <span className="text-[9px] text-muted-foreground">
+                                          @{reply.username}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        handleDeleteComment(reply.id)
+                                      }
+                                      disabled={deletingCommentId === reply.id}
+                                      className="p-0.5 text-muted-foreground hover:text-destructive"
+                                      title="Delete reply"
+                                    >
+                                      <Trash2 className="h-2.5 w-2.5" />
+                                    </button>
+                                  </div>
+                                  <p className="pl-6.5 text-[11px] text-foreground/80">
+                                    {reply.commentText}
+                                  </p>
                                 </div>
-                                <p className="text-[11px] text-foreground/80">
-                                  {reply.commentText}
-                                </p>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )}
                       </div>
@@ -755,6 +836,27 @@ export const ReelPlayerModal: React.FC<ReelPlayerModalProps> = ({
                   </div>
                 )}
                 <div className="flex items-center gap-2">
+                  <div className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-primary border border-border/60">
+                    {user?.avatarUrl && (
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.name || "You"}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          ;(e.currentTarget as HTMLElement).style.display = "none"
+                        }}
+                      />
+                    )}
+                    <span
+                      className={
+                        user?.avatarUrl
+                          ? "absolute inset-0 -z-10 flex items-center justify-center"
+                          : ""
+                      }
+                    >
+                      {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                    </span>
+                  </div>
                   <input
                     type="text"
                     value={newCommentText}

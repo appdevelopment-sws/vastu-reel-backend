@@ -252,10 +252,28 @@ export const CommentsPage: React.FC = () => {
                         onClick={() => navigate(`/dashboard/users/${comment.userId}`)}
                         className="flex items-center gap-3 cursor-pointer group"
                       >
-                        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary text-xs border border-primary/20">
-                          {comment.userName?.charAt(0)?.toUpperCase() || 'U'}
+                        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 font-bold text-primary text-xs border border-primary/20">
+                          {(comment.userAvatarUrl || comment.avatarUrl || comment.userAvatar) && (
+                            <img
+                              src={comment.userAvatarUrl || comment.avatarUrl || comment.userAvatar}
+                              alt={comment.userName || 'User'}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <span
+                            className={
+                              (comment.userAvatarUrl || comment.avatarUrl || comment.userAvatar)
+                                ? 'absolute inset-0 -z-10 flex items-center justify-center'
+                                : ''
+                            }
+                          >
+                            {comment.userName?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
                           {comment.userIsVerified && (
-                            <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-primary flex items-center justify-center text-white">
+                            <span className="absolute -top-1 -right-1 z-10 h-3.5 w-3.5 rounded-full bg-primary flex items-center justify-center text-white ring-2 ring-card">
                               <CheckCircle2 className="h-2.5 w-2.5" />
                             </span>
                           )}
