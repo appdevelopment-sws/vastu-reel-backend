@@ -42,6 +42,18 @@ export class InitUploadDto {
   @IsOptional()
   propertyType?: string;
 
+  @ApiProperty({ example: 2500000, required: false })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  minPrice?: number;
+
+  @ApiProperty({ example: 7500000, required: false })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  maxPrice?: number;
+
   @ApiProperty({ example: 'Air', required: false })
   @IsString()
   @IsOptional()
@@ -156,6 +168,8 @@ export enum FeedSortBy {
   VIEWS = 'views',
   LIKES = 'likes',
   SAVED = 'saved',
+  PRICE_LOW_HIGH = 'price_low_high',
+  PRICE_HIGH_LOW = 'price_high_low',
 }
 
 export class FeedQueryDto {
@@ -190,6 +204,24 @@ export class FeedQueryDto {
   @IsString()
   @IsOptional()
   element?: string;
+
+  @ApiProperty({ example: 100000, required: false })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  minPrice?: number;
+
+  @ApiProperty({ example: 50000000, required: false })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  maxPrice?: number;
+
+  @ApiProperty({ example: 4.0, required: false })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  minRating?: number;
 
   @ApiProperty({ example: 'uuid', required: false })
   @IsString()
@@ -244,6 +276,18 @@ export class UpdateReelDto {
   @IsString()
   @IsOptional()
   propertyType?: string;
+
+  @ApiProperty({ example: 2500000, required: false })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  minPrice?: number;
+
+  @ApiProperty({ example: 7500000, required: false })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  maxPrice?: number;
 
   @ApiProperty({ example: 'Air', required: false })
   @IsString()

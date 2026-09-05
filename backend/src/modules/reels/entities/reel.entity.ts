@@ -58,6 +58,14 @@ export class Reel {
   @Column({ name: 'property_type', nullable: true })
   propertyType: string;
 
+  @Index()
+  @Column({ name: 'min_price', type: 'decimal', precision: 12, scale: 2, nullable: true })
+  minPrice?: number | null;
+
+  @Index()
+  @Column({ name: 'max_price', type: 'decimal', precision: 12, scale: 2, nullable: true })
+  maxPrice?: number | null;
+
   @Column({ nullable: true })
   element: string;
 

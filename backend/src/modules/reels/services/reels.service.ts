@@ -94,6 +94,8 @@ export class ReelsService {
       category: dto.category || 'general',
       subCategory: dto.subCategory || '',
       propertyType: dto.propertyType || '',
+      minPrice: dto.minPrice != null ? dto.minPrice : null,
+      maxPrice: dto.maxPrice != null ? dto.maxPrice : null,
       element: dto.element || '',
       location: dto.location || '',
       landmark: dto.landmark || '',
@@ -248,21 +250,42 @@ export class ReelsService {
         visibility: ReelVisibility.PUBLIC,
       });
 
-    if (query.category) {
-      qb.andWhere('reel.category = :category', { category: query.category });
+    if (query.category && query.category.toLowerCase() !== 'all') {
+      qb.andWhere('LOWER(reel.category) = LOWER(:category)', {
+        category: query.category,
+      });
     }
-    if (query.subCategory) {
-      qb.andWhere('reel.subCategory = :subCategory', {
+    if (query.subCategory && query.subCategory.toLowerCase() !== 'all') {
+      qb.andWhere('LOWER(reel.subCategory) = LOWER(:subCategory)', {
         subCategory: query.subCategory,
       });
     }
-    if (query.propertyType) {
-      qb.andWhere('reel.propertyType = :propertyType', {
+    if (query.propertyType && query.propertyType.toLowerCase() !== 'all') {
+      qb.andWhere('LOWER(reel.propertyType) = LOWER(:propertyType)', {
         propertyType: query.propertyType,
       });
     }
-    if (query.element) {
-      qb.andWhere('reel.element = :element', { element: query.element });
+    if (query.element && query.element.toLowerCase() !== 'all') {
+      qb.andWhere('LOWER(reel.element) = LOWER(:element)', {
+        element: query.element,
+      });
+    }
+    if (query.minPrice != null && query.minPrice > 0) {
+      qb.andWhere(
+        '(reel.maxPrice >= :minPrice OR (reel.maxPrice IS NULL AND reel.minPrice >= :minPrice))',
+        { minPrice: query.minPrice },
+      );
+    }
+    if (query.maxPrice != null && query.maxPrice < 50000000) {
+      qb.andWhere(
+        '(reel.minPrice <= :maxPrice OR (reel.minPrice IS NULL AND reel.maxPrice <= :maxPrice))',
+        { maxPrice: query.maxPrice },
+      );
+    }
+    if (query.minRating != null && query.minRating > 0) {
+      qb.andWhere('creator.rating >= :minRating', {
+        minRating: query.minRating,
+      });
     }
     if (query.userId) {
       qb.andWhere('reel.userId = :userId', { userId: query.userId });
@@ -300,6 +323,20 @@ export class ReelsService {
         'reel.createdAt',
         'DESC',
       );
+    } else if (query.sortBy === FeedSortBy.PRICE_LOW_HIGH) {
+      qb.orderBy(
+        'COALESCE(reel.minPrice, reel.maxPrice)',
+        'ASC',
+        'NULLS LAST',
+      ).addOrderBy('reel.createdAt', 'DESC');
+    } else if (query.sortBy === FeedSortBy.PRICE_HIGH_LOW) {
+      qb.orderBy(
+        'COALESCE(reel.maxPrice, reel.minPrice)',
+        'DESC',
+        'NULLS LAST',
+      ).addOrderBy('reel.createdAt', 'DESC');
+    } else if (query.sortBy === FeedSortBy.LIKES) {
+      qb.orderBy('reel.createdAt', 'DESC');
     } else {
       qb.orderBy('reel.createdAt', 'DESC');
     }
@@ -380,6 +417,14 @@ export class ReelsService {
           city: reel.city,
           state: reel.state,
           pincode: reel.pincode,
+          minPrice: reel.minPrice != null ? Number(reel.minPrice) : null,
+          maxPrice: reel.maxPrice != null ? Number(reel.maxPrice) : null,
+          price:
+            reel.minPrice != null
+              ? Number(reel.minPrice)
+              : reel.maxPrice != null
+                ? Number(reel.maxPrice)
+                : null,
           latitude: reel.latitude != null ? Number(reel.latitude) : null,
           longitude: reel.longitude != null ? Number(reel.longitude) : null,
           createdAt: reel.createdAt,
@@ -421,6 +466,7 @@ export class ReelsService {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+      hasMore: page < Math.ceil(total / limit),
     };
   }
 
@@ -1545,6 +1591,8 @@ export class ReelsService {
     if (dto.category !== undefined) reel.category = dto.category;
     if (dto.subCategory !== undefined) reel.subCategory = dto.subCategory;
     if (dto.propertyType !== undefined) reel.propertyType = dto.propertyType;
+    if (dto.minPrice !== undefined) reel.minPrice = dto.minPrice;
+    if (dto.maxPrice !== undefined) reel.maxPrice = dto.maxPrice;
     if (dto.element !== undefined) reel.element = dto.element;
     if (dto.location !== undefined) reel.location = dto.location;
     if (dto.landmark !== undefined) reel.landmark = dto.landmark;
