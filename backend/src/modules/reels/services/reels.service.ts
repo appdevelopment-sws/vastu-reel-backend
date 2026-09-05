@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Brackets } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -29,7 +34,12 @@ import { ActivityLogService } from '../../activity-logs/activity-log.service';
 import { ActivityLogType } from '../../activity-logs/entities/activity-log.entity';
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-const ALLOWED_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-matroska', 'video/webm'];
+const ALLOWED_MIME_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/x-matroska',
+  'video/webm',
+];
 
 @Injectable()
 export class ReelsService {
@@ -71,7 +81,9 @@ export class ReelsService {
       throw new BadRequestException(`File size exceeds the limit of 500MB.`);
     }
     if (!ALLOWED_MIME_TYPES.includes(dto.mimeType)) {
-      throw new BadRequestException(`Unsupported MIME type. Allowed formats: MP4, MOV, MKV, WebM.`);
+      throw new BadRequestException(
+        `Unsupported MIME type. Allowed formats: MP4, MOV, MKV, WebM.`,
+      );
     }
 
     // 2. Create the Reel record (in UPLOADING status)
@@ -112,7 +124,12 @@ export class ReelsService {
     await this.uploadRepository.save(upload);
 
     // 5. Generate signed upload URL
-    const uploadUrl = await this.storageService.getPresignedUploadUrl(storageKey, dto.mimeType, 900, requestHost);
+    const uploadUrl = await this.storageService.getPresignedUploadUrl(
+      storageKey,
+      dto.mimeType,
+      900,
+      requestHost,
+    );
 
     return {
       uploadId: savedReel.id,
@@ -126,7 +143,9 @@ export class ReelsService {
    * Completes the upload flow: verifies object existence in storage and queues transcoding.
    */
   async completeUpload(userId: string, uploadId: string) {
-    const upload = await this.uploadRepository.findOne({ where: { id: uploadId } });
+    const upload = await this.uploadRepository.findOne({
+      where: { id: uploadId },
+    });
     if (!upload) {
       throw new NotFoundException('Upload session not found.');
     }
@@ -134,13 +153,19 @@ export class ReelsService {
       throw new ForbiddenException('You do not own this upload session.');
     }
     if (upload.status !== UploadStatus.UPLOADING) {
-      throw new BadRequestException(`Upload is already in state: ${upload.status}`);
+      throw new BadRequestException(
+        `Upload is already in state: ${upload.status}`,
+      );
     }
 
     // Verify object exists in storage
-    const s3Meta = await this.storageService.getObjectMetadata(upload.storageKey);
+    const s3Meta = await this.storageService.getObjectMetadata(
+      upload.storageKey,
+    );
     if (!s3Meta.exists) {
-      throw new BadRequestException('File not found in storage. Ensure direct upload completed.');
+      throw new BadRequestException(
+        'File not found in storage. Ensure direct upload completed.',
+      );
     }
 
     // Update upload status
@@ -157,7 +182,10 @@ export class ReelsService {
     await this.mediaRepository.save(media);
 
     // Set Reel status to PROCESSING
-    const reel = await this.reelRepository.findOne({ where: { id: uploadId }, relations: { user: true } });
+    const reel = await this.reelRepository.findOne({
+      where: { id: uploadId },
+      relations: { user: true },
+    });
     if (!reel) {
       throw new NotFoundException('Reel metadata record not found.');
     }
@@ -202,25 +230,36 @@ export class ReelsService {
   /**
    * Fetches paginated feed of READY reels, including creator data and user states.
    */
-  async getFeed(userId: string | null, query: FeedQueryDto, requestHost?: string) {
+  async getFeed(
+    userId: string | null,
+    query: FeedQueryDto,
+    requestHost?: string,
+  ) {
     const page = query.page || 1;
     const limit = query.limit || 10;
     const skip = (page - 1) * limit;
 
-    const qb = this.reelRepository.createQueryBuilder('reel')
+    const qb = this.reelRepository
+      .createQueryBuilder('reel')
       .leftJoinAndSelect('reel.user', 'creator')
       .leftJoinAndSelect('reel.media', 'media')
       .where('reel.status = :status', { status: ReelStatus.READY })
-      .andWhere('reel.visibility = :visibility', { visibility: ReelVisibility.PUBLIC });
+      .andWhere('reel.visibility = :visibility', {
+        visibility: ReelVisibility.PUBLIC,
+      });
 
     if (query.category) {
       qb.andWhere('reel.category = :category', { category: query.category });
     }
     if (query.subCategory) {
-      qb.andWhere('reel.subCategory = :subCategory', { subCategory: query.subCategory });
+      qb.andWhere('reel.subCategory = :subCategory', {
+        subCategory: query.subCategory,
+      });
     }
     if (query.propertyType) {
-      qb.andWhere('reel.propertyType = :propertyType', { propertyType: query.propertyType });
+      qb.andWhere('reel.propertyType = :propertyType', {
+        propertyType: query.propertyType,
+      });
     }
     if (query.element) {
       qb.andWhere('reel.element = :element', { element: query.element });
@@ -229,10 +268,17 @@ export class ReelsService {
       qb.andWhere('reel.userId = :userId', { userId: query.userId });
     }
     if (query.liked && userId) {
-      qb.innerJoin('reel.likes', 'userLike', 'userLike.userId = :likeUserId', { likeUserId: userId });
+      qb.innerJoin('reel.likes', 'userLike', 'userLike.userId = :likeUserId', {
+        likeUserId: userId,
+      });
     }
     if (query.saved && userId) {
-      qb.innerJoin('reel.bookmarks', 'userBookmark', 'userBookmark.userId = :bookmarkUserId', { bookmarkUserId: userId });
+      qb.innerJoin(
+        'reel.bookmarks',
+        'userBookmark',
+        'userBookmark.userId = :bookmarkUserId',
+        { bookmarkUserId: userId },
+      );
     }
     if (query.search && query.search.trim()) {
       const searchTerms = query.search.trim().split(/\s+/).filter(Boolean);
@@ -250,7 +296,10 @@ export class ReelsService {
     }
 
     if (query.sortBy === FeedSortBy.VIEWS) {
-      qb.orderBy('reel.viewsCount', 'DESC').addOrderBy('reel.createdAt', 'DESC');
+      qb.orderBy('reel.viewsCount', 'DESC').addOrderBy(
+        'reel.createdAt',
+        'DESC',
+      );
     } else {
       qb.orderBy('reel.createdAt', 'DESC');
     }
@@ -261,9 +310,15 @@ export class ReelsService {
     // Map feeds with stats and user-specific flags
     const items = await Promise.all(
       reels.map(async (reel) => {
-        const likesCount = await this.likeRepository.count({ where: { reelId: reel.id } });
-        const commentsCount = await this.commentRepository.count({ where: { reelId: reel.id } });
-        const bookmarksCount = await this.bookmarkRepository.count({ where: { reelId: reel.id } });
+        const likesCount = await this.likeRepository.count({
+          where: { reelId: reel.id },
+        });
+        const commentsCount = await this.commentRepository.count({
+          where: { reelId: reel.id },
+        });
+        const bookmarksCount = await this.bookmarkRepository.count({
+          where: { reelId: reel.id },
+        });
 
         let isLiked = false;
         let isBookmarked = false;
@@ -271,17 +326,46 @@ export class ReelsService {
         let isFavoriteCreator = false;
 
         if (userId) {
-          isLiked = await this.likeRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
-          isBookmarked = await this.bookmarkRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
+          isLiked = await this.likeRepository
+            .count({ where: { reelId: reel.id, userId } })
+            .then((c) => c > 0);
+          isBookmarked = await this.bookmarkRepository
+            .count({ where: { reelId: reel.id, userId } })
+            .then((c) => c > 0);
           if (reel.userId) {
-            isFollowingCreator = await this.followRepository.count({ where: { followerId: userId, followingId: reel.userId } }).then(c => c > 0);
-            isFavoriteCreator = await this.favoriteProfileRepository.count({ where: { userId, favoriteProfileId: reel.userId } }).then(c => c > 0);
+            isFollowingCreator = await this.followRepository
+              .count({
+                where: { followerId: userId, followingId: reel.userId },
+              })
+              .then((c) => c > 0);
+            isFavoriteCreator = await this.favoriteProfileRepository
+              .count({ where: { userId, favoriteProfileId: reel.userId } })
+              .then((c) => c > 0);
           }
         }
 
         // Formulate streaming paths
-        const videoUrl = reel.media?.hlsKey ? this.storageService.getObjectUrl(reel.media.hlsKey, requestHost) : null;
-        const thumbnailUrl = reel.media?.thumbnailKey ? this.storageService.getObjectUrl(reel.media.thumbnailKey, requestHost) : null;
+        const videoUrl = reel.media?.hlsKey
+          ? this.storageService.getObjectUrl(reel.media.hlsKey, requestHost)
+          : null;
+        const thumbnailUrl = reel.media?.thumbnailKey
+          ? this.storageService.getObjectUrl(
+              reel.media.thumbnailKey,
+              requestHost,
+            )
+          : null;
+
+        let creatorAvatarUrl = reel.user?.avatarUrl || '';
+        if (
+          creatorAvatarUrl &&
+          !creatorAvatarUrl.startsWith('http') &&
+          !creatorAvatarUrl.startsWith('data:')
+        ) {
+          creatorAvatarUrl = this.storageService.getObjectUrl(
+            creatorAvatarUrl,
+            requestHost,
+          );
+        }
 
         return {
           id: reel.id,
@@ -312,7 +396,7 @@ export class ReelsService {
             id: reel.user?.id || reel.userId || 'c_unknown',
             name: reel.user?.name || reel.user?.username || 'Vastu Creator',
             username: reel.user?.username || '',
-            avatarUrl: reel.user?.avatarUrl || '',
+            avatarUrl: creatorAvatarUrl,
             coverImageUrl: reel.user?.coverImageUrl || '',
             profession: reel.user?.profession || '',
             bio: reel.user?.bio || '',
@@ -328,7 +412,7 @@ export class ReelsService {
             isFavorite: isFavoriteCreator,
           },
         };
-      })
+      }),
     );
 
     return {
@@ -353,24 +437,52 @@ export class ReelsService {
       throw new NotFoundException('Reel not found.');
     }
 
-    const likesCount = await this.likeRepository.count({ where: { reelId: reel.id } });
-    const commentsCount = await this.commentRepository.count({ where: { reelId: reel.id } });
-    const bookmarksCount = await this.bookmarkRepository.count({ where: { reelId: reel.id } });
+    const likesCount = await this.likeRepository.count({
+      where: { reelId: reel.id },
+    });
+    const commentsCount = await this.commentRepository.count({
+      where: { reelId: reel.id },
+    });
+    const bookmarksCount = await this.bookmarkRepository.count({
+      where: { reelId: reel.id },
+    });
 
     let isLiked = false;
     let isBookmarked = false;
     let isFollowingCreator = false;
 
     if (userId) {
-      isLiked = await this.likeRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
-      isBookmarked = await this.bookmarkRepository.count({ where: { reelId: reel.id, userId } }).then(c => c > 0);
+      isLiked = await this.likeRepository
+        .count({ where: { reelId: reel.id, userId } })
+        .then((c) => c > 0);
+      isBookmarked = await this.bookmarkRepository
+        .count({ where: { reelId: reel.id, userId } })
+        .then((c) => c > 0);
       if (reel.userId) {
-        isFollowingCreator = await this.followRepository.count({ where: { followerId: userId, followingId: reel.userId } }).then(c => c > 0);
+        isFollowingCreator = await this.followRepository
+          .count({ where: { followerId: userId, followingId: reel.userId } })
+          .then((c) => c > 0);
       }
     }
 
-    const videoUrl = reel.media?.hlsKey ? this.storageService.getObjectUrl(reel.media.hlsKey, requestHost) : null;
-    const thumbnailUrl = reel.media?.thumbnailKey ? this.storageService.getObjectUrl(reel.media.thumbnailKey, requestHost) : null;
+    const videoUrl = reel.media?.hlsKey
+      ? this.storageService.getObjectUrl(reel.media.hlsKey, requestHost)
+      : null;
+    const thumbnailUrl = reel.media?.thumbnailKey
+      ? this.storageService.getObjectUrl(reel.media.thumbnailKey, requestHost)
+      : null;
+
+    let creatorAvatarUrl = reel.user?.avatarUrl || '';
+    if (
+      creatorAvatarUrl &&
+      !creatorAvatarUrl.startsWith('http') &&
+      !creatorAvatarUrl.startsWith('data:')
+    ) {
+      creatorAvatarUrl = this.storageService.getObjectUrl(
+        creatorAvatarUrl,
+        requestHost,
+      );
+    }
 
     return {
       id: reel.id,
@@ -401,7 +513,7 @@ export class ReelsService {
         id: reel.user?.id || reel.userId || 'c_unknown',
         name: reel.user?.name || reel.user?.username || 'Vastu Creator',
         username: reel.user?.username || '',
-        avatarUrl: reel.user?.avatarUrl || '',
+        avatarUrl: creatorAvatarUrl,
         coverImageUrl: reel.user?.coverImageUrl || '',
         profession: reel.user?.profession || '',
         bio: reel.user?.bio || '',
@@ -434,7 +546,9 @@ export class ReelsService {
       false;
 
     if (reel.userId !== userId && !isAdmin) {
-      throw new ForbiddenException('You do not have permission to delete this reel.');
+      throw new ForbiddenException(
+        'You do not have permission to delete this reel.',
+      );
     }
 
     reel.status = ReelStatus.DELETED;
@@ -466,7 +580,9 @@ export class ReelsService {
       false;
 
     if (comment.userId !== userId && !isAdmin) {
-      throw new ForbiddenException('You do not have permission to delete this comment.');
+      throw new ForbiddenException(
+        'You do not have permission to delete this comment.',
+      );
     }
 
     // Delete comment likes
@@ -474,7 +590,9 @@ export class ReelsService {
 
     // If root comment, delete replies
     if (!comment.parentId) {
-      const replies = await this.commentRepository.find({ where: { parentId: comment.id } });
+      const replies = await this.commentRepository.find({
+        where: { parentId: comment.id },
+      });
       for (const reply of replies) {
         await this.commentLikeRepository.delete({ commentId: reply.id });
       }
@@ -498,15 +616,21 @@ export class ReelsService {
       throw new NotFoundException('Reel not found.');
     }
 
-    const existing = await this.likeRepository.findOne({ where: { reelId, userId } });
+    const existing = await this.likeRepository.findOne({
+      where: { reelId, userId },
+    });
     if (!existing) {
       const like = this.likeRepository.create({ reelId, userId });
       await this.likeRepository.save(like);
 
       // Log like activity (personal — only reel owner sees it)
       if (reel.userId !== userId) {
-        const actor = await this.userRepository.findOne({ where: { id: userId } });
-        const actorDisplayName = actor?.username ? `@${actor.username}` : (actor?.name || 'Someone');
+        const actor = await this.userRepository.findOne({
+          where: { id: userId },
+        });
+        const actorDisplayName = actor?.username
+          ? `@${actor.username}`
+          : actor?.name || 'Someone';
 
         await this.activityLogService.log({
           type: ActivityLogType.LIKE,
@@ -515,7 +639,11 @@ export class ReelsService {
           reelId,
           message: `${actorDisplayName} liked your reel "${reel.title}".`,
           isGlobal: false,
-          metadata: { reelId, reelTitle: reel.title, actorName: actorDisplayName },
+          metadata: {
+            reelId,
+            reelTitle: reel.title,
+            actorName: actorDisplayName,
+          },
         });
       }
     }
@@ -526,7 +654,9 @@ export class ReelsService {
    * Unlikes a Reel.
    */
   async unlikeReel(userId: string, reelId: string) {
-    const existing = await this.likeRepository.findOne({ where: { reelId, userId } });
+    const existing = await this.likeRepository.findOne({
+      where: { reelId, userId },
+    });
     if (existing) {
       await this.likeRepository.remove(existing);
     }
@@ -542,7 +672,9 @@ export class ReelsService {
       throw new NotFoundException('Reel not found.');
     }
 
-    const existing = await this.bookmarkRepository.findOne({ where: { reelId, userId } });
+    const existing = await this.bookmarkRepository.findOne({
+      where: { reelId, userId },
+    });
     if (!existing) {
       const bookmark = this.bookmarkRepository.create({ reelId, userId });
       await this.bookmarkRepository.save(bookmark);
@@ -554,7 +686,9 @@ export class ReelsService {
    * Unbookmarks a Reel.
    */
   async unbookmarkReel(userId: string, reelId: string) {
-    const existing = await this.bookmarkRepository.findOne({ where: { reelId, userId } });
+    const existing = await this.bookmarkRepository.findOne({
+      where: { reelId, userId },
+    });
     if (existing) {
       await this.bookmarkRepository.remove(existing);
     }
@@ -587,7 +721,9 @@ export class ReelsService {
         throw new NotFoundException('Parent comment not found.');
       }
       if (parent.reelId !== reelId) {
-        throw new BadRequestException('Parent comment does not belong to this reel.');
+        throw new BadRequestException(
+          'Parent comment does not belong to this reel.',
+        );
       }
       // Enforce max 2-level depth:
       // If the parent is already a reply (has parentId), attach this reply to the root comment
@@ -604,12 +740,16 @@ export class ReelsService {
     const saved = await this.commentRepository.save(comment);
 
     const actor = await this.userRepository.findOne({ where: { id: userId } });
-    const actorDisplayName = actor?.username ? `@${actor.username}` : (actor?.name || 'Someone');
+    const actorDisplayName = actor?.username
+      ? `@${actor.username}`
+      : actor?.name || 'Someone';
 
     // 1. Check for @username mentions and notify mentioned users
     const mentionMatches = dto.text.match(/@([a-zA-Z0-9_]+)/g);
     if (mentionMatches && mentionMatches.length > 0) {
-      const uniqueUsernames = [...new Set(mentionMatches.map((m) => m.substring(1).toLowerCase()))];
+      const uniqueUsernames = [
+        ...new Set(mentionMatches.map((m) => m.substring(1).toLowerCase())),
+      ];
       for (const uname of uniqueUsernames) {
         const mentionedUser = await this.userRepository.findOne({
           where: { username: uname },
@@ -636,8 +776,15 @@ export class ReelsService {
 
     // 2. If this is a reply to a parent comment, notify the parent comment author
     if (dto.parentId) {
-      const parent = await this.commentRepository.findOne({ where: { id: dto.parentId } });
-      if (parent && parent.userId && parent.userId !== userId && parent.userId !== reel.userId) {
+      const parent = await this.commentRepository.findOne({
+        where: { id: dto.parentId },
+      });
+      if (
+        parent &&
+        parent.userId &&
+        parent.userId !== userId &&
+        parent.userId !== reel.userId
+      ) {
         await this.activityLogService.log({
           type: ActivityLogType.COMMENT,
           actorId: userId,
@@ -717,7 +864,15 @@ export class ReelsService {
                 .count({ where: { commentId: reply.id, userId } })
                 .then((c) => c > 0)
             : false;
-          return this.formatComment(reply, userId, 0, [], likesCount, isLiked, requestHost);
+          return this.formatComment(
+            reply,
+            userId,
+            0,
+            [],
+            likesCount,
+            isLiked,
+            requestHost,
+          );
         }),
       );
 
@@ -771,7 +926,15 @@ export class ReelsService {
                   .count({ where: { commentId: r.id, userId } })
                   .then((c) => c > 0)
               : false;
-            return this.formatComment(r, userId, 0, [], rLikesCount, rIsLiked, requestHost);
+            return this.formatComment(
+              r,
+              userId,
+              0,
+              [],
+              rLikesCount,
+              rIsLiked,
+              requestHost,
+            );
           }),
         );
 
@@ -839,7 +1002,11 @@ export class ReelsService {
 
     const items = comments.map((c) => {
       let avatarUrl = c.user?.avatarUrl || '';
-      if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
+      if (
+        avatarUrl &&
+        !avatarUrl.startsWith('http') &&
+        !avatarUrl.startsWith('data:')
+      ) {
         avatarUrl = this.storageService.getObjectUrl(avatarUrl, requestHost);
       }
       return {
@@ -895,8 +1062,12 @@ export class ReelsService {
       await this.commentLikeRepository.save(like);
 
       if (comment.userId !== userId) {
-        const actor = await this.userRepository.findOne({ where: { id: userId } });
-        const actorDisplayName = actor?.username ? `@${actor.username}` : (actor?.name || 'Someone');
+        const actor = await this.userRepository.findOne({
+          where: { id: userId },
+        });
+        const actorDisplayName = actor?.username
+          ? `@${actor.username}`
+          : actor?.name || 'Someone';
 
         await this.activityLogService.log({
           type: ActivityLogType.LIKE,
@@ -998,7 +1169,9 @@ export class ReelsService {
 
     // Send activity log notification to comment author if not the one pinning
     if (comment.userId !== userId) {
-      const actor = await this.userRepository.findOne({ where: { id: userId } });
+      const actor = await this.userRepository.findOne({
+        where: { id: userId },
+      });
       const actorDisplayName = actor?.username
         ? `@${actor.username}`
         : actor?.name || 'The creator';
@@ -1082,8 +1255,15 @@ export class ReelsService {
     requestHost?: string,
   ): any {
     let userAvatarUrl = c.user?.avatarUrl || '';
-    if (userAvatarUrl && !userAvatarUrl.startsWith('http') && !userAvatarUrl.startsWith('data:')) {
-      userAvatarUrl = this.storageService.getObjectUrl(userAvatarUrl, requestHost);
+    if (
+      userAvatarUrl &&
+      !userAvatarUrl.startsWith('http') &&
+      !userAvatarUrl.startsWith('data:')
+    ) {
+      userAvatarUrl = this.storageService.getObjectUrl(
+        userAvatarUrl,
+        requestHost,
+      );
     }
 
     return {
@@ -1095,7 +1275,9 @@ export class ReelsService {
       avatarUrl: userAvatarUrl || null,
       userAvatar: userAvatarUrl || null,
       commentText: c.text,
-      timestamp: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
+      timestamp: c.createdAt
+        ? c.createdAt.toISOString()
+        : new Date().toISOString(),
       parentId: c.parentId || null,
       isPinned: c.isPinned || false,
       pinnedAt: c.pinnedAt ? c.pinnedAt.toISOString() : null,
@@ -1146,7 +1328,10 @@ export class ReelsService {
       return [];
     }
 
-    const tagMap = new Map<string, { tag: string; count: number; views: number; thumbnail: string | null }>();
+    const tagMap = new Map<
+      string,
+      { tag: string; count: number; views: number; thumbnail: string | null }
+    >();
 
     for (const reel of reels) {
       const thumbnail = reel.media?.thumbnailKey
@@ -1200,7 +1385,10 @@ export class ReelsService {
    * Criteria: Registered active users who have published at least 1 ready reel OR have at least 1 follower,
    * ranked by follower count and published reels count.
    */
-  async getPopularCreators(currentUserId?: string | null) {
+  async getPopularCreators(
+    currentUserId?: string | null,
+    requestHost?: string,
+  ) {
     const users = await this.userRepository.find({
       where: { isActive: true },
       take: 50,
@@ -1222,18 +1410,32 @@ export class ReelsService {
 
         let isFollowing = false;
         if (currentUserId && currentUserId !== user.id) {
-          isFollowing = await this.followRepository.count({
-            where: { followerId: currentUserId, followingId: user.id },
-          }).then((c) => c > 0);
+          isFollowing = await this.followRepository
+            .count({
+              where: { followerId: currentUserId, followingId: user.id },
+            })
+            .then((c) => c > 0);
+        }
+
+        let avatarUrl = user.avatarUrl || '';
+        if (
+          avatarUrl &&
+          !avatarUrl.startsWith('http') &&
+          !avatarUrl.startsWith('data:')
+        ) {
+          avatarUrl = this.storageService.getObjectUrl(avatarUrl, requestHost);
         }
 
         return {
           id: user.id,
           name: user.name || user.username || 'Creator',
           username: user.username || null,
-          avatarUrl: '',
+          avatarUrl,
           isVerified: true,
-          title: reelsCount > 0 ? `${reelsCount} Reel${reelsCount > 1 ? 's' : ''}` : 'Creator',
+          title:
+            reelsCount > 0
+              ? `${reelsCount} Reel${reelsCount > 1 ? 's' : ''}`
+              : 'Creator',
           followersCount,
           reelsCount,
           isFollowing,
@@ -1241,7 +1443,9 @@ export class ReelsService {
       }),
     );
 
-    const validCreators = creatorList.filter((c): c is NonNullable<typeof c> => c !== null);
+    const validCreators = creatorList.filter(
+      (c): c is NonNullable<typeof c> => c !== null,
+    );
 
     // Sort by popularity score: followers * 3 + reelsCount * 2
     validCreators.sort((a, b) => {
@@ -1257,7 +1461,12 @@ export class ReelsService {
    * Updates metadata for an existing reel (title, caption, thumbnail, etc.).
    * The original video media file cannot be replaced.
    */
-  async updateReel(userId: string, id: string, dto: UpdateReelDto, requestHost?: string) {
+  async updateReel(
+    userId: string,
+    id: string,
+    dto: UpdateReelDto,
+    requestHost?: string,
+  ) {
     const reel = await this.reelRepository.findOne({
       where: { id },
       relations: { media: true, user: true },
@@ -1268,7 +1477,9 @@ export class ReelsService {
     }
 
     if (reel.userId !== userId) {
-      throw new ForbiddenException('You do not have permission to edit this reel.');
+      throw new ForbiddenException(
+        'You do not have permission to edit this reel.',
+      );
     }
 
     if (dto.title !== undefined) reel.title = dto.title;
@@ -1294,4 +1505,3 @@ export class ReelsService {
     return this.getById(id, userId, requestHost);
   }
 }
-

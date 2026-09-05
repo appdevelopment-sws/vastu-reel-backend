@@ -104,7 +104,8 @@ export class ReelsController {
   @Get('popular-creators')
   getPopularCreators(@Req() req: Request) {
     const userId = this.tryExtractUserId(req);
-    return this.reelsService.getPopularCreators(userId);
+    const requestHost = req.headers.host;
+    return this.reelsService.getPopularCreators(userId, requestHost);
   }
 
   @Public()
