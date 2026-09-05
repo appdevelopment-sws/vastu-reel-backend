@@ -252,8 +252,14 @@ export class ReelsController {
     @Param('id') id: string,
     @Query() query: CommentQueryDto,
   ) {
-    const userId = this.tryExtractUserId(req);
-    return this.reelsService.getComments(id, query, userId, req.headers?.host);
+    const { userId, roles } = this.tryExtractUser(req);
+    return this.reelsService.getComments(
+      id,
+      query,
+      userId,
+      req.headers?.host,
+      roles,
+    );
   }
 
   @ApiBearerAuth()
@@ -325,10 +331,13 @@ export class ReelsController {
   /**
    * Helper to manually extract and verify JWT token in public routes
    */
-  private tryExtractUserId(request: Request): string | null {
+  private tryExtractUser(request: Request): {
+    userId: string | null;
+    roles: string[];
+  } {
     const user = (request as any).user;
     if (user && user.sub) {
-      return user.sub;
+      return { userId: user.sub, roles: user.roles || [] };
     }
 
     const authorization = request.headers.authorization;
@@ -338,12 +347,19 @@ export class ReelsController {
         try {
           const secret = this.configService.get<string>('JWT_SECRET');
           const payload = this.jwtService.verify(token, { secret });
-          return payload?.sub || null;
+          return {
+            userId: payload?.sub || null,
+            roles: payload?.roles || [],
+          };
         } catch {
           // ignore verification errors for public endpoints
         }
       }
     }
-    return null;
+    return { userId: null, roles: [] };
+  }
+
+  private tryExtractUserId(request: Request): string | null {
+    return this.tryExtractUser(request).userId;
   }
 }

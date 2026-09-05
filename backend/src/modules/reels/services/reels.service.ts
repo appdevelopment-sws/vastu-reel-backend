@@ -820,15 +820,22 @@ export class ReelsService {
           actorName: actorDisplayName,
         },
       });
-    }
-
-    // 4. Fetch comment with user relation
+    }    // 4. Fetch comment with user relation
     const loaded = await this.commentRepository.findOne({
       where: { id: saved.id },
       relations: { user: true },
     });
 
-    return this.formatComment(loaded!, userId, 0, [], 0, false, requestHost);
+    return this.formatComment(
+      loaded!,
+      userId,
+      0,
+      [],
+      0,
+      false,
+      requestHost,
+      reel.userId,
+    );
   }
 
   /**
@@ -839,10 +846,22 @@ export class ReelsService {
     query?: CommentQueryDto,
     userId?: string | null,
     requestHost?: string,
+    userRoles: string[] = [],
   ) {
     const page = Math.max(1, query?.page || 1);
     const limit = Math.min(50, Math.max(1, query?.limit || 20));
     const skip = (page - 1) * limit;
+
+    // Fetch reel owner to check if current user is the reel creator
+    const reel = await this.reelRepository.findOne({
+      where: { id: reelId },
+      select: { id: true, userId: true },
+    });
+    const reelOwnerId = reel?.userId || null;
+    const isAdmin =
+      userRoles?.includes('SUPER_ADMIN') ||
+      userRoles?.includes('ADMIN') ||
+      false;
 
     if (query?.parentId) {
       // Fetch paginated replies for a specific parent comment
@@ -872,6 +891,8 @@ export class ReelsService {
             likesCount,
             isLiked,
             requestHost,
+            reelOwnerId,
+            isAdmin,
           );
         }),
       );
@@ -906,7 +927,7 @@ export class ReelsService {
           ? await this.commentLikeRepository
               .count({ where: { commentId: comment.id, userId } })
               .then((c) => c > 0)
-          : false;
+            : false;
 
         // Fetch first 2 preview replies
         const previewRepliesRaw = await this.commentRepository.find({
@@ -934,6 +955,8 @@ export class ReelsService {
               rLikesCount,
               rIsLiked,
               requestHost,
+              reelOwnerId,
+              isAdmin,
             );
           }),
         );
@@ -946,6 +969,8 @@ export class ReelsService {
           likesCount,
           isLiked,
           requestHost,
+          reelOwnerId,
+          isAdmin,
         );
       }),
     );
@@ -1245,6 +1270,25 @@ export class ReelsService {
     };
   }
 
+  /**
+   * Masks contact numbers (between 9 to 13 digits) with '#' for unauthorized viewers.
+   * Only Reel Creator, Admins, and Comment Author are authorized to see the number.
+   * e.g. "this is my contact number 3121234234" -> "this is my contact number ##########"
+   */
+  maskContactNumbers(text: string): string {
+    if (!text) return text;
+    return text.replace(
+      /(?<!\w)(?:\+?\d[\d\s-]{7,18}\d|\+?\d{9,13})(?!\w)/g,
+      (match) => {
+        const digits = match.replace(/\D/g, '');
+        if (digits.length >= 9 && digits.length <= 13) {
+          return '#'.repeat(match.length);
+        }
+        return match;
+      },
+    );
+  }
+
   private formatComment(
     c: Comment,
     currentUserId?: string | null,
@@ -1253,6 +1297,8 @@ export class ReelsService {
     likesCount = 0,
     isLiked = false,
     requestHost?: string,
+    reelOwnerId?: string | null,
+    isAdmin = false,
   ): any {
     let userAvatarUrl = c.user?.avatarUrl || '';
     if (
@@ -1266,6 +1312,17 @@ export class ReelsService {
       );
     }
 
+    const isCreator = Boolean(
+      currentUserId && reelOwnerId && currentUserId === reelOwnerId,
+    );
+    const isCommentor = Boolean(
+      currentUserId && c.userId && currentUserId === c.userId,
+    );
+    const canSeeContactNumber = isAdmin || isCreator || isCommentor;
+    const commentText = canSeeContactNumber
+      ? c.text
+      : this.maskContactNumbers(c.text);
+
     return {
       id: c.id,
       userId: c.userId,
@@ -1274,7 +1331,8 @@ export class ReelsService {
       userAvatarUrl: userAvatarUrl || null,
       avatarUrl: userAvatarUrl || null,
       userAvatar: userAvatarUrl || null,
-      commentText: c.text,
+      commentText,
+      text: commentText,
       timestamp: c.createdAt
         ? c.createdAt.toISOString()
         : new Date().toISOString(),
