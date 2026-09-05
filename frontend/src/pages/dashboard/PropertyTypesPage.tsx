@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { propertyTypesApi } from '../../services/api';
+import { propertyTypesApi, categoriesApi } from '../../services/api';
 import {
   Building2,
   Plus,
@@ -11,7 +11,6 @@ import {
   XCircle,
   AlertTriangle,
   Film,
-  ShieldAlert,
   Layers,
   Home,
   Briefcase,
@@ -20,10 +19,41 @@ import {
   Trees,
   Warehouse,
   LandPlot,
+  Filter,
+  ShieldAlert,
 } from 'lucide-react';
+
+interface SubCategoryItem {
+  id: string;
+  categoryId: string;
+  name: string;
+  slug: string;
+  order: number;
+  isActive: boolean;
+}
+
+interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+  subCategories: SubCategoryItem[];
+}
 
 interface PropertyType {
   id: string;
+  subCategoryId?: string | null;
+  subCategory?: {
+    id: string;
+    name: string;
+    slug: string;
+    categoryId?: string;
+    category?: {
+      id: string;
+      name: string;
+      slug: string;
+    };
+  } | null;
   name: string;
   slug: string;
   icon?: string | null;
@@ -48,13 +78,17 @@ const AVAILABLE_ICONS = [
 
 export const PropertyTypesPage: React.FC = () => {
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [filterSubCategory, setFilterSubCategory] = useState<string>('ALL');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<PropertyType | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string>('');
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [icon, setIcon] = useState('home_outlined');
@@ -72,20 +106,24 @@ export const PropertyTypesPage: React.FC = () => {
     isWarning?: boolean;
   } | null>(null);
 
-  const fetchPropertyTypes = async () => {
+  const fetchPropertyTypesAndCategories = async () => {
     setLoading(true);
     try {
-      const data = await propertyTypesApi.getAllAdmin();
-      setPropertyTypes(Array.isArray(data) ? data : []);
+      const [typesData, catsData] = await Promise.all([
+        propertyTypesApi.getAllAdmin(),
+        categoriesApi.getAllAdmin(),
+      ]);
+      setPropertyTypes(Array.isArray(typesData) ? typesData : []);
+      setCategories(Array.isArray(catsData) ? catsData : []);
     } catch (e) {
-      console.warn('Error fetching property types', e);
+      console.warn('Error fetching property types or categories', e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPropertyTypes();
+    fetchPropertyTypesAndCategories();
   }, []);
 
   const slugify = (text: string) => {
@@ -105,6 +143,20 @@ export const PropertyTypesPage: React.FC = () => {
     setDescription('');
     setOrder(propertyTypes.length + 1);
     setIsActive(true);
+
+    if (categories.length > 0) {
+      const firstCat = categories[0];
+      setSelectedCategoryId(firstCat.id);
+      if (firstCat.subCategories && firstCat.subCategories.length > 0) {
+        setSelectedSubCategoryId(firstCat.subCategories[0].id);
+      } else {
+        setSelectedSubCategoryId('');
+      }
+    } else {
+      setSelectedCategoryId('');
+      setSelectedSubCategoryId('');
+    }
+
     setIsModalOpen(true);
   };
 
@@ -116,7 +168,34 @@ export const PropertyTypesPage: React.FC = () => {
     setDescription(pt.description || '');
     setOrder(pt.order);
     setIsActive(pt.isActive);
+
+    const subId = pt.subCategoryId || pt.subCategory?.id || '';
+    setSelectedSubCategoryId(subId);
+
+    let catId = '';
+    if (pt.subCategory?.categoryId) {
+      catId = pt.subCategory.categoryId;
+    } else if (pt.subCategory?.category?.id) {
+      catId = pt.subCategory.category.id;
+    } else if (subId) {
+      const foundCat = categories.find((c) =>
+        c.subCategories?.some((s) => s.id === subId)
+      );
+      if (foundCat) catId = foundCat.id;
+    }
+    setSelectedCategoryId(catId || (categories[0]?.id ?? ''));
+
     setIsModalOpen(true);
+  };
+
+  const handleCategoryChange = (newCatId: string) => {
+    setSelectedCategoryId(newCatId);
+    const cat = categories.find((c) => c.id === newCatId);
+    if (cat && cat.subCategories && cat.subCategories.length > 0) {
+      setSelectedSubCategoryId(cat.subCategories[0].id);
+    } else {
+      setSelectedSubCategoryId('');
+    }
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,27 +212,23 @@ export const PropertyTypesPage: React.FC = () => {
 
     setIsSaving(true);
     try {
+      const payload = {
+        subCategoryId: selectedSubCategoryId || null,
+        name: name.trim(),
+        slug: slug.trim(),
+        icon,
+        description: description.trim() || undefined,
+        order: Number(order),
+        isActive,
+      };
+
       if (editingType) {
-        await propertyTypesApi.update(editingType.id, {
-          name: name.trim(),
-          slug: slug.trim(),
-          icon,
-          description: description.trim() || undefined,
-          order: Number(order),
-          isActive,
-        });
+        await propertyTypesApi.update(editingType.id, payload);
       } else {
-        await propertyTypesApi.create({
-          name: name.trim(),
-          slug: slug.trim(),
-          icon,
-          description: description.trim() || undefined,
-          order: Number(order),
-          isActive,
-        });
+        await propertyTypesApi.create(payload);
       }
       setIsModalOpen(false);
-      await fetchPropertyTypes();
+      await fetchPropertyTypesAndCategories();
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Failed to save property type.';
       setAlertNotice({
@@ -188,7 +263,7 @@ export const PropertyTypesPage: React.FC = () => {
     try {
       const res: any = await propertyTypesApi.delete(typeToDelete.id);
       setTypeToDelete(null);
-      await fetchPropertyTypes();
+      await fetchPropertyTypesAndCategories();
 
       if (res?.deactivated) {
         setAlertNotice({
@@ -215,20 +290,34 @@ export const PropertyTypesPage: React.FC = () => {
   const inactiveCount = totalTypes - activeCount;
   const totalLinkedReels = propertyTypes.reduce((acc, curr) => acc + (curr.reelsCount || 0), 0);
 
+  // Subcategories for current selected modal category
+  const activeModalCategory = categories.find((c) => c.id === selectedCategoryId);
+  const modalSubCategories = activeModalCategory?.subCategories || [];
+
   // Filtering
   const filteredTypes = propertyTypes.filter((pt) => {
+    const subName = pt.subCategory?.name || '';
+    const catName = pt.subCategory?.category?.name || '';
+
     const matchesSearch =
       !searchTerm ||
       pt.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pt.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (pt.description && pt.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      (pt.description && pt.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      subName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      catName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       filterStatus === 'ALL' ||
       (filterStatus === 'ACTIVE' && pt.isActive) ||
       (filterStatus === 'INACTIVE' && !pt.isActive);
 
-    return matchesSearch && matchesStatus;
+    const matchesSubCategory =
+      filterSubCategory === 'ALL' ||
+      pt.subCategoryId === filterSubCategory ||
+      pt.subCategory?.id === filterSubCategory;
+
+    return matchesSearch && matchesStatus && matchesSubCategory;
   });
 
   return (
@@ -244,13 +333,13 @@ export const PropertyTypesPage: React.FC = () => {
             </span>
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manage dynamic property classifications shown in reel upload forms and discovery filters.
+            Manage subcategory-dependent property types shown in reel upload forms and discovery filters.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchPropertyTypes}
+            onClick={fetchPropertyTypesAndCategories}
             className="flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground shadow-sm hover:bg-muted transition cursor-pointer"
             title="Refresh"
           >
@@ -275,7 +364,7 @@ export const PropertyTypesPage: React.FC = () => {
             <Layers className="h-4 w-4 text-primary" />
           </div>
           <div className="text-2xl font-bold text-foreground">{totalTypes}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Configured master types</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Categorized subcategory types</div>
         </div>
 
         <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
@@ -307,32 +396,56 @@ export const PropertyTypesPage: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-sm">
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-sm">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search property types by name, slug, or description..."
+            placeholder="Search property types, slug, subcategory, or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-          {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                filterStatus === status
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
+        {/* Subcategory & Status Filter */}
+        <div className="flex items-center gap-2 w-full lg:w-auto">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-background text-xs text-muted-foreground shrink-0">
+            <Filter className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden sm:inline font-medium">Subcategory:</span>
+            <select
+              value={filterSubCategory}
+              onChange={(e) => setFilterSubCategory(e.target.value)}
+              className="bg-transparent text-xs text-foreground focus:outline-none cursor-pointer max-w-[150px] truncate"
             >
-              {status === 'ALL' ? 'All Types' : status === 'ACTIVE' ? 'Active' : 'Inactive'}
-            </button>
-          ))}
+              <option value="ALL">All Subcategories</option>
+              {categories.map((cat) => (
+                <optgroup key={cat.id} label={cat.name}>
+                  {(cat.subCategories || []).map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                  filterStatus === status
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {status === 'ALL' ? 'All' : status === 'ACTIVE' ? 'Active' : 'Inactive'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -344,8 +457,8 @@ export const PropertyTypesPage: React.FC = () => {
               <tr>
                 <th className="py-3.5 px-4 w-16">Order</th>
                 <th className="py-3.5 px-4">Property Type</th>
+                <th className="py-3.5 px-4">Subcategory & Category</th>
                 <th className="py-3.5 px-4">Slug (Identifier)</th>
-                <th className="py-3.5 px-4">Description</th>
                 <th className="py-3.5 px-4 text-center">Linked Videos</th>
                 <th className="py-3.5 px-4 text-center">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
@@ -365,7 +478,9 @@ export const PropertyTypesPage: React.FC = () => {
                     <Building2 className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                     <p className="font-semibold text-sm">No Property Types Found</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {searchTerm ? 'Try adjusting your search query or filter.' : 'Click "Add Property Type" to create one.'}
+                      {searchTerm || filterSubCategory !== 'ALL'
+                        ? 'Try adjusting your search query or filter.'
+                        : 'Click "Add Property Type" to create one.'}
                     </p>
                   </td>
                 </tr>
@@ -373,6 +488,9 @@ export const PropertyTypesPage: React.FC = () => {
                 filteredTypes.map((pt) => {
                   const iconObj = AVAILABLE_ICONS.find((i) => i.value === pt.icon);
                   const IconComponent = iconObj ? iconObj.icon : Building2;
+
+                  const subCategoryName = pt.subCategory?.name;
+                  const categoryName = pt.subCategory?.category?.name;
 
                   return (
                     <tr key={pt.id} className="hover:bg-muted/30 transition group">
@@ -385,7 +503,7 @@ export const PropertyTypesPage: React.FC = () => {
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`flex h-9 w-9 items-center justify-center rounded-xl font-bold ${
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl font-bold shrink-0 ${
                               pt.isActive
                                 ? 'bg-primary/10 text-primary border border-primary/20'
                                 : 'bg-muted text-muted-foreground'
@@ -397,21 +515,40 @@ export const PropertyTypesPage: React.FC = () => {
                             <div className="font-semibold text-foreground flex items-center gap-2">
                               <span>{pt.name}</span>
                             </div>
-                            <span className="text-[11px] text-muted-foreground font-mono">
-                              {pt.icon || 'no-icon'}
-                            </span>
+                            {pt.description && (
+                              <p className="text-[11px] text-muted-foreground line-clamp-1">
+                                {pt.description}
+                              </p>
+                            )}
                           </div>
                         </div>
+                      </td>
+
+                      {/* Subcategory & Category Badge */}
+                      <td className="py-3.5 px-4">
+                        {subCategoryName ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-primary/10 text-primary border border-primary/20 w-fit">
+                              <Layers className="h-3 w-3" />
+                              <span>{subCategoryName}</span>
+                            </span>
+                            {categoryName && (
+                              <span className="text-[10px] text-muted-foreground pl-1">
+                                in {categoryName}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-medium bg-muted text-muted-foreground border border-border/50">
+                            General / Universal
+                          </span>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-4 font-mono text-muted-foreground">
                         <span className="px-2 py-1 rounded-md bg-muted/60 text-xs border border-border/50">
                           {pt.slug}
                         </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 max-w-xs text-muted-foreground truncate">
-                        {pt.description || '—'}
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
@@ -449,14 +586,14 @@ export const PropertyTypesPage: React.FC = () => {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleOpenEdit(pt)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition cursor-pointer"
-                            title="Edit"
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
+                            title="Edit Type"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => setTypeToDelete(pt)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                            className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
                             title="Delete or Deactivate"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -490,6 +627,54 @@ export const PropertyTypesPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-4 pt-4">
+              {/* Category Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  1. Parent Category <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={selectedCategoryId}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Subcategory Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  2. Subcategory (Parent for this Type) <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={selectedSubCategoryId}
+                  onChange={(e) => setSelectedSubCategoryId(e.target.value)}
+                  disabled={!selectedCategoryId || modalSubCategories.length === 0}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground disabled:opacity-50"
+                >
+                  {modalSubCategories.length === 0 ? (
+                    <option value="">No subcategories in selected category</option>
+                  ) : (
+                    <>
+                      <option value="">Select Subcategory</option>
+                      {modalSubCategories.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  When a creator selects this subcategory in video upload, this type will be available.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1">
                   Type Name <span className="text-rose-500">*</span>
@@ -497,7 +682,7 @@ export const PropertyTypesPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Residential, Commercial, Penthouse"
+                  placeholder="e.g. 1 BHK, 2 BHK, Bare Shell, Corner Plot"
                   value={name}
                   onChange={handleNameChange}
                   className="w-full px-3.5 py-2 text-xs rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
@@ -511,14 +696,11 @@ export const PropertyTypesPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. residential, commercial"
+                  placeholder="e.g. 1_bhk, bare_shell, corner_plot"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   className="w-full px-3.5 py-2 text-xs font-mono rounded-xl bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Unique technical identifier used in database queries and filters.
-                </p>
               </div>
 
               <div>

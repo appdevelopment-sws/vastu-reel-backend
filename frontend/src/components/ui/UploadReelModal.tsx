@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { reelsApi, propertyTypesApi } from '../../services/api';
+import { reelsApi, propertyTypesApi, categoriesApi } from '../../services/api';
 import {
   Upload,
   X,
@@ -17,18 +17,6 @@ interface UploadReelModalProps {
   onSuccess: () => void;
 }
 
-const CATEGORIES = [
-  'Living Room',
-  'Home Vastu',
-  'Office Vastu',
-  'Kitchen & Agni',
-  'Bedroom & Energy',
-  'Pooja Room',
-  'Directions & Elements',
-  'Remedies',
-  'Commercial',
-];
-
 const ELEMENTS = ['Fire (Agni)', 'Water (Jal)', 'Air (Vayu)', 'Earth (Prithvi)', 'Space (Akash)'];
 
 const DEFAULT_PROPERTY_TYPES = ['Residential', 'Commercial', 'Plot / Land', 'Industrial', 'Villa'];
@@ -40,9 +28,11 @@ export const UploadReelModal: React.FC<UploadReelModalProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState('');
+  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
   const [subCategory, setSubCategory] = useState('');
   const [element, setElement] = useState('');
   const [propertyTypeList, setPropertyTypeList] = useState<string[]>(DEFAULT_PROPERTY_TYPES);
@@ -50,25 +40,96 @@ export const UploadReelModal: React.FC<UploadReelModalProps> = ({
   const [location, setLocation] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Fetch dynamic property types on open
+  // Fetch dynamic categories and their subcategories & types
   useEffect(() => {
     if (isOpen) {
-      propertyTypesApi
-        .getAll()
-        .then((res: any) => {
-          if (Array.isArray(res) && res.length > 0) {
-            const names = res.map((item: any) => item.name);
-            setPropertyTypeList(names);
-            if (!names.includes(propertyType)) {
-              setPropertyType(names[0]);
+      categoriesApi
+        .getAllPublic()
+        .then((cats: any) => {
+          if (Array.isArray(cats) && cats.length > 0) {
+            setCategoriesList(cats);
+            const firstCat = cats[0];
+            setCategory(firstCat.name);
+
+            if (firstCat.subCategories && firstCat.subCategories.length > 0) {
+              const firstSub = firstCat.subCategories[0];
+              setSelectedSubCategoryId(firstSub.id);
+              setSubCategory(firstSub.name);
+
+              if (firstSub.propertyTypes && firstSub.propertyTypes.length > 0) {
+                const names = firstSub.propertyTypes.map((t: any) => t.name);
+                setPropertyTypeList(names);
+                setPropertyType(names[0]);
+              } else {
+                fetchTypesForSubCategory(firstSub.id);
+              }
+            } else {
+              setSelectedSubCategoryId('');
+              setSubCategory('');
             }
           }
         })
-        .catch((e) => {
-          console.warn('Could not fetch dynamic property types:', e);
+        .catch((e: any) => {
+          console.warn('Could not fetch dynamic categories in upload modal:', e);
         });
     }
   }, [isOpen]);
+
+  const fetchTypesForSubCategory = (subId: string) => {
+    if (!subId) return;
+    propertyTypesApi
+      .getAll(subId)
+      .then((types: any) => {
+        if (Array.isArray(types) && types.length > 0) {
+          const names = types.map((t: any) => t.name);
+          setPropertyTypeList(names);
+          setPropertyType(names[0]);
+        } else {
+          setPropertyTypeList(DEFAULT_PROPERTY_TYPES);
+          setPropertyType(DEFAULT_PROPERTY_TYPES[0]);
+        }
+      })
+      .catch(() => {
+        setPropertyTypeList(DEFAULT_PROPERTY_TYPES);
+      });
+  };
+
+  const handleCategoryChange = (catName: string) => {
+    setCategory(catName);
+    const catObj = categoriesList.find((c) => c.name === catName);
+    if (catObj && catObj.subCategories && catObj.subCategories.length > 0) {
+      const firstSub = catObj.subCategories[0];
+      setSelectedSubCategoryId(firstSub.id);
+      setSubCategory(firstSub.name);
+
+      if (firstSub.propertyTypes && firstSub.propertyTypes.length > 0) {
+        const names = firstSub.propertyTypes.map((t: any) => t.name);
+        setPropertyTypeList(names);
+        setPropertyType(names[0]);
+      } else {
+        fetchTypesForSubCategory(firstSub.id);
+      }
+    } else {
+      setSelectedSubCategoryId('');
+      setSubCategory('');
+    }
+  };
+
+  const handleSubCategoryChange = (subId: string) => {
+    setSelectedSubCategoryId(subId);
+    const catObj = categoriesList.find((c) => c.name === category);
+    const subObj = catObj?.subCategories?.find((s: any) => s.id === subId);
+    if (subObj) {
+      setSubCategory(subObj.name);
+      if (subObj.propertyTypes && subObj.propertyTypes.length > 0) {
+        const names = subObj.propertyTypes.map((t: any) => t.name);
+        setPropertyTypeList(names);
+        setPropertyType(names[0]);
+      } else {
+        fetchTypesForSubCategory(subId);
+      }
+    }
+  };
 
   // Upload Progress & States
   const [uploading, setUploading] = useState(false);
@@ -290,12 +351,12 @@ export const UploadReelModal: React.FC<UploadReelModalProps> = ({
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
               >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                {categoriesList.map((cat) => (
+                  <option key={cat.id || cat.name} value={cat.name}>
+                    {cat.name}
                   </option>
                 ))}
               </select>
@@ -304,15 +365,33 @@ export const UploadReelModal: React.FC<UploadReelModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Sub-Category / Topic (Optional)
+              Sub-Category / Space
             </label>
-            <input
-              type="text"
-              value={subCategory}
-              onChange={(e) => setSubCategory(e.target.value)}
-              placeholder="e.g. Mirror Placement, Main Door Remedies, Salt Therapy"
-              className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-            />
+            {(() => {
+              const currentCat = categoriesList.find((c) => c.name === category);
+              const subs = currentCat?.subCategories || [];
+              return subs.length > 0 ? (
+                <select
+                  value={selectedSubCategoryId}
+                  onChange={(e) => handleSubCategoryChange(e.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                >
+                  {subs.map((sub: any) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={subCategory}
+                  onChange={(e) => setSubCategory(e.target.value)}
+                  placeholder="e.g. Flat, Duplex, Main Door, Kitchen"
+                  className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              );
+            })()}
           </div>
 
           <div>

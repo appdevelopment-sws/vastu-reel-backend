@@ -5,10 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { Category } from './category.entity';
+import { PropertyType } from '../../property-types/entities/property-type.entity';
 
 @Entity('sub_categories')
 export class SubCategory {
@@ -23,6 +25,11 @@ export class SubCategory {
   })
   @JoinColumn({ name: 'category_id' })
   category: Category;
+
+  @OneToMany(() => PropertyType, (type) => type.subCategory, {
+    cascade: true,
+  })
+  propertyTypes: PropertyType[];
 
   @Column()
   name: string;

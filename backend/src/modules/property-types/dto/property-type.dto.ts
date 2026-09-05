@@ -5,9 +5,19 @@ import {
   IsOptional,
   IsNumber,
   IsBoolean,
+  IsUUID,
 } from 'class-validator';
 
 export class CreatePropertyTypeDto {
+  @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID of the parent subcategory this type belongs to',
+    required: false,
+  })
+  @IsUUID()
+  @IsOptional()
+  subCategoryId?: string;
+
   @ApiProperty({ example: 'Residential' })
   @IsString()
   @IsNotEmpty()
@@ -43,6 +53,15 @@ export class CreatePropertyTypeDto {
 }
 
 export class UpdatePropertyTypeDto {
+  @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID of the parent subcategory this type belongs to',
+    required: false,
+  })
+  @IsUUID()
+  @IsOptional()
+  subCategoryId?: string;
+
   @ApiProperty({ example: 'Residential', required: false })
   @IsString()
   @IsOptional()
@@ -80,6 +99,12 @@ export class UpdatePropertyTypeDto {
 export class PropertyTypeResponseDto {
   @ApiProperty({ example: 'uuid' })
   id: string;
+
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000', nullable: true })
+  subCategoryId?: string | null;
+
+  @ApiProperty({ example: { id: 'uuid', name: 'Flat', slug: 'flat' }, nullable: true })
+  subCategory?: any;
 
   @ApiProperty({ example: 'Residential' })
   name: string;

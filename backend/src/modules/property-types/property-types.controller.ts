@@ -6,11 +6,13 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -32,14 +34,27 @@ export class PropertyTypesController {
   @ApiOperation({
     summary: 'Get all active property types (Mobile App & Reel Upload)',
   })
+  @ApiQuery({
+    name: 'subCategoryId',
+    required: false,
+    description: 'Filter property types belonging to a specific subcategory ID',
+  })
+  @ApiQuery({
+    name: 'subCategorySlug',
+    required: false,
+    description: 'Filter property types belonging to a specific subcategory slug',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'List of active property types.',
     type: [PropertyTypeResponseDto],
   })
   @Get()
-  async getPropertyTypes() {
-    return this.propertyTypesService.findAll();
+  async getPropertyTypes(
+    @Query('subCategoryId') subCategoryId?: string,
+    @Query('subCategorySlug') subCategorySlug?: string,
+  ) {
+    return this.propertyTypesService.findAll(subCategoryId, subCategorySlug);
   }
 
   @ApiBearerAuth()
@@ -47,13 +62,18 @@ export class PropertyTypesController {
   @ApiOperation({
     summary: 'Get all property types with linked reels count (Admin)',
   })
+  @ApiQuery({
+    name: 'subCategoryId',
+    required: false,
+    description: 'Filter property types belonging to a specific subcategory ID',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Full list of property types with reel stats.',
   })
   @Get('admin')
-  async getPropertyTypesAdmin() {
-    return this.propertyTypesService.findAllAdmin();
+  async getPropertyTypesAdmin(@Query('subCategoryId') subCategoryId?: string) {
+    return this.propertyTypesService.findAllAdmin(subCategoryId);
   }
 
   @ApiBearerAuth()

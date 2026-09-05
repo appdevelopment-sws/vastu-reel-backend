@@ -16,6 +16,7 @@ import {
   ChevronUp,
   Tag,
   ShieldAlert,
+  Building2,
 } from 'lucide-react';
 
 interface SubCategory {
@@ -26,6 +27,7 @@ interface SubCategory {
   order: number;
   isActive: boolean;
   reelsCount?: number;
+  typesCount?: number;
 }
 
 interface Category {
@@ -642,8 +644,17 @@ export const CategoriesPage: React.FC = () => {
                                   <span>•</span>
                                   <span className="flex items-center gap-0.5 text-amber-500">
                                     <Film className="h-2.5 w-2.5" />
-                                    {subReels}
+                                    {subReels} reels
                                   </span>
+                                  {sub.typesCount !== undefined && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="flex items-center gap-0.5 text-primary">
+                                        <Building2 className="h-2.5 w-2.5" />
+                                        {sub.typesCount} types
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
 

@@ -39,32 +39,42 @@ export class CategoriesService implements OnModuleInit {
   }
 
   /**
-   * Used by mobile app: returns only active categories and their active subcategories
+   * Used by mobile app: returns only active categories and their active subcategories and active property types
    */
   async findAll(): Promise<Category[]> {
     const categories = await this.categoryRepo.find({
       where: { isActive: true },
       order: { order: 'ASC', name: 'ASC' },
-      relations: { subCategories: true },
+      relations: { subCategories: { propertyTypes: true } },
     });
 
     return categories.map((cat) => {
       if (cat.subCategories && cat.subCategories.length > 0) {
         cat.subCategories = cat.subCategories
           .filter((sub) => sub.isActive)
-          .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+          .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+          .map((sub) => {
+            if (sub.propertyTypes && sub.propertyTypes.length > 0) {
+              sub.propertyTypes = sub.propertyTypes
+                .filter((pt) => pt.isActive)
+                .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+            } else {
+              sub.propertyTypes = [];
+            }
+            return sub;
+          });
       }
       return cat;
     });
   }
 
   /**
-   * Used by Admin Panel: returns all categories (both active and inactive) with linked reel counts
+   * Used by Admin Panel: returns all categories (both active and inactive) with linked reel counts & type counts
    */
   async findAllAdmin(): Promise<any[]> {
     const categories = await this.categoryRepo.find({
       order: { order: 'ASC', name: 'ASC' },
-      relations: { subCategories: true },
+      relations: { subCategories: { propertyTypes: true } },
     });
 
     const result = await Promise.all(
@@ -84,6 +94,7 @@ export class CategoriesService implements OnModuleInit {
               return {
                 ...sub,
                 reelsCount: subReelCount,
+                typesCount: (sub.propertyTypes || []).length,
               };
             }),
         );

@@ -436,17 +436,22 @@ export const categoriesApi = {
 
 // Property Types API
 export const propertyTypesApi = {
-  getAll: async () => {
-    const response = await apiClient.get('/property-types');
+  getAll: async (subCategoryId?: string) => {
+    const response = await apiClient.get('/property-types', {
+      params: subCategoryId ? { subCategoryId } : undefined,
+    });
     return response.data;
   },
 
-  getAllAdmin: async () => {
-    const response = await apiClient.get('/property-types/admin');
+  getAllAdmin: async (subCategoryId?: string) => {
+    const response = await apiClient.get('/property-types/admin', {
+      params: subCategoryId ? { subCategoryId } : undefined,
+    });
     return response.data;
   },
 
   create: async (data: {
+    subCategoryId?: string | null;
     name: string;
     slug: string;
     icon?: string;
@@ -461,6 +466,7 @@ export const propertyTypesApi = {
   update: async (
     id: string,
     data: {
+      subCategoryId?: string | null;
       name?: string;
       slug?: string;
       icon?: string;
