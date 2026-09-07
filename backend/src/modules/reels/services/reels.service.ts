@@ -451,7 +451,7 @@ export class ReelsService {
             website: reel.user?.website || '',
             rating: reel.user?.rating ? Number(reel.user.rating) : 4.8,
             ratingsCount: reel.user?.ratingsCount || 0,
-            isVerified: reel.user?.isVerified ?? true,
+            isVerified: reel.user?.isVerified ?? false,
             title: reel.user?.profession || 'Certified Consultant',
             isFollowing: isFollowingCreator,
             isFavorite: isFavoriteCreator,
@@ -569,7 +569,7 @@ export class ReelsService {
         website: reel.user?.website || '',
         rating: reel.user?.rating ? Number(reel.user.rating) : 4.8,
         ratingsCount: reel.user?.ratingsCount || 0,
-        isVerified: reel.user?.isVerified ?? true,
+        isVerified: reel.user?.isVerified ?? false,
         title: reel.user?.profession || 'Certified Consultant',
         isFollowing: isFollowingCreator,
       },
@@ -1535,7 +1535,7 @@ export class ReelsService {
           name: user.name || user.username || 'Creator',
           username: user.username || null,
           avatarUrl,
-          isVerified: true,
+          isVerified: user.isVerified || false,
           title:
             reelsCount > 0
               ? `${reelsCount} Reel${reelsCount > 1 ? 's' : ''}`

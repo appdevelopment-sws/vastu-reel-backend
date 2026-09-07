@@ -1334,7 +1334,7 @@ export class AnalyticsService {
         name: user.name || user.username || 'Vastu Creator',
         username: user.username || null,
         avatarUrl,
-        isVerified: user.isVerified ?? true,
+        isVerified: user.isVerified ?? false,
         profession: user.profession || 'Certified Vastu Consultant',
         location: user.address || 'India',
         totalReels: totalReelsCount,

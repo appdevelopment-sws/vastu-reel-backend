@@ -224,7 +224,7 @@ export class FavoriteProfilesService {
           username: u.username || '',
           avatarUrl: u.avatarUrl || '',
           coverImageUrl: u.coverImageUrl || '',
-          isVerified: u.isVerified ?? true,
+          isVerified: u.isVerified ?? false,
           title: u.profession || 'Vastu Consultant',
           profession: u.profession || 'Real Estate Consultant',
           location: u.address || 'Patna, Bihar',

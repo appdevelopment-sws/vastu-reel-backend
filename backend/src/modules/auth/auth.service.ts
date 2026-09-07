@@ -290,10 +290,6 @@ export class AuthService implements OnModuleInit {
         user.avatarUrl = picture;
         changed = true;
       }
-      if (!user.isVerified && isEmailVerified) {
-        user.isVerified = true;
-        changed = true;
-      }
       if (changed) {
         await this.userRepository.save(user);
       }
@@ -343,7 +339,7 @@ export class AuthService implements OnModuleInit {
       avatarUrl: picture,
       googleId: googleSub,
       authProvider: 'GOOGLE',
-      isVerified: isEmailVerified,
+      isVerified: false,
       isActive: true,
       roles: [role],
     });
@@ -433,11 +429,6 @@ export class AuthService implements OnModuleInit {
         throw new UnauthorizedException('User account is deactivated');
       }
 
-      if (!user.isVerified) {
-        user.isVerified = true;
-        await this.userRepository.save(user);
-      }
-
       return this.generateAuthResponse(user);
     }
 
@@ -476,7 +467,7 @@ export class AuthService implements OnModuleInit {
       phone: normalizedPhone,
       whatsapp: normalizedPhone,
       authProvider: 'PHONE',
-      isVerified: true,
+      isVerified: false,
       isActive: true,
       roles: [role],
     });
