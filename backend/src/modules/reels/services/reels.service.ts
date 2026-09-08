@@ -1681,6 +1681,17 @@ export class ReelsService {
         ? this.storageService.getObjectUrl(r.reel.media.thumbnailKey, requestHost)
         : '';
 
+      let mappedStatus = 'submitted';
+      if (r.status === ReelReportStatus.RESOLVED) {
+        mappedStatus = 'action_taken';
+      } else if (r.status === ReelReportStatus.DISMISSED) {
+        mappedStatus = 'closed';
+      } else if (r.status === ReelReportStatus.REVIEWED) {
+        mappedStatus = 'under_review';
+      } else {
+        mappedStatus = 'submitted';
+      }
+
       return {
         id: r.id,
         postId: r.reelId,
@@ -1694,7 +1705,9 @@ export class ReelsService {
         details: r.details || '',
         evidenceFilesCount: 0,
         isGenuineDeclarationConfirmed: true,
-        status: r.status.toLowerCase(),
+        status: mappedStatus,
+        rawStatus: r.status,
+        adminNotes: r.adminNotes || '',
         createdAt: r.createdAt.toISOString(),
       };
     });
