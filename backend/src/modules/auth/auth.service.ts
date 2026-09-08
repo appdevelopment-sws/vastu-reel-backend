@@ -322,7 +322,8 @@ export class AuthService implements OnModuleInit {
       address: payload.address,
       password: payload.password, // already hashed
       authProvider: 'LOCAL',
-      isVerified: true,
+      isVerified: false,
+      isEmailVerified: true,
       roles: [role],
     });
 
@@ -643,6 +644,7 @@ export class AuthService implements OnModuleInit {
       googleId: googleSub,
       authProvider: 'GOOGLE',
       isVerified: false,
+      isEmailVerified: true,
       isActive: true,
       roles: [role],
     });
@@ -771,6 +773,7 @@ export class AuthService implements OnModuleInit {
       whatsapp: normalizedPhone,
       authProvider: 'PHONE',
       isVerified: false,
+      isPhoneVerified: true,
       isActive: true,
       roles: [role],
     });
@@ -818,6 +821,8 @@ export class AuthService implements OnModuleInit {
         rating: user.rating !== undefined ? Number(user.rating) : 4.8,
         ratingsCount: user.ratingsCount || 0,
         isVerified: user.isVerified || false,
+        isEmailVerified: user.isEmailVerified || false,
+        isPhoneVerified: user.isPhoneVerified || false,
         roles: roleNames,
         permissions,
         createdAt: user.createdAt,
@@ -859,6 +864,8 @@ export class AuthService implements OnModuleInit {
       rating: user.rating !== undefined ? Number(user.rating) : 4.8,
       ratingsCount: user.ratingsCount || 0,
       isVerified: user.isVerified || false,
+      isEmailVerified: user.isEmailVerified || false,
+      isPhoneVerified: user.isPhoneVerified || false,
       roles: roleNames,
       permissions,
       isActive: user.isActive,
