@@ -538,4 +538,97 @@ export const reviewsApi = {
   },
 };
 
+export interface ReelReportItem {
+  id: string;
+  reelId: string;
+  reason: string;
+  details?: string | null;
+  status: 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'DISMISSED';
+  adminNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reporter?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    avatarUrl?: string;
+  } | null;
+  reviewedBy?: {
+    id: string;
+    name: string;
+  } | null;
+  reel?: {
+    id: string;
+    title: string;
+    caption?: string;
+    category?: string;
+    status: string;
+    createdAt?: string;
+    creator?: {
+      id: string;
+      name: string;
+      email?: string;
+      avatarUrl?: string;
+    } | null;
+    media?: {
+      hlsUrl?: string;
+      mp4Url?: string;
+      thumbnailUrl?: string;
+      duration?: number;
+    } | null;
+  } | null;
+}
+
+export interface ReelReportsResponse {
+  items: ReelReportItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  counts: {
+    total: number;
+    pending: number;
+    resolved: number;
+    dismissed: number;
+  };
+}
+
+export const reelReportsApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+  }): Promise<ReelReportsResponse> => {
+    const response = await apiClient.get('/reels/admin/reports', {
+      params: {
+        page: params?.page,
+        limit: params?.limit,
+        status: params?.status && params.status !== 'ALL' ? params.status : undefined,
+        search: params?.search || undefined,
+      },
+    });
+    return response.data;
+  },
+
+  updateStatus: async (
+    id: string,
+    status: 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'DISMISSED',
+    adminNotes?: string
+  ): Promise<{ success: boolean; message: string; report: ReelReportItem }> => {
+    const response = await apiClient.patch(`/reels/admin/reports/${id}/status`, {
+      status,
+      adminNotes,
+    });
+    return response.data;
+  },
+
+  takedownReel: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.post(`/reels/admin/reports/${id}/takedown`);
+    return response.data;
+  },
+};
+
 export default apiClient;
+

@@ -15,6 +15,7 @@ import { Comment } from './entities/comment.entity';
 import { CommentLike } from './entities/comment-like.entity';
 import { ReelView } from './entities/reel-view.entity';
 import { ReelBookmark } from './entities/reel-bookmark.entity';
+import { ReelReport } from './entities/reel-report.entity';
 import { User } from '../users/entities/user.entity';
 import { Follow } from '../follows/entities/follow.entity';
 import { FavoriteProfile } from '../favorite-profiles/entities/favorite-profile.entity';
@@ -31,6 +32,7 @@ import { ActivityLogModule } from '../activity-logs/activity-log.module';
       CommentLike,
       ReelView,
       ReelBookmark,
+      ReelReport,
       User,
       Follow,
       FavoriteProfile,

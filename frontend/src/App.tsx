@@ -15,6 +15,7 @@ import { RolesPage } from './pages/dashboard/RolesPage';
 import { CategoriesPage } from './pages/dashboard/CategoriesPage';
 import { PropertyTypesPage } from './pages/dashboard/PropertyTypesPage';
 import { ActivityLogsPage } from './pages/dashboard/ActivityLogsPage';
+import { ReportedReelsPage } from './pages/dashboard/ReportedReelsPage';
 import { SettingsPage } from './pages/dashboard/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -86,6 +87,14 @@ export function App() {
               element={
                 <ProtectedRoute requireAdmin>
                   <ReviewsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="reported-reels"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <ReportedReelsPage />
                 </ProtectedRoute>
               }
             />

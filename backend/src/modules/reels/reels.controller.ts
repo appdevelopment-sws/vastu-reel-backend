@@ -33,6 +33,12 @@ import {
   UpdateReelDto,
   GetAllCommentsQueryDto,
 } from './dto/reels.dto';
+import {
+  CreateReelReportDto,
+  GetReelReportsQueryDto,
+  UpdateReportStatusDto,
+} from './dto/reel-report.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Reels')
@@ -108,6 +114,63 @@ export class ReelsController {
     return this.reelsService.getPopularCreators(userId, requestHost);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user submitted reports' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User reports list.',
+  })
+  @Get('reports/my')
+  getMyReports(@Req() req: any) {
+    const userId = req.user.sub;
+    const requestHost = req.headers.host;
+    return this.reelsService.getMyReports(userId, requestHost);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Admin: Get reported reels moderation list' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reports list with filters and counts.',
+  })
+  @Get('admin/reports')
+  getAdminReports(@Req() req: any, @Query() query: GetReelReportsQueryDto) {
+    const requestHost = req.headers.host;
+    return this.reelsService.getAdminReports(query, requestHost);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Admin: Update report review status' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Report status updated.',
+  })
+  @Patch('admin/reports/:id/status')
+  updateReportStatus(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateReportStatusDto,
+  ) {
+    const adminId = req.user?.sub;
+    return this.reelsService.updateReportStatus(id, dto, adminId);
+  }
+
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Admin: Take down reported video and resolve report' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Reel deleted and report resolved.',
+  })
+  @Post('admin/reports/:id/takedown')
+  @HttpCode(HttpStatus.OK)
+  takedownReportedReel(@Req() req: any, @Param('id') id: string) {
+    const adminId = req.user?.sub;
+    return this.reelsService.takedownReportedReel(id, adminId);
+  }
+
   @Public()
   @ApiOperation({ summary: 'Get single reel metadata by ID' })
   @ApiResponse({
@@ -119,6 +182,23 @@ export class ReelsController {
     const userId = this.tryExtractUserId(req);
     const requestHost = req.headers.host;
     return this.reelsService.getById(id, userId, requestHost);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Report a reel for inappropriate content/scam' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Report submitted successfully.',
+  })
+  @Post(':id/report')
+  @HttpCode(HttpStatus.OK)
+  reportReel(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: CreateReelReportDto,
+  ) {
+    const userId = req.user.sub;
+    return this.reelsService.reportReel(userId, id, dto);
   }
 
   @ApiBearerAuth()

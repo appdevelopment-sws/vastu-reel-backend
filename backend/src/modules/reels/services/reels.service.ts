@@ -17,10 +17,16 @@ import { Comment } from '../entities/comment.entity';
 import { CommentLike } from '../entities/comment-like.entity';
 import { ReelView } from '../entities/reel-view.entity';
 import { ReelBookmark } from '../entities/reel-bookmark.entity';
+import { ReelReport, ReelReportStatus } from '../entities/reel-report.entity';
 import { User } from '../../users/entities/user.entity';
 import { Follow } from '../../follows/entities/follow.entity';
 import { FavoriteProfile } from '../../favorite-profiles/entities/favorite-profile.entity';
 import { StorageService } from './storage.service';
+import {
+  CreateReelReportDto,
+  GetReelReportsQueryDto,
+  UpdateReportStatusDto,
+} from '../dto/reel-report.dto';
 import {
   InitUploadDto,
   CreateCommentDto,
@@ -66,6 +72,8 @@ export class ReelsService {
     private readonly followRepository: Repository<Follow>,
     @InjectRepository(FavoriteProfile)
     private readonly favoriteProfileRepository: Repository<FavoriteProfile>,
+    @InjectRepository(ReelReport)
+    private readonly reportRepository: Repository<ReelReport>,
     @InjectQueue('video-processing')
     private readonly videoQueue: Queue,
     private readonly storageService: StorageService,
@@ -1610,4 +1618,294 @@ export class ReelsService {
     await this.reelRepository.save(reel);
     return this.getById(id, userId, requestHost);
   }
+
+  /**
+   * User submits a report on a reel.
+   */
+  async reportReel(userId: string, reelId: string, dto: CreateReelReportDto) {
+    const reel = await this.reelRepository.findOne({
+      where: { id: reelId },
+      relations: { user: true },
+    });
+    if (!reel) {
+      throw new NotFoundException('Reel not found.');
+    }
+
+    // Check if user already reported this reel with PENDING status
+    const existing = await this.reportRepository.findOne({
+      where: {
+        reelId,
+        reporterId: userId,
+        status: ReelReportStatus.PENDING,
+      },
+    });
+
+    if (existing) {
+      return {
+        success: true,
+        message: 'You have already submitted a report for this reel. It is under review.',
+        reportId: existing.id,
+      };
+    }
+
+    const report = this.reportRepository.create({
+      reelId,
+      reporterId: userId,
+      reason: dto.reason,
+      details: dto.details?.trim() || null,
+      status: ReelReportStatus.PENDING,
+    });
+
+    await this.reportRepository.save(report);
+
+    return {
+      success: true,
+      message: 'Report submitted successfully. Thank you for keeping the platform safe.',
+      reportId: report.id,
+    };
+  }
+
+  /**
+   * Get reports submitted by current user (for mobile My Reports screen).
+   */
+  async getMyReports(userId: string, requestHost?: string) {
+    const reports = await this.reportRepository.find({
+      where: { reporterId: userId },
+      relations: { reel: { media: true, user: true } },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+
+    return reports.map((r) => {
+      const thumbUrl = r.reel?.media?.thumbnailKey
+        ? this.storageService.getObjectUrl(r.reel.media.thumbnailKey, requestHost)
+        : '';
+
+      return {
+        id: r.id,
+        postId: r.reelId,
+        postTitle: r.reel?.title || 'Reported Video',
+        postImageUrl: thumbUrl,
+        creatorName: r.reel?.user?.name || 'Creator',
+        location: r.reel?.location || '',
+        projectType: r.reel?.category || 'Reel',
+        mainReason: r.reason,
+        subReason: '',
+        details: r.details || '',
+        evidenceFilesCount: 0,
+        isGenuineDeclarationConfirmed: true,
+        status: r.status.toLowerCase(),
+        createdAt: r.createdAt.toISOString(),
+      };
+    });
+  }
+
+  /**
+   * Admin: Get all reports with filtering, pagination, and status breakdown.
+   */
+  async getAdminReports(query: GetReelReportsQueryDto, requestHost?: string) {
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.max(1, Math.min(100, Number(query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const qb = this.reportRepository
+      .createQueryBuilder('report')
+      .leftJoinAndSelect('report.reel', 'reel')
+      .leftJoinAndSelect('reel.media', 'media')
+      .leftJoinAndSelect('reel.user', 'creator')
+      .leftJoinAndSelect('report.reporter', 'reporter')
+      .leftJoinAndSelect('report.reviewedBy', 'reviewedBy')
+      .orderBy('report.createdAt', 'DESC');
+
+    if (query.status) {
+      qb.andWhere('report.status = :status', { status: query.status });
+    }
+
+    if (query.search?.trim()) {
+      const s = `%${query.search.trim()}%`;
+      qb.andWhere(
+        new Brackets((sub) => {
+          sub
+            .where('reel.title LIKE :s', { s })
+            .orWhere('report.reason LIKE :s', { s })
+            .orWhere('report.details LIKE :s', { s })
+            .orWhere('reporter.name LIKE :s', { s })
+            .orWhere('reporter.email LIKE :s', { s })
+            .orWhere('creator.name LIKE :s', { s });
+        }),
+      );
+    }
+
+    const [items, total] = await qb.skip(skip).take(limit).getManyAndCount();
+
+    // Summary counts for filter tabs
+    const [pendingCount, resolvedCount, dismissedCount, totalCount] =
+      await Promise.all([
+        this.reportRepository.count({
+          where: { status: ReelReportStatus.PENDING },
+        }),
+        this.reportRepository.count({
+          where: { status: ReelReportStatus.RESOLVED },
+        }),
+        this.reportRepository.count({
+          where: { status: ReelReportStatus.DISMISSED },
+        }),
+        this.reportRepository.count(),
+      ]);
+
+    const formattedItems = items.map((r) => {
+      let hlsUrl = r.reel?.media?.hlsKey
+        ? this.storageService.getObjectUrl(r.reel.media.hlsKey, requestHost)
+        : null;
+      let mp4Url = r.reel?.media?.originalKey
+        ? this.storageService.getObjectUrl(r.reel.media.originalKey, requestHost)
+        : null;
+      let thumbnailUrl = r.reel?.media?.thumbnailKey
+        ? this.storageService.getObjectUrl(r.reel.media.thumbnailKey, requestHost)
+        : null;
+
+      let creatorAvatarUrl = r.reel?.user?.avatarUrl || null;
+      if (creatorAvatarUrl && !creatorAvatarUrl.startsWith('http')) {
+        creatorAvatarUrl = this.storageService.getObjectUrl(creatorAvatarUrl, requestHost);
+      }
+
+      let reporterAvatarUrl = r.reporter?.avatarUrl || null;
+      if (reporterAvatarUrl && !reporterAvatarUrl.startsWith('http')) {
+        reporterAvatarUrl = this.storageService.getObjectUrl(reporterAvatarUrl, requestHost);
+      }
+
+      return {
+        id: r.id,
+        reelId: r.reelId,
+        reason: r.reason,
+        details: r.details,
+        status: r.status,
+        adminNotes: r.adminNotes,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        reporter: r.reporter
+          ? {
+              id: r.reporter.id,
+              name: r.reporter.name,
+              email: r.reporter.email,
+              phone: r.reporter.phone,
+              avatarUrl: reporterAvatarUrl,
+            }
+          : null,
+        reviewedBy: r.reviewedBy
+          ? {
+              id: r.reviewedBy.id,
+              name: r.reviewedBy.name,
+            }
+          : null,
+        reel: r.reel
+          ? {
+              id: r.reel.id,
+              title: r.reel.title,
+              caption: r.reel.caption,
+              category: r.reel.category,
+              status: r.reel.status,
+              createdAt: r.reel.createdAt,
+              creator: r.reel.user
+                ? {
+                    id: r.reel.user.id,
+                    name: r.reel.user.name,
+                    email: r.reel.user.email,
+                    avatarUrl: creatorAvatarUrl,
+                  }
+                : null,
+              media: r.reel.media
+                ? {
+                    hlsUrl,
+                    mp4Url,
+                    thumbnailUrl,
+                    duration: r.reel.media.duration,
+                  }
+                : null,
+            }
+          : null,
+      };
+    });
+
+    return {
+      items: formattedItems,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      counts: {
+        total: totalCount,
+        pending: pendingCount,
+        resolved: resolvedCount,
+        dismissed: dismissedCount,
+      },
+    };
+  }
+
+  /**
+   * Admin: Update report status (e.g. DISMISSED, REVIEWED, RESOLVED) and notes.
+   */
+  async updateReportStatus(
+    reportId: string,
+    dto: UpdateReportStatusDto,
+    adminId?: string,
+  ) {
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
+    if (!report) {
+      throw new NotFoundException('Report not found.');
+    }
+
+    report.status = dto.status;
+    if (dto.adminNotes !== undefined) {
+      report.adminNotes = dto.adminNotes;
+    }
+    if (adminId) {
+      report.reviewedById = adminId;
+    }
+
+    await this.reportRepository.save(report);
+
+    return {
+      success: true,
+      message: `Report marked as ${dto.status}.`,
+      report,
+    };
+  }
+
+  /**
+   * Admin: Take down reported reel (mark reel DELETED and resolve report).
+   */
+  async takedownReportedReel(reportId: string, adminId: string) {
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+      relations: { reel: true },
+    });
+    if (!report) {
+      throw new NotFoundException('Report not found.');
+    }
+
+    if (report.reel) {
+      report.reel.status = ReelStatus.DELETED;
+      await this.reelRepository.save(report.reel);
+
+      // Async clean up assets in storage
+      const s3Prefix = `reels/${report.reel.id}`;
+      this.storageService.deleteFolder(s3Prefix).catch((err) => {
+        console.error(`Failed to delete S3 folder for Reel ${report.reelId}:`, err);
+      });
+    }
+
+    report.status = ReelReportStatus.RESOLVED;
+    report.reviewedById = adminId;
+    report.adminNotes = (report.adminNotes ? report.adminNotes + ' | ' : '') + 'Reel taken down by admin.';
+    await this.reportRepository.save(report);
+
+    return {
+      success: true,
+      message: 'Reel taken down successfully and report resolved.',
+    };
+  }
 }
+
