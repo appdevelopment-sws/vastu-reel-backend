@@ -46,7 +46,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       label: "Categories & Taxonomies",
       path: "/dashboard/categories",
       icon: FolderTree,
-      badge: "Taxonomy",
       adminOnly: true,
     },
     {
@@ -74,7 +73,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       label: "Reviews & Ratings",
       path: "/dashboard/reviews",
       icon: Star,
-      badge: "Pending",
       adminOnly: true,
     },
     {

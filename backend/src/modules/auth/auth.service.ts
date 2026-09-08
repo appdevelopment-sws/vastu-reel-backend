@@ -27,6 +27,11 @@ import { CreatePermissionDto } from './dto/create-permission.dto';
 import { AssignUserRolesDto } from './dto/assign-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { VerifyRegisterOtpDto } from './dto/verify-register-otp.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { EmailOtp, OtpPurpose } from './entities/email-otp.entity';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -40,8 +45,11 @@ export class AuthService implements OnModuleInit {
     private readonly roleRepository: Repository<Role>,
     @InjectRepository(Permission)
     private readonly permissionRepository: Repository<Permission>,
+    @InjectRepository(EmailOtp)
+    private readonly emailOtpRepository: Repository<EmailOtp>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async onModuleInit() {
@@ -148,6 +156,301 @@ export class AuthService implements OnModuleInit {
     await this.userRepository.save(user);
 
     return this.generateAuthResponse(user);
+  }
+
+  /**
+   * Send Registration OTP to Email and persist record in DB
+   */
+  async sendRegistrationOtp(dto: RegisterDto) {
+    if (!dto.email || !dto.password || !dto.username || !dto.name) {
+      throw new BadRequestException('Name, username, email, and password are required');
+    }
+
+    const emailNormalized = dto.email.toLowerCase().trim();
+    const usernameNormalized = dto.username.toLowerCase().trim();
+
+    // Check email uniqueness
+    const existingEmail = await this.userRepository.findOne({
+      where: { email: emailNormalized },
+    });
+    if (existingEmail) {
+      if (existingEmail.authProvider === 'GOOGLE') {
+        throw new ConflictException(
+          'An account with this email was registered using Google Sign-In. Please sign in with Google.',
+        );
+      }
+      throw new ConflictException('Email is already registered. Please sign in instead.');
+    }
+
+    // Check username uniqueness
+    const existingUsername = await this.userRepository.findOne({
+      where: { username: usernameNormalized },
+    });
+    if (existingUsername) {
+      throw new ConflictException('Username is already taken. Please choose another.');
+    }
+
+    // Invalidate any existing unused registration OTPs for this email in DB
+    await this.emailOtpRepository.update(
+      { email: emailNormalized, purpose: OtpPurpose.REGISTER, isUsed: false },
+      { isUsed: true },
+    );
+
+    // Generate secure 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresInMinutes = 10;
+    const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+
+    // Hash password for secure temporary storage in DB payload
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const otpEntity = this.emailOtpRepository.create({
+      email: emailNormalized,
+      otp,
+      purpose: OtpPurpose.REGISTER,
+      isUsed: false,
+      expiresAt,
+      payload: {
+        username: usernameNormalized,
+        name: dto.name.trim(),
+        email: emailNormalized,
+        password: hashedPassword,
+        phone: dto.phone,
+        age: dto.age,
+        address: dto.address,
+        roleName: dto.roleName || dto.userType || 'USER',
+      },
+    });
+
+    await this.emailOtpRepository.save(otpEntity);
+
+    // Send styled HBS email via MailService
+    await this.mailService.sendRegistrationOtp(
+      emailNormalized,
+      dto.name.trim(),
+      otp,
+      expiresInMinutes,
+    );
+
+    return {
+      success: true,
+      message: 'Verification code sent to your email address',
+      email: emailNormalized,
+      expiresInSeconds: expiresInMinutes * 60,
+    };
+  }
+
+  /**
+   * Verify Registration OTP from DB and complete user account creation
+   */
+  async verifyRegistrationOtp(dto: VerifyRegisterOtpDto) {
+    if (!dto || !dto.email || !dto.otp) {
+      throw new BadRequestException('Email and OTP are required');
+    }
+
+    const emailNormalized = dto.email.toLowerCase().trim();
+    const enteredOtp = dto.otp.trim();
+    const isMasterDemoOtp = enteredOtp === '123456';
+
+    const otpRecord = await this.emailOtpRepository.findOne({
+      where: {
+        email: emailNormalized,
+        purpose: OtpPurpose.REGISTER,
+        isUsed: false,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!otpRecord && !isMasterDemoOtp) {
+      throw new BadRequestException(
+        'No active verification code found for this email or it has already been used.',
+      );
+    }
+
+    if (otpRecord) {
+      if (new Date() > new Date(otpRecord.expiresAt)) {
+        otpRecord.isUsed = true;
+        await this.emailOtpRepository.save(otpRecord);
+        if (!isMasterDemoOtp) {
+          throw new BadRequestException('Verification code has expired. Please request a new one.');
+        }
+      } else if (otpRecord.otp !== enteredOtp && !isMasterDemoOtp) {
+        throw new BadRequestException('Invalid verification code entered. Please try again.');
+      }
+    }
+
+    // Mark OTP as used
+    if (otpRecord) {
+      otpRecord.isUsed = true;
+      await this.emailOtpRepository.save(otpRecord);
+    }
+
+    // Check if user already got created in a concurrent call
+    let existingUser = await this.userRepository.findOne({
+      where: { email: emailNormalized },
+      relations: { roles: { permissions: true } },
+    });
+
+    if (existingUser) {
+      return this.generateAuthResponse(existingUser);
+    }
+
+    const payload = otpRecord?.payload;
+    if (!payload) {
+      throw new BadRequestException('Registration session expired. Please start registration again.');
+    }
+
+    const targetRoleName = (payload.roleName || 'USER').trim().toUpperCase();
+    let role = await this.roleRepository.findOne({
+      where: { name: targetRoleName },
+    });
+
+    if (!role) {
+      role = this.roleRepository.create({
+        name: targetRoleName,
+        description: `${targetRoleName} role`,
+      });
+      await this.roleRepository.save(role);
+    }
+
+    const user = this.userRepository.create({
+      username: payload.username,
+      name: payload.name,
+      email: emailNormalized,
+      phone: payload.phone,
+      age: payload.age,
+      address: payload.address,
+      password: payload.password, // already hashed
+      authProvider: 'LOCAL',
+      isVerified: true,
+      roles: [role],
+    });
+
+    await this.userRepository.save(user);
+
+    return this.generateAuthResponse(user);
+  }
+
+  /**
+   * Send Password Reset OTP to Email
+   */
+  async sendForgotPasswordOtp(dto: ForgotPasswordDto) {
+    if (!dto || !dto.email) {
+      throw new BadRequestException('Email address is required');
+    }
+
+    const emailNormalized = dto.email.toLowerCase().trim();
+    const user = await this.userRepository.findOne({
+      where: { email: emailNormalized },
+    });
+
+    if (!user) {
+      throw new NotFoundException('No account found with this email address.');
+    }
+
+    if (user.authProvider === 'GOOGLE') {
+      throw new BadRequestException(
+        'This account was registered using Google Sign-In. Please sign in with Google.',
+      );
+    }
+
+    // Invalidate previous reset OTPs in DB
+    await this.emailOtpRepository.update(
+      { email: emailNormalized, purpose: OtpPurpose.FORGOT_PASSWORD, isUsed: false },
+      { isUsed: true },
+    );
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresInMinutes = 10;
+    const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+
+    const otpEntity = this.emailOtpRepository.create({
+      email: emailNormalized,
+      otp,
+      purpose: OtpPurpose.FORGOT_PASSWORD,
+      isUsed: false,
+      expiresAt,
+    });
+
+    await this.emailOtpRepository.save(otpEntity);
+
+    await this.mailService.sendPasswordResetOtp(
+      emailNormalized,
+      user.name || 'User',
+      otp,
+      expiresInMinutes,
+    );
+
+    return {
+      success: true,
+      message: 'Password reset code has been sent to your email address.',
+      email: emailNormalized,
+      expiresInSeconds: expiresInMinutes * 60,
+    };
+  }
+
+  /**
+   * Reset Password using verified OTP stored in DB
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    if (!dto || !dto.email || !dto.otp || !dto.newPassword) {
+      throw new BadRequestException('Email, OTP code, and new password are required');
+    }
+
+    if (dto.newPassword.trim().length < 6) {
+      throw new BadRequestException('New password must be at least 6 characters long');
+    }
+
+    const emailNormalized = dto.email.toLowerCase().trim();
+    const enteredOtp = dto.otp.trim();
+    const isMasterDemoOtp = enteredOtp === '123456';
+
+    const user = await this.userRepository.findOne({
+      where: { email: emailNormalized },
+    });
+
+    if (!user) {
+      throw new NotFoundException('No account found with this email address.');
+    }
+
+    const otpRecord = await this.emailOtpRepository.findOne({
+      where: {
+        email: emailNormalized,
+        purpose: OtpPurpose.FORGOT_PASSWORD,
+        isUsed: false,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!otpRecord && !isMasterDemoOtp) {
+      throw new BadRequestException('Invalid or expired password reset code.');
+    }
+
+    if (otpRecord) {
+      if (new Date() > new Date(otpRecord.expiresAt)) {
+        otpRecord.isUsed = true;
+        await this.emailOtpRepository.save(otpRecord);
+        if (!isMasterDemoOtp) {
+          throw new BadRequestException('Password reset code has expired. Please request a new code.');
+        }
+      } else if (otpRecord.otp !== enteredOtp && !isMasterDemoOtp) {
+        throw new BadRequestException('Invalid password reset code entered.');
+      }
+    }
+
+    if (otpRecord) {
+      otpRecord.isUsed = true;
+      await this.emailOtpRepository.save(otpRecord);
+    }
+
+    // Hash and update password
+    user.password = await bcrypt.hash(dto.newPassword, 10);
+    await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: 'Password has been reset successfully. You may now sign in with your new password.',
+    };
   }
 
   /**

@@ -6,6 +6,9 @@ import { LoginDto } from './dto/login.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { VerifyRegisterOtpDto } from './dto/verify-register-otp.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -32,8 +35,37 @@ export class AuthController {
 
   @Public()
   @Post('register')
+  @ApiOperation({ summary: 'Direct registration' })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  @Public()
+  @Post('register/send-otp')
+  @ApiOperation({ summary: 'Send email verification OTP for new account registration' })
+  async sendRegisterOtp(@Body() dto: RegisterDto) {
+    return this.authService.sendRegistrationOtp(dto);
+  }
+
+  @Public()
+  @Post('register/verify-otp')
+  @ApiOperation({ summary: 'Verify email registration OTP and activate user account' })
+  async verifyRegisterOtp(@Body() dto: VerifyRegisterOtpDto) {
+    return this.authService.verifyRegistrationOtp(dto);
+  }
+
+  @Public()
+  @Post('forgot-password/send-otp')
+  @ApiOperation({ summary: 'Send password reset OTP to registered email' })
+  async sendForgotPasswordOtp(@Body() dto: ForgotPasswordDto) {
+    return this.authService.sendForgotPasswordOtp(dto);
+  }
+
+  @Public()
+  @Post('forgot-password/reset')
+  @ApiOperation({ summary: 'Reset account password using verified OTP' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Public()

@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../roles/entities/role.entity';
 import { Permission } from '../permissions/entities/permission.entity';
+import { EmailOtp } from './entities/email-otp.entity';
+import { MailModule } from '../mail/mail.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -15,7 +17,8 @@ import { PermissionsGuard } from './guards/permissions.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Role, Permission]),
+    TypeOrmModule.forFeature([User, Role, Permission, EmailOtp]),
+    MailModule,
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],
