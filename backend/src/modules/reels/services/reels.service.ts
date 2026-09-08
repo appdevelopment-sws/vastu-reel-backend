@@ -1683,9 +1683,9 @@ export class ReelsService {
 
       let mappedStatus = 'submitted';
       if (r.status === ReelReportStatus.RESOLVED) {
-        mappedStatus = 'action_taken';
+        mappedStatus = 'resolved';
       } else if (r.status === ReelReportStatus.DISMISSED) {
-        mappedStatus = 'closed';
+        mappedStatus = 'dismissed';
       } else if (r.status === ReelReportStatus.REVIEWED) {
         mappedStatus = 'under_review';
       } else {
