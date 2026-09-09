@@ -9,7 +9,10 @@ import * as path from 'path';
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter | null = null;
-  private readonly templateCache = new Map<string, handlebars.TemplateDelegate>();
+  private readonly templateCache = new Map<
+    string,
+    handlebars.TemplateDelegate
+  >();
 
   constructor(private readonly configService: ConfigService) {
     this.initTransporter();
@@ -40,14 +43,19 @@ export class MailService {
 
       this.logger.log(`📧 MailService initialized with sender: ${user}`);
     } catch (error: any) {
-      this.logger.error('Failed to initialize nodemailer transporter', error?.stack || error);
+      this.logger.error(
+        'Failed to initialize nodemailer transporter',
+        error?.stack || error,
+      );
     }
   }
 
   /**
    * Compile and cache Handlebars template from file system
    */
-  private getCompiledTemplate(templateName: string): handlebars.TemplateDelegate {
+  private getCompiledTemplate(
+    templateName: string,
+  ): handlebars.TemplateDelegate {
     if (this.templateCache.has(templateName)) {
       return this.templateCache.get(templateName)!;
     }
@@ -55,8 +63,22 @@ export class MailService {
     // Check multiple candidate directories (src vs dist)
     const candidatePaths = [
       path.join(__dirname, 'templates', `${templateName}.hbs`),
-      path.join(process.cwd(), 'src', 'modules', 'mail', 'templates', `${templateName}.hbs`),
-      path.join(process.cwd(), 'dist', 'modules', 'mail', 'templates', `${templateName}.hbs`),
+      path.join(
+        process.cwd(),
+        'src',
+        'modules',
+        'mail',
+        'templates',
+        `${templateName}.hbs`,
+      ),
+      path.join(
+        process.cwd(),
+        'dist',
+        'modules',
+        'mail',
+        'templates',
+        `${templateName}.hbs`,
+      ),
     ];
 
     let templateContent: string | null = null;
@@ -68,7 +90,9 @@ export class MailService {
     }
 
     if (!templateContent) {
-      throw new Error(`Email template '${templateName}.hbs' not found in candidate paths: ${candidatePaths.join(', ')}`);
+      throw new Error(
+        `Email template '${templateName}.hbs' not found in candidate paths: ${candidatePaths.join(', ')}`,
+      );
     }
 
     const compiled = handlebars.compile(templateContent);
@@ -85,8 +109,10 @@ export class MailService {
     template: string;
     context: Record<string, any>;
   }): Promise<boolean> {
-    const senderEmail = this.configService.get<string>('MAIL_EMAIL')?.trim() || 'noreply@vastureel.com';
-    const fromAddress = `"VastuReel" <${senderEmail}>`;
+    const senderEmail =
+      this.configService.get<string>('MAIL_EMAIL')?.trim() ||
+      'noreply@Reelsgate.com';
+    const fromAddress = `"Reelsgate" <${senderEmail}>`;
 
     const template = this.getCompiledTemplate(options.template);
     const html = template({
@@ -99,7 +125,9 @@ export class MailService {
       this.logger.warn(
         `[DEV-MOCK] Email not sent via SMTP (Missing credentials). Destination: ${options.to}, Subject: "${options.subject}"`,
       );
-      this.logger.debug(`[DEV-MOCK-CONTENT] ${JSON.stringify(options.context)}`);
+      this.logger.debug(
+        `[DEV-MOCK-CONTENT] ${JSON.stringify(options.context)}`,
+      );
       return true;
     }
 
@@ -111,10 +139,14 @@ export class MailService {
         html,
       });
 
-      this.logger.log(`✅ Email sent to ${options.to}. MessageId: ${info.messageId}`);
+      this.logger.log(
+        `✅ Email sent to ${options.to}. MessageId: ${info.messageId}`,
+      );
       return true;
     } catch (error: any) {
-      this.logger.error(`❌ Failed to send email to ${options.to}: ${error?.message || error}`);
+      this.logger.error(
+        `❌ Failed to send email to ${options.to}: ${error?.message || error}`,
+      );
       throw error;
     }
   }
@@ -130,7 +162,7 @@ export class MailService {
   ): Promise<boolean> {
     return this.sendEmail({
       to,
-      subject: `${otp} is your VastuReel verification code`,
+      subject: `${otp} is your Reelsgate verification code`,
       template: 'registration-otp',
       context: {
         name,
@@ -151,7 +183,7 @@ export class MailService {
   ): Promise<boolean> {
     return this.sendEmail({
       to,
-      subject: `${otp} is your VastuReel password reset code`,
+      subject: `${otp} is your Reelsgate password reset code`,
       template: 'password-reset-otp',
       context: {
         name,

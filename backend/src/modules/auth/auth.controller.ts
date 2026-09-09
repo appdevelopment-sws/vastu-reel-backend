@@ -61,6 +61,14 @@ export class AuthController {
     return this.authService.sendForgotPasswordOtp(dto);
   }
 
+
+  @Public()
+  @Post('forgot-password/verify-otp')
+  @ApiOperation({ summary: 'Verify password reset OTP' })
+  async verifyForgotPasswordOtp(@Body() dto: VerifyRegisterOtpDto) {
+    return this.authService.verifyForgotPasswordOtp(dto);
+  }
+
   @Public()
   @Post('forgot-password/reset')
   @ApiOperation({ summary: 'Reset account password using verified OTP' })

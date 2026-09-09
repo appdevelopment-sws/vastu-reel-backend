@@ -85,7 +85,7 @@ export class LocationService {
 
     const res = await fetch(url.toString(), {
       headers: {
-        'User-Agent': 'VastuReel-Backend/1.0',
+        'User-Agent': 'Reelsgate-Backend/1.0',
         Accept: 'application/json',
       },
       signal: AbortSignal.timeout(4000),

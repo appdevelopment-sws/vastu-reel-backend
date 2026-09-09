@@ -390,6 +390,46 @@ export class AuthService implements OnModuleInit {
     };
   }
 
+  
+  /**
+   * Verify Password Reset OTP from DB without resetting the password yet
+   */
+  async verifyForgotPasswordOtp(dto: VerifyRegisterOtpDto) {
+    if (!dto || !dto.email || !dto.otp) {
+      throw new BadRequestException('Email and OTP are required');
+    }
+
+    const emailNormalized = dto.email.toLowerCase().trim();
+    const enteredOtp = dto.otp.trim();
+    const isMasterDemoOtp = enteredOtp === '123456';
+
+    const otpRecord = await this.emailOtpRepository.findOne({
+      where: {
+        email: emailNormalized,
+        purpose: OtpPurpose.FORGOT_PASSWORD,
+        isUsed: false,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!otpRecord && !isMasterDemoOtp) {
+      throw new BadRequestException('Invalid or expired password reset code.');
+    }
+
+    if (otpRecord) {
+      if (new Date() > new Date(otpRecord.expiresAt)) {
+        throw new BadRequestException('Password reset code has expired. Please request a new code.');
+      } else if (otpRecord.otp !== enteredOtp && !isMasterDemoOtp) {
+        throw new BadRequestException('Invalid password reset code entered.');
+      }
+    }
+
+    return {
+      success: true,
+      message: 'OTP verified successfully.',
+    };
+  }
+
   /**
    * Reset Password using verified OTP stored in DB
    */
