@@ -32,6 +32,11 @@ export class CreateCategoryDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiProperty({ example: true, required: false, default: true })
+  @IsBoolean()
+  @IsOptional()
+  isAllowedBudgetSelection?: boolean;
 }
 
 export class UpdateCategoryDto {
@@ -59,6 +64,11 @@ export class UpdateCategoryDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isAllowedBudgetSelection?: boolean;
 }
 
 export class CreateSubCategoryDto {
@@ -151,6 +161,9 @@ export class CategoryResponseDto {
 
   @ApiProperty({ example: true })
   isActive: boolean;
+
+  @ApiProperty({ example: true })
+  isAllowedBudgetSelection: boolean;
 
   @ApiProperty({ example: 0, required: false })
   reelsCount?: number;

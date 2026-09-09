@@ -133,6 +133,7 @@ export class CategoriesService implements OnModuleInit {
       icon: dto.icon || null,
       order: dto.order ?? 0,
       isActive: dto.isActive ?? true,
+      isAllowedBudgetSelection: dto.isAllowedBudgetSelection ?? true,
     });
 
     return this.categoryRepo.save(category);
@@ -163,6 +164,7 @@ export class CategoriesService implements OnModuleInit {
     if (dto.icon !== undefined) category.icon = dto.icon;
     if (dto.order !== undefined) category.order = dto.order;
     if (dto.isActive !== undefined) category.isActive = dto.isActive;
+    if (dto.isAllowedBudgetSelection !== undefined) category.isAllowedBudgetSelection = dto.isAllowedBudgetSelection;
 
     return this.categoryRepo.save(category);
   }
@@ -414,6 +416,7 @@ export class CategoriesService implements OnModuleInit {
         icon: catData.icon,
         order: catData.order,
         isActive: true,
+        isAllowedBudgetSelection: true,
       });
       const savedCat = await this.categoryRepo.save(category);
 

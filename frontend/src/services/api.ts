@@ -1,51 +1,56 @@
-import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import type { AuthResponse, LoginCredentials, RegisterData, User } from '../types/auth';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
+import type {
+  AuthResponse,
+  LoginCredentials,
+  RegisterData,
+  User,
+} from "../types/auth"
 
 // Extract API Base URL from Vite environment or default to relative /api (production/Nginx) or port 8008 (dev)
 const getBaseUrl = (): string => {
   let url =
     (import.meta as any).env?.VITE_API_URL ||
-    (import.meta as any).env?.REACT_APP_API_URL;
+    (import.meta as any).env?.REACT_APP_API_URL
 
   if (!url) {
     // In local Vite dev server (DEV mode), default to http://localhost:8008
     // In production build (served behind Nginx), default to relative /api
-    url = (import.meta as any).env?.DEV ? 'http://localhost:8008' : '/api';
+    url = (import.meta as any).env?.DEV ? "http://localhost:8008" : "/api"
   }
 
   // Strip trailing slash if present
-  url = url.replace(/\/+$/, '');
+  url = url.replace(/\/+$/, "")
 
   // If user configured http://localhost:8008/api/v1 but backend routes are root /auth, /users
-  if (url.endsWith('/api/v1')) {
-    url = url.replace('/api/v1', '');
+  if (url.endsWith("/api/v1")) {
+    url = url.replace("/api/v1", "")
   }
 
-  return url;
-};
+  return url
+}
 
-export const API_BASE_URL = getBaseUrl();
+export const API_BASE_URL = getBaseUrl()
 
 // Create configured Axios instance
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   timeout: 15000,
-});
+})
 
 // Attach Authorization Bearer Token on every request if present
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('vastu_token');
+    const token = localStorage.getItem("vastu_token")
     if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`
     }
-    return config;
+    return config
   },
   (error) => Promise.reject(error)
-);
+)
 
 // Global response interceptor for handling 401 unauthenticated
 apiClient.interceptors.response.use(
@@ -53,582 +58,638 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Don't wipe if we're on login or register
-      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
-        localStorage.removeItem('vastu_token');
-        localStorage.removeItem('vastu_user');
+      if (
+        !window.location.pathname.includes("/login") &&
+        !window.location.pathname.includes("/register")
+      ) {
+        localStorage.removeItem("vastu_token")
+        localStorage.removeItem("vastu_user")
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(error)
   }
-);
+)
 
 // Auth Service API
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
-    return response.data;
+    const response = await apiClient.post<AuthResponse>(
+      "/auth/login",
+      credentials
+    )
+    return response.data
   },
 
   register: async (data: RegisterData): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/register', data);
-    return response.data;
+    const response = await apiClient.post<AuthResponse>("/auth/register", data)
+    return response.data
   },
 
   getMe: async (): Promise<User> => {
-    const response = await apiClient.get<User>('/auth/me');
-    return response.data;
+    const response = await apiClient.get<User>("/auth/me")
+    return response.data
   },
 
-  updateProfile: async (data: Partial<User & { password?: string }>): Promise<User> => {
-    const response = await apiClient.patch<User>('/auth/me', data);
-    return response.data;
+  updateProfile: async (
+    data: Partial<User & { password?: string }>
+  ): Promise<User> => {
+    const response = await apiClient.patch<User>("/auth/me", data)
+    return response.data
   },
 
-  checkUsername: async (username: string): Promise<{ available: boolean; message?: string }> => {
-    const response = await apiClient.get('/auth/check-username', {
+  checkUsername: async (
+    username: string
+  ): Promise<{ available: boolean; message?: string }> => {
+    const response = await apiClient.get("/auth/check-username", {
       params: { username },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
   seedDefaults: async (): Promise<{
-    message: string;
-    superAdminCredentials: { email: string; password: string };
+    message: string
+    superAdminCredentials: { email: string; password: string }
   }> => {
-    const response = await apiClient.post('/auth/seed');
-    return response.data;
+    const response = await apiClient.post("/auth/seed")
+    return response.data
   },
 
   getRoles: async () => {
-    const response = await apiClient.get('/auth/roles');
-    return response.data;
+    const response = await apiClient.get("/auth/roles")
+    return response.data
   },
 
   getPermissions: async () => {
-    const response = await apiClient.get('/auth/permissions');
-    return response.data;
+    const response = await apiClient.get("/auth/permissions")
+    return response.data
   },
-};
+}
 
 // Users API
 export const usersApi = {
-  getAll: async (params?: { search?: string; status?: string; role?: string }) => {
-    const response = await apiClient.get('/users', { params });
-    return response.data;
+  getAll: async (params?: {
+    search?: string
+    status?: string
+    role?: string
+  }) => {
+    const response = await apiClient.get("/users", { params })
+    return response.data
   },
 
   getById: async (id: string) => {
-    const response = await apiClient.get(`/users/${id}`);
-    return response.data;
+    const response = await apiClient.get(`/users/${id}`)
+    return response.data
   },
 
   getCreatorSummary: async (id: string) => {
-    const response = await apiClient.get(`/users/${id}/creator-summary`);
-    return response.data;
+    const response = await apiClient.get(`/users/${id}/creator-summary`)
+    return response.data
   },
 
   getCreatorReels: async (
     id: string,
     params?: { page?: number; limit?: number; status?: string; search?: string }
   ) => {
-    const response = await apiClient.get(`/users/${id}/reels`, { params });
-    return response.data;
+    const response = await apiClient.get(`/users/${id}/reels`, { params })
+    return response.data
   },
 
   getCreatorAnalytics: async (
     id: string,
     params?: { timeframe?: string; metric?: string }
   ) => {
-    const response = await apiClient.get(`/users/${id}/analytics`, { params });
-    return response.data;
+    const response = await apiClient.get(`/users/${id}/analytics`, { params })
+    return response.data
   },
 
   updateStatus: async (id: string, isActive: boolean, reason?: string) => {
-    const response = await apiClient.patch(`/users/${id}/status`, { isActive, reason });
-    return response.data;
+    const response = await apiClient.patch(`/users/${id}/status`, {
+      isActive,
+      reason,
+    })
+    return response.data
   },
 
   block: async (id: string, reason?: string) => {
-    const response = await apiClient.patch(`/users/${id}/block`, { reason });
-    return response.data;
+    const response = await apiClient.patch(`/users/${id}/block`, { reason })
+    return response.data
   },
 
   unblock: async (id: string) => {
-    const response = await apiClient.patch(`/users/${id}/unblock`);
-    return response.data;
+    const response = await apiClient.patch(`/users/${id}/unblock`)
+    return response.data
   },
 
   toggleVerification: async (id: string, isVerified: boolean) => {
-    const response = await apiClient.patch(`/users/${id}/verify`, { isVerified });
-    return response.data;
+    const response = await apiClient.patch(`/users/${id}/verify`, {
+      isVerified,
+    })
+    return response.data
   },
 
   getLeaderboard: async (params?: { limit?: number; sortBy?: string }) => {
-    const response = await apiClient.get('/users/leaderboard/creators', { params });
-    return response.data;
+    const response = await apiClient.get("/users/leaderboard/creators", {
+      params,
+    })
+    return response.data
   },
 
   create: async (data: any) => {
-    const response = await apiClient.post('/users', data);
-    return response.data;
+    const response = await apiClient.post("/users", data)
+    return response.data
   },
 
   update: async (id: string, data: any) => {
-    const response = await apiClient.patch(`/users/${id}`, data);
-    return response.data;
+    const response = await apiClient.patch(`/users/${id}`, data)
+    return response.data
   },
 
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/users/${id}`);
-    return response.data;
+    const response = await apiClient.delete(`/users/${id}`)
+    return response.data
   },
-};
+}
 
 // Reels API
 export const reelsApi = {
-  getFeed: async (params?: { page?: number; limit?: number; category?: string; search?: string }) => {
-    const response = await apiClient.get('/reels/feed', { params });
-    return response.data;
+  getFeed: async (params?: {
+    page?: number
+    limit?: number
+    category?: string
+    search?: string
+  }) => {
+    const response = await apiClient.get("/reels/feed", { params })
+    return response.data
   },
 
   getTrending: async () => {
-    const response = await apiClient.get('/reels/trending');
-    return response.data;
+    const response = await apiClient.get("/reels/trending")
+    return response.data
   },
 
   getById: async (id: string) => {
-    const response = await apiClient.get(`/reels/${id}`);
-    return response.data;
+    const response = await apiClient.get(`/reels/${id}`)
+    return response.data
   },
 
   initUpload: async (data: {
-    title: string;
-    caption?: string;
-    category?: string;
-    subCategory?: string;
-    propertyType?: string;
-    element?: string;
-    location?: string;
-    fileName: string;
-    fileSize: number;
-    mimeType: string;
+    title: string
+    caption?: string
+    category?: string
+    subCategory?: string
+    propertyType?: string
+    element?: string
+    location?: string
+    fileName: string
+    fileSize: number
+    mimeType: string
   }) => {
-    const response = await apiClient.post('/reels/upload/init', data);
-    return response.data;
+    const response = await apiClient.post("/reels/upload/init", data)
+    return response.data
   },
 
   completeUpload: async (uploadId: string) => {
-    const response = await apiClient.post('/reels/upload/complete', { uploadId });
-    return response.data;
+    const response = await apiClient.post("/reels/upload/complete", {
+      uploadId,
+    })
+    return response.data
   },
 
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/reels/${id}`);
-    return response.data;
+    const response = await apiClient.delete(`/reels/${id}`)
+    return response.data
   },
 
   getAllComments: async (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    category?: string;
-    reelId?: string;
+    page?: number
+    limit?: number
+    search?: string
+    category?: string
+    reelId?: string
   }) => {
-    const response = await apiClient.get('/reels/comments/all', { params });
-    return response.data;
+    const response = await apiClient.get("/reels/comments/all", { params })
+    return response.data
   },
 
-  getComments: async (reelId: string, params?: { page?: number; limit?: number; parentId?: string }) => {
-    const response = await apiClient.get(`/reels/${reelId}/comments`, { params });
-    return response.data;
+  getComments: async (
+    reelId: string,
+    params?: { page?: number; limit?: number; parentId?: string }
+  ) => {
+    const response = await apiClient.get(`/reels/${reelId}/comments`, {
+      params,
+    })
+    return response.data
   },
 
-  addComment: async (reelId: string, data: { text: string; parentId?: string }) => {
-    const response = await apiClient.post(`/reels/${reelId}/comments`, data);
-    return response.data;
+  addComment: async (
+    reelId: string,
+    data: { text: string; parentId?: string }
+  ) => {
+    const response = await apiClient.post(`/reels/${reelId}/comments`, data)
+    return response.data
   },
 
   deleteComment: async (commentId: string) => {
-    const response = await apiClient.delete(`/reels/comments/${commentId}`);
-    return response.data;
+    const response = await apiClient.delete(`/reels/comments/${commentId}`)
+    return response.data
   },
 
   pinComment: async (commentId: string) => {
-    const response = await apiClient.post(`/reels/comments/${commentId}/pin`);
-    return response.data;
+    const response = await apiClient.post(`/reels/comments/${commentId}/pin`)
+    return response.data
   },
 
   unpinComment: async (commentId: string) => {
-    const response = await apiClient.delete(`/reels/comments/${commentId}/pin`);
-    return response.data;
+    const response = await apiClient.delete(`/reels/comments/${commentId}/pin`)
+    return response.data
   },
-};
+}
 
 // Analytics API
 export const analyticsApi = {
   // Creator-scoped analytics
   getOverview: async (timeframe?: string) => {
-    const response = await apiClient.get('/analytics/creator/overview', {
-      params: { timeframe: timeframe || '28d' },
-    });
-    return response.data;
+    const response = await apiClient.get("/analytics/creator/overview", {
+      params: { timeframe: timeframe || "28d" },
+    })
+    return response.data
   },
 
-  getChartData: async (metric = 'views', timeframe = '28d') => {
-    const response = await apiClient.get('/analytics/creator/chart', {
+  getChartData: async (metric = "views", timeframe = "28d") => {
+    const response = await apiClient.get("/analytics/creator/chart", {
       params: { metric, timeframe },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
-  getTopReels: async (timeframe = '28d', limit = 10, sortBy = 'views') => {
-    const response = await apiClient.get('/analytics/creator/top-reels', {
+  getTopReels: async (timeframe = "28d", limit = 10, sortBy = "views") => {
+    const response = await apiClient.get("/analytics/creator/top-reels", {
       params: { timeframe, limit, sortBy },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
-  getCategories: async (timeframe = '28d') => {
-    const response = await apiClient.get('/analytics/creator/categories', {
+  getCategories: async (timeframe = "28d") => {
+    const response = await apiClient.get("/analytics/creator/categories", {
       params: { timeframe },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
-  getAudience: async (timeframe = '28d') => {
-    const response = await apiClient.get('/analytics/creator/audience', {
+  getAudience: async (timeframe = "28d") => {
+    const response = await apiClient.get("/analytics/creator/audience", {
       params: { timeframe },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
   // Platform-wide analytics (Admin)
   getPlatformOverview: async (timeframe?: string) => {
-    const response = await apiClient.get('/analytics/platform/overview', {
-      params: { timeframe: timeframe || '28d' },
-    });
-    return response.data;
+    const response = await apiClient.get("/analytics/platform/overview", {
+      params: { timeframe: timeframe || "28d" },
+    })
+    return response.data
   },
 
-  getPlatformChart: async (metric = 'views', timeframe = '28d') => {
-    const response = await apiClient.get('/analytics/platform/chart', {
+  getPlatformChart: async (metric = "views", timeframe = "28d") => {
+    const response = await apiClient.get("/analytics/platform/chart", {
       params: { metric, timeframe },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
-  getPlatformTopReels: async (timeframe = '28d', limit = 10, sortBy = 'views') => {
-    const response = await apiClient.get('/analytics/platform/top-reels', {
+  getPlatformTopReels: async (
+    timeframe = "28d",
+    limit = 10,
+    sortBy = "views"
+  ) => {
+    const response = await apiClient.get("/analytics/platform/top-reels", {
       params: { timeframe, limit, sortBy },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
-  getPlatformCategories: async (timeframe = '28d') => {
-    const response = await apiClient.get('/analytics/platform/categories', {
+  getPlatformCategories: async (timeframe = "28d") => {
+    const response = await apiClient.get("/analytics/platform/categories", {
       params: { timeframe },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
-  getPlatformAudience: async (timeframe = '28d') => {
-    const response = await apiClient.get('/analytics/platform/audience', {
+  getPlatformAudience: async (timeframe = "28d") => {
+    const response = await apiClient.get("/analytics/platform/audience", {
       params: { timeframe },
-    });
-    return response.data;
+    })
+    return response.data
   },
-};
+}
 
 // Activity Log API
 export const activityApi = {
-  getAll: async (params?: { page?: number; limit?: number; type?: string; search?: string }) => {
-    const response = await apiClient.get('/activity/all', { params });
-    return response.data;
+  getAll: async (params?: {
+    page?: number
+    limit?: number
+    type?: string
+    search?: string
+  }) => {
+    const response = await apiClient.get("/activity/all", { params })
+    return response.data
   },
 
   getGlobalActivity: async (page = 1, limit = 20) => {
-    const response = await apiClient.get('/activity/global', {
+    const response = await apiClient.get("/activity/global", {
       params: { page, limit },
-    });
-    return response.data;
+    })
+    return response.data
   },
-};
+}
 
 // Categories & Subcategories Admin API
 export const categoriesApi = {
   getAllAdmin: async () => {
-    const response = await apiClient.get('/categories/admin');
-    return response.data;
+    const response = await apiClient.get("/categories/admin")
+    return response.data
   },
 
   getAllPublic: async () => {
-    const response = await apiClient.get('/categories');
-    return response.data;
+    const response = await apiClient.get("/categories")
+    return response.data
   },
 
   createCategory: async (data: {
-    name: string;
-    slug: string;
-    icon?: string;
-    order?: number;
-    isActive?: boolean;
+    name: string
+    slug: string
+    icon?: string
+    order?: number
+    isActive?: boolean
+    isAllowedBudgetSelection?: boolean
   }) => {
-    const response = await apiClient.post('/categories', data);
-    return response.data;
+    const response = await apiClient.post("/categories", data)
+    return response.data
   },
 
   updateCategory: async (
     id: string,
     data: {
-      name?: string;
-      slug?: string;
-      icon?: string;
-      order?: number;
-      isActive?: boolean;
+      name?: string
+      slug?: string
+      icon?: string
+      order?: number
+      isActive?: boolean
+      isAllowedBudgetSelection?: boolean
     }
   ) => {
-    const response = await apiClient.put(`/categories/${id}`, data);
-    return response.data;
+    const response = await apiClient.put(`/categories/${id}`, data)
+    return response.data
   },
 
   deleteCategory: async (id: string) => {
-    const response = await apiClient.delete(`/categories/${id}`);
-    return response.data;
+    const response = await apiClient.delete(`/categories/${id}`)
+    return response.data
   },
 
   createSubCategory: async (
     categoryId: string,
     data: {
-      name: string;
-      slug: string;
-      order?: number;
-      isActive?: boolean;
+      name: string
+      slug: string
+      order?: number
+      isActive?: boolean
     }
   ) => {
     const response = await apiClient.post(
       `/categories/${categoryId}/sub-categories`,
       data
-    );
-    return response.data;
+    )
+    return response.data
   },
 
   updateSubCategory: async (
     subId: string,
     data: {
-      name?: string;
-      slug?: string;
-      order?: number;
-      isActive?: boolean;
+      name?: string
+      slug?: string
+      order?: number
+      isActive?: boolean
     }
   ) => {
     const response = await apiClient.put(
       `/categories/sub-categories/${subId}`,
       data
-    );
-    return response.data;
+    )
+    return response.data
   },
 
   deleteSubCategory: async (subId: string) => {
-    const response = await apiClient.delete(`/categories/sub-categories/${subId}`);
-    return response.data;
+    const response = await apiClient.delete(
+      `/categories/sub-categories/${subId}`
+    )
+    return response.data
   },
-};
+}
 
 // Property Types API
 export const propertyTypesApi = {
   getAll: async (subCategoryId?: string) => {
-    const response = await apiClient.get('/property-types', {
+    const response = await apiClient.get("/property-types", {
       params: subCategoryId ? { subCategoryId } : undefined,
-    });
-    return response.data;
+    })
+    return response.data
   },
 
   getAllAdmin: async (subCategoryId?: string) => {
-    const response = await apiClient.get('/property-types/admin', {
+    const response = await apiClient.get("/property-types/admin", {
       params: subCategoryId ? { subCategoryId } : undefined,
-    });
-    return response.data;
+    })
+    return response.data
   },
 
   create: async (data: {
-    subCategoryId?: string | null;
-    name: string;
-    slug: string;
-    icon?: string;
-    description?: string;
-    order?: number;
-    isActive?: boolean;
+    subCategoryId?: string | null
+    name: string
+    slug: string
+    icon?: string
+    description?: string
+    order?: number
+    isActive?: boolean
   }) => {
-    const response = await apiClient.post('/property-types', data);
-    return response.data;
+    const response = await apiClient.post("/property-types", data)
+    return response.data
   },
 
   update: async (
     id: string,
     data: {
-      subCategoryId?: string | null;
-      name?: string;
-      slug?: string;
-      icon?: string;
-      description?: string;
-      order?: number;
-      isActive?: boolean;
+      subCategoryId?: string | null
+      name?: string
+      slug?: string
+      icon?: string
+      description?: string
+      order?: number
+      isActive?: boolean
     }
   ) => {
-    const response = await apiClient.put(`/property-types/${id}`, data);
-    return response.data;
+    const response = await apiClient.put(`/property-types/${id}`, data)
+    return response.data
   },
 
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/property-types/${id}`);
-    return response.data;
+    const response = await apiClient.delete(`/property-types/${id}`)
+    return response.data
   },
-};
+}
 
 export interface AdminReview {
-  id: string;
-  rating: number;
-  comment: string;
-  propertyDetails?: string;
-  experienceTag?: string;
-  reviewerName?: string;
-  reviewerEmail?: string;
-  reviewerPhone?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  createdAt: string;
+  id: string
+  rating: number
+  comment: string
+  propertyDetails?: string
+  experienceTag?: string
+  reviewerName?: string
+  reviewerEmail?: string
+  reviewerPhone?: string
+  status: "PENDING" | "APPROVED" | "REJECTED"
+  createdAt: string
   reviewer?: {
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string;
-    email?: string;
-  };
+    id: string
+    name: string
+    username: string
+    avatarUrl?: string
+    email?: string
+  }
   targetUser?: {
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string;
-  };
+    id: string
+    name: string
+    username: string
+    avatarUrl?: string
+  }
 }
 
 export const reviewsApi = {
   getAll: async (status?: string): Promise<AdminReview[]> => {
-    const response = await apiClient.get('/reviews/admin/all', {
-      params: status && status !== 'ALL' ? { status } : undefined,
-    });
-    return response.data;
+    const response = await apiClient.get("/reviews/admin/all", {
+      params: status && status !== "ALL" ? { status } : undefined,
+    })
+    return response.data
   },
 
   getPending: async (): Promise<AdminReview[]> => {
-    const response = await apiClient.get('/reviews/admin/pending');
-    return response.data;
+    const response = await apiClient.get("/reviews/admin/pending")
+    return response.data
   },
 
   updateStatus: async (
     id: string,
-    status: 'APPROVED' | 'REJECTED'
+    status: "APPROVED" | "REJECTED"
   ): Promise<{ message: string; review: AdminReview }> => {
-    const response = await apiClient.patch(`/reviews/${id}/status`, { status });
-    return response.data;
+    const response = await apiClient.patch(`/reviews/${id}/status`, { status })
+    return response.data
   },
 
-  delete: async (id: string): Promise<{ message: string; deletedId: string }> => {
-    const response = await apiClient.delete(`/reviews/${id}`);
-    return response.data;
+  delete: async (
+    id: string
+  ): Promise<{ message: string; deletedId: string }> => {
+    const response = await apiClient.delete(`/reviews/${id}`)
+    return response.data
   },
-};
+}
 
 export interface ReelReportItem {
-  id: string;
-  reelId: string;
-  reason: string;
-  details?: string | null;
-  status: 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'DISMISSED';
-  adminNotes?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  id: string
+  reelId: string
+  reason: string
+  details?: string | null
+  status: "PENDING" | "REVIEWED" | "RESOLVED" | "DISMISSED"
+  adminNotes?: string | null
+  createdAt: string
+  updatedAt: string
   reporter?: {
-    id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-    avatarUrl?: string;
-  } | null;
+    id: string
+    name: string
+    email?: string
+    phone?: string
+    avatarUrl?: string
+  } | null
   reviewedBy?: {
-    id: string;
-    name: string;
-  } | null;
+    id: string
+    name: string
+  } | null
   reel?: {
-    id: string;
-    title: string;
-    caption?: string;
-    category?: string;
-    status: string;
-    createdAt?: string;
+    id: string
+    title: string
+    caption?: string
+    category?: string
+    status: string
+    createdAt?: string
     creator?: {
-      id: string;
-      name: string;
-      email?: string;
-      avatarUrl?: string;
-    } | null;
+      id: string
+      name: string
+      email?: string
+      avatarUrl?: string
+    } | null
     media?: {
-      hlsUrl?: string;
-      mp4Url?: string;
-      thumbnailUrl?: string;
-      duration?: number;
-    } | null;
-  } | null;
+      hlsUrl?: string
+      mp4Url?: string
+      thumbnailUrl?: string
+      duration?: number
+    } | null
+  } | null
 }
 
 export interface ReelReportsResponse {
-  items: ReelReportItem[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  items: ReelReportItem[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
   counts: {
-    total: number;
-    pending: number;
-    resolved: number;
-    dismissed: number;
-  };
+    total: number
+    pending: number
+    resolved: number
+    dismissed: number
+  }
 }
 
 export const reelReportsApi = {
   getAll: async (params?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    search?: string;
+    page?: number
+    limit?: number
+    status?: string
+    search?: string
   }): Promise<ReelReportsResponse> => {
-    const response = await apiClient.get('/reels/admin/reports', {
+    const response = await apiClient.get("/reels/admin/reports", {
       params: {
         page: params?.page,
         limit: params?.limit,
-        status: params?.status && params.status !== 'ALL' ? params.status : undefined,
+        status:
+          params?.status && params.status !== "ALL" ? params.status : undefined,
         search: params?.search || undefined,
       },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
   updateStatus: async (
     id: string,
-    status: 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'DISMISSED',
+    status: "PENDING" | "REVIEWED" | "RESOLVED" | "DISMISSED",
     adminNotes?: string
   ): Promise<{ success: boolean; message: string; report: ReelReportItem }> => {
-    const response = await apiClient.patch(`/reels/admin/reports/${id}/status`, {
-      status,
-      adminNotes,
-    });
-    return response.data;
+    const response = await apiClient.patch(
+      `/reels/admin/reports/${id}/status`,
+      {
+        status,
+        adminNotes,
+      }
+    )
+    return response.data
   },
 
-  takedownReel: async (id: string): Promise<{ success: boolean; message: string }> => {
-    const response = await apiClient.post(`/reels/admin/reports/${id}/takedown`);
-    return response.data;
+  takedownReel: async (
+    id: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.post(`/reels/admin/reports/${id}/takedown`)
+    return response.data
   },
-};
+}
 
-export default apiClient;
-
+export default apiClient

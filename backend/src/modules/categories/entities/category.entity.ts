@@ -28,6 +28,9 @@ export class Category {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ name: 'is_allowed_budget_selection', default: true })
+  isAllowedBudgetSelection: boolean;
+
   @OneToMany(() => SubCategory, (sub) => sub.category, {
     cascade: true,
     eager: true,

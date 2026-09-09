@@ -37,6 +37,7 @@ interface Category {
   icon: string | null;
   order: number;
   isActive: boolean;
+  isAllowedBudgetSelection?: boolean;
   reelsCount?: number;
   subCategories: SubCategory[];
 }
@@ -56,6 +57,7 @@ export const CategoriesPage: React.FC = () => {
   const [catIcon, setCatIcon] = useState('weekend_outlined');
   const [catOrder, setCatOrder] = useState<number>(1);
   const [catIsActive, setCatIsActive] = useState(true);
+  const [catIsAllowedBudgetSelection, setCatIsAllowedBudgetSelection] = useState(true);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   // SubCategory Modal State
@@ -123,6 +125,7 @@ export const CategoriesPage: React.FC = () => {
     setCatIcon('weekend_outlined');
     setCatOrder(categories.length + 1);
     setCatIsActive(true);
+    setCatIsAllowedBudgetSelection(true);
     setIsCategoryModalOpen(true);
   };
 
@@ -133,6 +136,7 @@ export const CategoriesPage: React.FC = () => {
     setCatIcon(cat.icon || 'weekend_outlined');
     setCatOrder(cat.order);
     setCatIsActive(cat.isActive);
+    setCatIsAllowedBudgetSelection(cat.isAllowedBudgetSelection ?? true);
     setIsCategoryModalOpen(true);
   };
 
@@ -148,6 +152,7 @@ export const CategoriesPage: React.FC = () => {
           icon: catIcon.trim(),
           order: Number(catOrder),
           isActive: catIsActive,
+          isAllowedBudgetSelection: catIsAllowedBudgetSelection,
         });
       } else {
         await categoriesApi.createCategory({
@@ -156,6 +161,7 @@ export const CategoriesPage: React.FC = () => {
           icon: catIcon.trim(),
           order: Number(catOrder),
           isActive: catIsActive,
+          isAllowedBudgetSelection: catIsAllowedBudgetSelection,
         });
       }
       setIsCategoryModalOpen(false);
@@ -536,6 +542,15 @@ export const CategoriesPage: React.FC = () => {
                             Deactivated
                           </span>
                         )}
+                        {cat.isAllowedBudgetSelection ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20" title="Budget Selection Enabled">
+                            Budget: ON
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border" title="Budget Selection Disabled">
+                            Budget: OFF
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                         <span>{subCount} Subcategories</span>
@@ -781,17 +796,32 @@ export const CategoriesPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="catActiveCheck"
-                  checked={catIsActive}
-                  onChange={(e) => setCatIsActive(e.target.checked)}
-                  className="h-4 w-4 text-primary rounded border-input focus:ring-primary"
-                />
-                <label htmlFor="catActiveCheck" className="text-xs font-medium text-foreground cursor-pointer">
-                  Active (Visible for reel uploads in mobile app)
-                </label>
+              <div className="flex flex-col gap-2 pt-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="catActiveCheck"
+                    checked={catIsActive}
+                    onChange={(e) => setCatIsActive(e.target.checked)}
+                    className="h-4 w-4 text-primary rounded border-input focus:ring-primary"
+                  />
+                  <label htmlFor="catActiveCheck" className="text-xs font-medium text-foreground cursor-pointer">
+                    Active (Visible for reel uploads in mobile app)
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="catBudgetCheck"
+                    checked={catIsAllowedBudgetSelection}
+                    onChange={(e) => setCatIsAllowedBudgetSelection(e.target.checked)}
+                    className="h-4 w-4 text-primary rounded border-input focus:ring-primary"
+                  />
+                  <label htmlFor="catBudgetCheck" className="text-xs font-medium text-foreground cursor-pointer">
+                    Allow Budget Selection (Show budget slider in app)
+                  </label>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-border">
