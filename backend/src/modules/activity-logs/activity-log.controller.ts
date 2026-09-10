@@ -29,17 +29,20 @@ export class ActivityLogController {
   @ApiResponse({ status: HttpStatus.OK, description: 'Activity list returned.' })
   @ApiQuery({ name: 'page', type: Number, required: false, example: 1 })
   @ApiQuery({ name: 'limit', type: Number, required: false, example: 30 })
+  @ApiQuery({ name: 'type', type: String, required: false })
   @Get()
   getMyActivity(
     @Req() req: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('type') type?: string,
   ) {
     const userId = req.user.sub;
     return this.activityLogService.getMyActivity(
       userId,
       page ? Number(page) : 1,
       limit ? Number(limit) : 30,
+      type,
     );
   }
 

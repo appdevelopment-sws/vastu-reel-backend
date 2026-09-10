@@ -88,28 +88,26 @@ export class ActivityLogService {
     userId: string,
     page = 1,
     limit = 30,
-  ): Promise<{
-    items: any[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-    hasMore: boolean;
-  }> {
+    type?: string,
+  ): Promise<{ items: any[]; total: number; page: number; limit: number; totalPages: number; hasMore: boolean }> {
     const skip = (page - 1) * limit;
 
-    const [items, total] = await this.logRepository
+    const qb = this.logRepository
       .createQueryBuilder('log')
       .leftJoinAndSelect('log.actor', 'actor')
-      .where('log.targetUserId = :userId', { userId })
-      .orWhere(
-        '(log.isGlobal = true AND log.actorId IN (SELECT following_id FROM follows WHERE follower_id = :userId))',
+      .where(
+        '(log.targetUserId = :userId OR (log.isGlobal = true AND log.actorId IN (SELECT following_id FROM follows WHERE follower_id = :userId)))',
         { userId },
       )
-      .orderBy('log.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+      .orderBy('log.createdAt', 'DESC');
+
+    if (type && type !== 'all') {
+      qb.andWhere('log.type = :type', { type });
+    }
+
+    qb.skip(skip).take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
 
     return {
       items: items.map((item) => this.formatEntry(item)),
