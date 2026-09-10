@@ -88,16 +88,24 @@ export class ActivityLogService {
     userId: string,
     page = 1,
     limit = 30,
-  ): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    items: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  }> {
     const skip = (page - 1) * limit;
 
     const [items, total] = await this.logRepository
       .createQueryBuilder('log')
       .leftJoinAndSelect('log.actor', 'actor')
-      .where('(log.isGlobal = :isGlobal OR log.targetUserId = :userId)', {
-        isGlobal: true,
-        userId,
-      })
+      .where('log.targetUserId = :userId', { userId })
+      .orWhere(
+        '(log.isGlobal = true AND log.actorId IN (SELECT following_id FROM follows WHERE follower_id = :userId))',
+        { userId },
+      )
       .orderBy('log.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
@@ -108,6 +116,8 @@ export class ActivityLogService {
       total,
       page,
       limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page < Math.ceil(total / limit),
     };
   }
 
@@ -117,7 +127,14 @@ export class ActivityLogService {
   async getGlobalActivity(
     page = 1,
     limit = 30,
-  ): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    items: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  }> {
     const skip = (page - 1) * limit;
 
     const [items, total] = await this.logRepository
@@ -134,6 +151,8 @@ export class ActivityLogService {
       total,
       page,
       limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page < Math.ceil(total / limit),
     };
   }
 
@@ -145,7 +164,14 @@ export class ActivityLogService {
     limit = 30,
     type?: string,
     search?: string,
-  ): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    items: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  }> {
     const skip = (page - 1) * limit;
 
     const qb = this.logRepository
@@ -173,14 +199,15 @@ export class ActivityLogService {
       total,
       page,
       limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page < Math.ceil(total / limit),
     };
   }
 
   private formatEntry(log: ActivityLog): Record<string, any> {
-    const actorDisplayName =
-      log.actor?.username
-        ? `@${log.actor.username}`
-        : log.actor?.name || log.metadata?.actorName || null;
+    const actorDisplayName = log.actor?.username
+      ? `@${log.actor.username}`
+      : log.actor?.name || log.metadata?.actorName || null;
 
     let message = log.message;
     if (actorDisplayName && message.startsWith('Someone ')) {
@@ -201,4 +228,3 @@ export class ActivityLogService {
     };
   }
 }
-
