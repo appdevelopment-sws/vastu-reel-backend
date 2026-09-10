@@ -86,7 +86,7 @@ export class ReelsProcessor extends WorkerHost {
       fs.mkdirSync(p360Dir, { recursive: true });
       console.log(`Transcoding 360p playlist...`);
       await execPromise(
-        `ffmpeg -y -i "${inputFilePath}" -vf "scale=-2:640" -c:v libx264 -profile:v baseline -level 3.0 -c:a aac -ac 2 -b:a 96k -b:v 800k -maxrate 850k -bufsize 1200k -hls_time 4 -hls_playlist_type vod -hls_segment_filename "${p360Dir}/segment%03d.ts" "${p360Dir}/playlist.m3u8"`,
+        `ffmpeg -y -i "${inputFilePath}" -vf "scale=-2:640" -c:v libx264 -pix_fmt yuv420p -profile:v baseline -level 3.0 -preset fast -crf 28 -maxrate 1000k -bufsize 2000k -c:a aac -ac 2 -b:a 96k -hls_time 4 -hls_playlist_type vod -hls_segment_filename "${p360Dir}/segment%03d.ts" "${p360Dir}/playlist.m3u8"`,
       );
       variants.push({
         resolution: '360p',
@@ -105,7 +105,7 @@ export class ReelsProcessor extends WorkerHost {
         // Using -vf "scale=-2:1280" for vertical video, or check orientation
         const targetScale = height >= width ? 'scale=-2:1280' : 'scale=1280:-2';
         await execPromise(
-          `ffmpeg -y -i "${inputFilePath}" -vf "${targetScale}" -c:v libx264 -profile:v main -level 3.1 -c:a aac -ac 2 -b:a 128k -b:v 2500k -maxrate 2600k -bufsize 4000k -hls_time 4 -hls_playlist_type vod -hls_segment_filename "${p720Dir}/segment%03d.ts" "${p720Dir}/playlist.m3u8"`,
+          `ffmpeg -y -i "${inputFilePath}" -vf "${targetScale}" -c:v libx264 -pix_fmt yuv420p -profile:v main -level 3.1 -preset fast -crf 23 -maxrate 2500k -bufsize 5000k -c:a aac -ac 2 -b:a 128k -hls_time 4 -hls_playlist_type vod -hls_segment_filename "${p720Dir}/segment%03d.ts" "${p720Dir}/playlist.m3u8"`,
         );
         variants.push({
           resolution: '720p',
