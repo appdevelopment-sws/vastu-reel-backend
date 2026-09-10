@@ -311,6 +311,22 @@ export class ReelsService {
         { bookmarkUserId: userId },
       );
     }
+    if (query.history && userId) {
+      qb.innerJoin(
+        'reel.views',
+        'userView',
+        'userView.userId = :historyUserId',
+        { historyUserId: userId },
+      );
+    }
+    if (query.commented && userId) {
+      qb.innerJoin(
+        'reel.comments',
+        'userComment',
+        'userComment.userId = :commentUserId',
+        { commentUserId: userId },
+      );
+    }
     if (query.search && query.search.trim()) {
       const searchTerms = query.search.trim().split(/\s+/).filter(Boolean);
       qb.andWhere(
@@ -326,7 +342,11 @@ export class ReelsService {
       );
     }
 
-    if (query.sortBy === FeedSortBy.VIEWS) {
+    if (query.history && userId) {
+      qb.orderBy('userView.createdAt', 'DESC');
+    } else if (query.commented && userId) {
+      qb.orderBy('userComment.createdAt', 'DESC');
+    } else if (query.sortBy === FeedSortBy.VIEWS) {
       qb.orderBy('reel.viewsCount', 'DESC').addOrderBy(
         'reel.createdAt',
         'DESC',

@@ -89,6 +89,28 @@ export class ReelsController {
     return this.reelsService.getFeed(userId, query, requestHost);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get recently watched reels (History)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'History retrieved.' })
+  @Get('history')
+  getHistory(@Req() req: any, @Query() query: FeedQueryDto) {
+    const userId = req.user.sub;
+    const requestHost = req.headers.host;
+    query.history = true;
+    return this.reelsService.getFeed(userId, query, requestHost);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get reels commented on by current user' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Commented reels retrieved.' })
+  @Get('commented')
+  getCommented(@Req() req: any, @Query() query: FeedQueryDto) {
+    const userId = req.user.sub;
+    const requestHost = req.headers.host;
+    query.commented = true;
+    return this.reelsService.getFeed(userId, query, requestHost);
+  }
+
   @Public()
   @ApiOperation({ summary: 'Get dynamic trending tags and trending videos' })
   @ApiResponse({

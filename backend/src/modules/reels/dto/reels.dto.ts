@@ -240,6 +240,18 @@ export class FeedQueryDto {
   @IsOptional()
   saved?: boolean;
 
+  @ApiProperty({ example: false, required: false })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  history?: boolean;
+
+  @ApiProperty({ example: false, required: false })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  commented?: boolean;
+
   @ApiProperty({ example: 'kitchen vastu north', required: false })
   @IsString()
   @IsOptional()
