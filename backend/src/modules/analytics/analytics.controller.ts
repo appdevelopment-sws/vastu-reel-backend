@@ -22,7 +22,7 @@ export class AnalyticsController {
     const currentUserId = req?.user?.sub;
     const requestHost = req?.headers?.host;
     return this.analyticsService.getWeeklyCreatorLeaderboard(
-      query.limit ? Number(query.limit) : 10,
+      query.limit ? Number(query.limit) : 13,
       currentUserId,
       requestHost,
     );

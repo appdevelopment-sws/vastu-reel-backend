@@ -57,12 +57,12 @@ export class ChartQueryDto extends AnalyticsQueryDto {
 }
 
 export class WeeklyLeaderboardQueryDto extends AnalyticsQueryDto {
-  @ApiPropertyOptional({ default: 10, description: 'Number of top creators to return' })
+  @ApiPropertyOptional({ default: 13, description: 'Number of top creators to return' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  limit?: number = 10;
+  limit?: number = 13;
 }
 

@@ -48,7 +48,9 @@ export class AnalyticsService {
   /**
    * Helper to compute start & previous-period date ranges based on timeframe.
    */
-  private getDateRanges(timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS): {
+  private getDateRanges(
+    timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS,
+  ): {
     currentStart: Date;
     currentEnd: Date;
     previousStart: Date;
@@ -65,7 +67,9 @@ export class AnalyticsService {
     const currentStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     const currentEnd = now;
 
-    const previousStart = new Date(now.getTime() - 2 * days * 24 * 60 * 60 * 1000);
+    const previousStart = new Date(
+      now.getTime() - 2 * days * 24 * 60 * 60 * 1000,
+    );
     const previousEnd = currentStart;
 
     return { currentStart, currentEnd, previousStart, previousEnd, days };
@@ -85,14 +89,18 @@ export class AnalyticsService {
   /**
    * Helper to dynamically extract and group top geographic regions from active users and reels
    */
-  private async getDynamicGeographicRegions(creatorUserId?: string): Promise<{ region: string; percentage: number; count: number }[]> {
+  private async getDynamicGeographicRegions(
+    creatorUserId?: string,
+  ): Promise<{ region: string; percentage: number; count: number }[]> {
     const locationCounts = new Map<string, number>();
 
     // 1. Extract from User addresses
     const userQuery = this.userRepository
       .createQueryBuilder('user')
       .select('user.address', 'address')
-      .where('user.address IS NOT NULL AND user.address != :empty', { empty: '' });
+      .where('user.address IS NOT NULL AND user.address != :empty', {
+        empty: '',
+      });
 
     const userAddresses = await userQuery.getRawMany();
     for (const u of userAddresses) {
@@ -106,7 +114,9 @@ export class AnalyticsService {
     const reelQuery = this.reelRepository
       .createQueryBuilder('reel')
       .select('reel.location', 'location')
-      .where('reel.location IS NOT NULL AND reel.location != :empty', { empty: '' })
+      .where('reel.location IS NOT NULL AND reel.location != :empty', {
+        empty: '',
+      })
       .andWhere('reel.status = :status', { status: ReelStatus.READY });
 
     if (creatorUserId) {
@@ -121,7 +131,10 @@ export class AnalyticsService {
       }
     }
 
-    const totalLocations = Array.from(locationCounts.values()).reduce((sum, c) => sum + c, 0);
+    const totalLocations = Array.from(locationCounts.values()).reduce(
+      (sum, c) => sum + c,
+      0,
+    );
 
     if (totalLocations === 0) {
       return [];
@@ -144,7 +157,10 @@ export class AnalyticsService {
     const trimmed = raw.trim();
     if (trimmed.length < 2) return null;
 
-    const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+    const parts = trimmed
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
     if (parts.length > 0) {
       return parts[0];
     }
@@ -154,8 +170,12 @@ export class AnalyticsService {
   /**
    * 1. Creator Overview Metrics
    */
-  async getOverview(userId: string, timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS) {
-    const { currentStart, currentEnd, previousStart, previousEnd } = this.getDateRanges(timeframe);
+  async getOverview(
+    userId: string,
+    timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS,
+  ) {
+    const { currentStart, currentEnd, previousStart, previousEnd } =
+      this.getDateRanges(timeframe);
 
     // Get all creator's reel IDs
     const creatorReels = await this.reelRepository.find({
@@ -165,7 +185,10 @@ export class AnalyticsService {
     const reelIds = creatorReels.map((r) => r.id);
 
     const totalReels = creatorReels.length;
-    const allTimeViews = creatorReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
+    const allTimeViews = creatorReels.reduce(
+      (sum, r) => sum + Number(r.viewsCount || 0),
+      0,
+    );
 
     let currentViews = 0;
     let previousViews = 0;
@@ -185,13 +208,19 @@ export class AnalyticsService {
         currentViews = await this.viewRepository
           .createQueryBuilder('view')
           .where('view.reelId IN (:...reelIds)', { reelIds })
-          .andWhere('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+          .andWhere('view.createdAt BETWEEN :start AND :end', {
+            start: currentStart,
+            end: currentEnd,
+          })
           .getCount();
 
         previousViews = await this.viewRepository
           .createQueryBuilder('view')
           .where('view.reelId IN (:...reelIds)', { reelIds })
-          .andWhere('view.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+          .andWhere('view.createdAt BETWEEN :start AND :end', {
+            start: previousStart,
+            end: previousEnd,
+          })
           .getCount();
       }
 
@@ -199,39 +228,57 @@ export class AnalyticsService {
       currentLikes = await this.likeRepository
         .createQueryBuilder('like')
         .where('like.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('like.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .andWhere('like.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getCount();
 
       previousLikes = await this.likeRepository
         .createQueryBuilder('like')
         .where('like.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('like.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+        .andWhere('like.createdAt BETWEEN :start AND :end', {
+          start: previousStart,
+          end: previousEnd,
+        })
         .getCount();
 
       // Comments
       currentComments = await this.commentRepository
         .createQueryBuilder('comment')
         .where('comment.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('comment.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .andWhere('comment.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getCount();
 
       previousComments = await this.commentRepository
         .createQueryBuilder('comment')
         .where('comment.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('comment.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+        .andWhere('comment.createdAt BETWEEN :start AND :end', {
+          start: previousStart,
+          end: previousEnd,
+        })
         .getCount();
 
       // Bookmarks / Saves
       currentBookmarks = await this.bookmarkRepository
         .createQueryBuilder('bookmark')
         .where('bookmark.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('bookmark.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .andWhere('bookmark.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getCount();
 
       previousBookmarks = await this.bookmarkRepository
         .createQueryBuilder('bookmark')
         .where('bookmark.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('bookmark.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+        .andWhere('bookmark.createdAt BETWEEN :start AND :end', {
+          start: previousStart,
+          end: previousEnd,
+        })
         .getCount();
 
       // Unique Viewers
@@ -239,7 +286,10 @@ export class AnalyticsService {
         .createQueryBuilder('view')
         .select('COUNT(DISTINCT COALESCE(view.userId, view.ipAddress))', 'cnt')
         .where('view.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .andWhere('view.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getRawOne();
       uniqueViewers = parseInt(uniqueQuery?.cnt || '0', 10);
     }
@@ -264,13 +314,19 @@ export class AnalyticsService {
     });
 
     // Engagement calculation: ((likes + comments + bookmarks) / views) * 100
-    const currentEngagements = currentLikes + currentComments + currentBookmarks;
-    const previousEngagements = previousLikes + previousComments + previousBookmarks;
+    const currentEngagements =
+      currentLikes + currentComments + currentBookmarks;
+    const previousEngagements =
+      previousLikes + previousComments + previousBookmarks;
 
     const currentEngagementRate =
-      currentViews > 0 ? parseFloat(((currentEngagements / currentViews) * 100).toFixed(2)) : 0;
+      currentViews > 0
+        ? parseFloat(((currentEngagements / currentViews) * 100).toFixed(2))
+        : 0;
     const previousEngagementRate =
-      previousViews > 0 ? parseFloat(((previousEngagements / previousViews) * 100).toFixed(2)) : 0;
+      previousViews > 0
+        ? parseFloat(((previousEngagements / previousViews) * 100).toFixed(2))
+        : 0;
 
     return {
       timeframe,
@@ -286,20 +342,32 @@ export class AnalyticsService {
       },
       comments: {
         total: currentComments,
-        growthPercentage: this.calculateGrowth(currentComments, previousComments),
+        growthPercentage: this.calculateGrowth(
+          currentComments,
+          previousComments,
+        ),
       },
       bookmarks: {
         total: currentBookmarks,
-        growthPercentage: this.calculateGrowth(currentBookmarks, previousBookmarks),
+        growthPercentage: this.calculateGrowth(
+          currentBookmarks,
+          previousBookmarks,
+        ),
       },
       followers: {
         total: totalFollowers,
         newGained: newFollowersCurrent,
-        growthPercentage: this.calculateGrowth(newFollowersCurrent, newFollowersPrevious),
+        growthPercentage: this.calculateGrowth(
+          newFollowersCurrent,
+          newFollowersPrevious,
+        ),
       },
       engagementRate: {
         rate: currentEngagementRate,
-        growthPercentage: this.calculateGrowth(currentEngagementRate, previousEngagementRate),
+        growthPercentage: this.calculateGrowth(
+          currentEngagementRate,
+          previousEngagementRate,
+        ),
       },
       uniqueViewers,
     };
@@ -329,10 +397,25 @@ export class AnalyticsService {
     const bucketIntervalMs = (days * 24 * 60 * 60 * 1000) / pointsCount;
     const dataPoints: ChartDataPoint[] = [];
 
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
 
     for (let i = 0; i < pointsCount; i++) {
-      const bucketStart = new Date(currentStart.getTime() + i * bucketIntervalMs);
+      const bucketStart = new Date(
+        currentStart.getTime() + i * bucketIntervalMs,
+      );
       const bucketEnd = new Date(bucketStart.getTime() + bucketIntervalMs);
 
       const label = `${bucketStart.getDate()} ${monthNames[bucketStart.getMonth()]}`;
@@ -347,19 +430,28 @@ export class AnalyticsService {
         views = await this.viewRepository
           .createQueryBuilder('view')
           .where('view.reelId IN (:...reelIds)', { reelIds })
-          .andWhere('view.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .andWhere('view.createdAt BETWEEN :start AND :end', {
+            start: bucketStart,
+            end: bucketEnd,
+          })
           .getCount();
 
         likes = await this.likeRepository
           .createQueryBuilder('like')
           .where('like.reelId IN (:...reelIds)', { reelIds })
-          .andWhere('like.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .andWhere('like.createdAt BETWEEN :start AND :end', {
+            start: bucketStart,
+            end: bucketEnd,
+          })
           .getCount();
 
         comments = await this.commentRepository
           .createQueryBuilder('comment')
           .where('comment.reelId IN (:...reelIds)', { reelIds })
-          .andWhere('comment.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .andWhere('comment.createdAt BETWEEN :start AND :end', {
+            start: bucketStart,
+            end: bucketEnd,
+          })
           .getCount();
       }
 
@@ -390,7 +482,11 @@ export class AnalyticsService {
   /**
    * 3. Top Performing Reels
    */
-  async getTopReels(userId: string, query: TopReelsQueryDto, requestHost?: string) {
+  async getTopReels(
+    userId: string,
+    query: TopReelsQueryDto,
+    requestHost?: string,
+  ) {
     const limit = query.limit || 10;
     const sortBy = query.sortBy || AnalyticsSortBy.VIEWS;
 
@@ -411,21 +507,38 @@ export class AnalyticsService {
       const viewsCount = reel.viewsCount || 0;
       const engagementRate =
         viewsCount > 0
-          ? parseFloat((((likesCount + commentsCount + bookmarksCount) / viewsCount) * 100).toFixed(2))
+          ? parseFloat(
+              (
+                ((likesCount + commentsCount + bookmarksCount) / viewsCount) *
+                100
+              ).toFixed(2),
+            )
           : 0;
 
       let thumbnailUrl = '';
       if (reel.media?.thumbnailKey) {
-        thumbnailUrl = this.storageService.getObjectUrl(reel.media.thumbnailKey, requestHost);
+        thumbnailUrl = this.storageService.getObjectUrl(
+          reel.media.thumbnailKey,
+          requestHost,
+        );
       } else if (reel.media?.originalKey) {
-        thumbnailUrl = this.storageService.getObjectUrl(reel.media.originalKey, requestHost);
+        thumbnailUrl = this.storageService.getObjectUrl(
+          reel.media.originalKey,
+          requestHost,
+        );
       }
 
       let videoUrl = '';
       if (reel.media?.hlsKey) {
-        videoUrl = this.storageService.getObjectUrl(reel.media.hlsKey, requestHost);
+        videoUrl = this.storageService.getObjectUrl(
+          reel.media.hlsKey,
+          requestHost,
+        );
       } else if (reel.media?.originalKey) {
-        videoUrl = this.storageService.getObjectUrl(reel.media.originalKey, requestHost);
+        videoUrl = this.storageService.getObjectUrl(
+          reel.media.originalKey,
+          requestHost,
+        );
       }
 
       return {
@@ -446,15 +559,22 @@ export class AnalyticsService {
 
     formatted.sort((a, b) => {
       if (sortBy === AnalyticsSortBy.LIKES) return b.likesCount - a.likesCount;
-      if (sortBy === AnalyticsSortBy.COMMENTS) return b.commentsCount - a.commentsCount;
-      if (sortBy === AnalyticsSortBy.ENGAGEMENT_RATE) return b.engagementRate - a.engagementRate;
+      if (sortBy === AnalyticsSortBy.COMMENTS)
+        return b.commentsCount - a.commentsCount;
+      if (sortBy === AnalyticsSortBy.ENGAGEMENT_RATE)
+        return b.engagementRate - a.engagementRate;
       return b.viewsCount - a.viewsCount;
     });
 
     const rankedReels = formatted.slice(0, limit).map((r, index) => ({
       ...r,
       rank: index + 1,
-      performanceBadge: index === 0 ? 'Top 1% Winner' : index < 3 ? 'High Performer' : 'Trending',
+      performanceBadge:
+        index === 0
+          ? 'Top 1% Winner'
+          : index < 3
+            ? 'High Performer'
+            : 'Trending',
     }));
 
     return {
@@ -467,7 +587,10 @@ export class AnalyticsService {
   /**
    * 4. Vastu Category Performance Breakdown
    */
-  async getCategoryPerformance(userId: string, timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS) {
+  async getCategoryPerformance(
+    userId: string,
+    timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS,
+  ) {
     const reels = await this.reelRepository
       .createQueryBuilder('reel')
       .leftJoinAndSelect('reel.likes', 'likes')
@@ -475,12 +598,19 @@ export class AnalyticsService {
       .andWhere('reel.status = :status', { status: ReelStatus.READY })
       .getMany();
 
-    const categoryMap = new Map<string, { views: number; likes: number; reelCount: number }>();
+    const categoryMap = new Map<
+      string,
+      { views: number; likes: number; reelCount: number }
+    >();
     let totalViewsAcrossCategories = 0;
 
     for (const r of reels) {
       const cat = r.category || 'General Vastu';
-      const existing = categoryMap.get(cat) || { views: 0, likes: 0, reelCount: 0 };
+      const existing = categoryMap.get(cat) || {
+        views: 0,
+        likes: 0,
+        reelCount: 0,
+      };
       existing.views += Number(r.viewsCount || 0);
       existing.likes += r.likes?.length || 0;
       existing.reelCount += 1;
@@ -491,7 +621,9 @@ export class AnalyticsService {
     const categories = Array.from(categoryMap.entries()).map(([name, data]) => {
       const percentage =
         totalViewsAcrossCategories > 0
-          ? parseFloat(((data.views / totalViewsAcrossCategories) * 100).toFixed(1))
+          ? parseFloat(
+              ((data.views / totalViewsAcrossCategories) * 100).toFixed(1),
+            )
           : parseFloat((100 / (categoryMap.size || 1)).toFixed(1));
 
       return {
@@ -514,7 +646,10 @@ export class AnalyticsService {
   /**
    * 5. Audience & Peak Activity Insights
    */
-  async getAudienceInsights(userId: string, timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS) {
+  async getAudienceInsights(
+    userId: string,
+    timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS,
+  ) {
     const { currentStart, currentEnd } = this.getDateRanges(timeframe);
 
     const creatorReels = await this.reelRepository.find({
@@ -543,7 +678,10 @@ export class AnalyticsService {
         .createQueryBuilder('view')
         .select('view.createdAt', 'createdAt')
         .where('view.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .andWhere('view.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getRawMany();
       totalViewsCount = views.length;
 
@@ -551,7 +689,10 @@ export class AnalyticsService {
         .createQueryBuilder('like')
         .select('like.createdAt', 'createdAt')
         .where('like.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('like.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .andWhere('like.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getRawMany();
       totalLikesCount = likes.length;
 
@@ -559,17 +700,25 @@ export class AnalyticsService {
         .createQueryBuilder('comment')
         .select('comment.createdAt', 'createdAt')
         .where('comment.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('comment.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .andWhere('comment.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getRawMany();
       totalCommentsCount = comments.length;
 
       totalBookmarksCount = await this.bookmarkRepository
         .createQueryBuilder('bookmark')
         .where('bookmark.reelId IN (:...reelIds)', { reelIds })
-        .andWhere('bookmark.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .andWhere('bookmark.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getCount();
 
-      const allDates: Date[] = [...views, ...likes, ...comments].map((r) => new Date(r.createdAt));
+      const allDates: Date[] = [...views, ...likes, ...comments].map(
+        (r) => new Date(r.createdAt),
+      );
       totalRecordedActivities = allDates.length;
 
       for (const d of allDates) {
@@ -627,12 +776,52 @@ export class AnalyticsService {
 
     const topGeographicRegions = await this.getDynamicGeographicRegions(userId);
 
-    const totalInteractions = totalViewsCount + totalLikesCount + totalCommentsCount + totalBookmarksCount;
+    const totalInteractions =
+      totalViewsCount +
+      totalLikesCount +
+      totalCommentsCount +
+      totalBookmarksCount;
     const engagementBreakdown = [
-      { name: 'Video Views', count: totalViewsCount, percentage: totalInteractions > 0 ? parseFloat(((totalViewsCount / totalInteractions) * 100).toFixed(1)) : 0 },
-      { name: 'Likes & Reactions', count: totalLikesCount, percentage: totalInteractions > 0 ? parseFloat(((totalLikesCount / totalInteractions) * 100).toFixed(1)) : 0 },
-      { name: 'Comments', count: totalCommentsCount, percentage: totalInteractions > 0 ? parseFloat(((totalCommentsCount / totalInteractions) * 100).toFixed(1)) : 0 },
-      { name: 'Bookmarks & Saves', count: totalBookmarksCount, percentage: totalInteractions > 0 ? parseFloat(((totalBookmarksCount / totalInteractions) * 100).toFixed(1)) : 0 },
+      {
+        name: 'Video Views',
+        count: totalViewsCount,
+        percentage:
+          totalInteractions > 0
+            ? parseFloat(
+                ((totalViewsCount / totalInteractions) * 100).toFixed(1),
+              )
+            : 0,
+      },
+      {
+        name: 'Likes & Reactions',
+        count: totalLikesCount,
+        percentage:
+          totalInteractions > 0
+            ? parseFloat(
+                ((totalLikesCount / totalInteractions) * 100).toFixed(1),
+              )
+            : 0,
+      },
+      {
+        name: 'Comments',
+        count: totalCommentsCount,
+        percentage:
+          totalInteractions > 0
+            ? parseFloat(
+                ((totalCommentsCount / totalInteractions) * 100).toFixed(1),
+              )
+            : 0,
+      },
+      {
+        name: 'Bookmarks & Saves',
+        count: totalBookmarksCount,
+        percentage:
+          totalInteractions > 0
+            ? parseFloat(
+                ((totalBookmarksCount / totalInteractions) * 100).toFixed(1),
+              )
+            : 0,
+      },
     ];
 
     return {
@@ -692,8 +881,13 @@ export class AnalyticsService {
       where: { userId, status: ReelStatus.READY },
       select: { id: true, viewsCount: true },
     });
-    const totalViews = creatorReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
-    const totalFollowers = await this.followRepository.count({ where: { followingId: userId } });
+    const totalViews = creatorReels.reduce(
+      (sum, r) => sum + Number(r.viewsCount || 0),
+      0,
+    );
+    const totalFollowers = await this.followRepository.count({
+      where: { followingId: userId },
+    });
 
     const milestones = [
       {
@@ -701,7 +895,10 @@ export class AnalyticsService {
         title: 'First 1,000 Views',
         description: 'Your Vastu reels crossed the 1K milestone!',
         isUnlocked: totalViews >= 1000,
-        progressPercentage: Math.min(100, Math.round((totalViews / 1000) * 100)),
+        progressPercentage: Math.min(
+          100,
+          Math.round((totalViews / 1000) * 100),
+        ),
         badgeIcon: 'celebration',
       },
       {
@@ -709,7 +906,10 @@ export class AnalyticsService {
         title: 'Rising Vastu Expert',
         description: 'Gain 50 loyal followers seeking Vedic consultation',
         isUnlocked: totalFollowers >= 50,
-        progressPercentage: Math.min(100, Math.round((totalFollowers / 50) * 100)),
+        progressPercentage: Math.min(
+          100,
+          Math.round((totalFollowers / 50) * 100),
+        ),
         badgeIcon: 'trending_up',
       },
       {
@@ -717,7 +917,10 @@ export class AnalyticsService {
         title: 'Consistent Creator',
         description: 'Upload 5 insightful Vastu remedies',
         isUnlocked: creatorReels.length >= 5,
-        progressPercentage: Math.min(100, Math.round((creatorReels.length / 5) * 100)),
+        progressPercentage: Math.min(
+          100,
+          Math.round((creatorReels.length / 5) * 100),
+        ),
         badgeIcon: 'stars',
       },
       {
@@ -725,7 +928,10 @@ export class AnalyticsService {
         title: '10K Mega Reach',
         description: 'Amass over 10,000 collective video views',
         isUnlocked: totalViews >= 10000,
-        progressPercentage: Math.min(100, Math.round((totalViews / 10000) * 100)),
+        progressPercentage: Math.min(
+          100,
+          Math.round((totalViews / 10000) * 100),
+        ),
         badgeIcon: 'workspace_premium',
       },
     ];
@@ -733,15 +939,18 @@ export class AnalyticsService {
     const tips = [
       {
         title: 'Optimal Posting Window',
-        description: 'Schedule reels during peak audience hours to maximize immediate discovery.',
+        description:
+          'Schedule reels during peak audience hours to maximize immediate discovery.',
       },
       {
         title: 'Top Category Engagement',
-        description: 'Focus on high-demand Vastu remedies to increase saves and bookmark frequency.',
+        description:
+          'Focus on high-demand Vastu remedies to increase saves and bookmark frequency.',
       },
       {
         title: 'Audience Interaction',
-        description: 'Replying to comments promptly builds engagement velocity across the community.',
+        description:
+          'Replying to comments promptly builds engagement velocity across the community.',
       },
     ];
 
@@ -754,15 +963,21 @@ export class AnalyticsService {
   /**
    * 8. Platform-Wide Overview Metrics (Admin)
    */
-  async getPlatformOverview(timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS) {
-    const { currentStart, currentEnd, previousStart, previousEnd } = this.getDateRanges(timeframe);
+  async getPlatformOverview(
+    timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS,
+  ) {
+    const { currentStart, currentEnd, previousStart, previousEnd } =
+      this.getDateRanges(timeframe);
 
     const allReels = await this.reelRepository.find({
       where: { status: ReelStatus.READY },
       select: { id: true, viewsCount: true, userId: true },
     });
     const totalReels = allReels.length;
-    const allTimeViews = allReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
+    const allTimeViews = allReels.reduce(
+      (sum, r) => sum + Number(r.viewsCount || 0),
+      0,
+    );
 
     const totalUsers = await this.userRepository.count();
     const uniqueCreators = new Set(allReels.map((r) => r.userId)).size;
@@ -784,60 +999,93 @@ export class AnalyticsService {
       } else {
         currentViews = await this.viewRepository
           .createQueryBuilder('view')
-          .where('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+          .where('view.createdAt BETWEEN :start AND :end', {
+            start: currentStart,
+            end: currentEnd,
+          })
           .getCount();
 
         previousViews = await this.viewRepository
           .createQueryBuilder('view')
-          .where('view.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+          .where('view.createdAt BETWEEN :start AND :end', {
+            start: previousStart,
+            end: previousEnd,
+          })
           .getCount();
       }
 
       currentLikes = await this.likeRepository
         .createQueryBuilder('like')
-        .where('like.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .where('like.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getCount();
 
       previousLikes = await this.likeRepository
         .createQueryBuilder('like')
-        .where('like.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+        .where('like.createdAt BETWEEN :start AND :end', {
+          start: previousStart,
+          end: previousEnd,
+        })
         .getCount();
 
       currentComments = await this.commentRepository
         .createQueryBuilder('comment')
-        .where('comment.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .where('comment.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getCount();
 
       previousComments = await this.commentRepository
         .createQueryBuilder('comment')
-        .where('comment.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+        .where('comment.createdAt BETWEEN :start AND :end', {
+          start: previousStart,
+          end: previousEnd,
+        })
         .getCount();
 
       currentBookmarks = await this.bookmarkRepository
         .createQueryBuilder('bookmark')
-        .where('bookmark.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .where('bookmark.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getCount();
 
       previousBookmarks = await this.bookmarkRepository
         .createQueryBuilder('bookmark')
-        .where('bookmark.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+        .where('bookmark.createdAt BETWEEN :start AND :end', {
+          start: previousStart,
+          end: previousEnd,
+        })
         .getCount();
 
       const uniqueQuery = await this.viewRepository
         .createQueryBuilder('view')
         .select('COUNT(DISTINCT COALESCE(view.userId, view.ipAddress))', 'cnt')
-        .where('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+        .where('view.createdAt BETWEEN :start AND :end', {
+          start: currentStart,
+          end: currentEnd,
+        })
         .getRawOne();
       uniqueViewers = parseInt(uniqueQuery?.cnt || '0', 10);
     }
 
-    const currentEngagements = currentLikes + currentComments + currentBookmarks;
-    const previousEngagements = previousLikes + previousComments + previousBookmarks;
+    const currentEngagements =
+      currentLikes + currentComments + currentBookmarks;
+    const previousEngagements =
+      previousLikes + previousComments + previousBookmarks;
 
     const currentEngagementRate =
-      currentViews > 0 ? parseFloat(((currentEngagements / currentViews) * 100).toFixed(2)) : 0;
+      currentViews > 0
+        ? parseFloat(((currentEngagements / currentViews) * 100).toFixed(2))
+        : 0;
     const previousEngagementRate =
-      previousViews > 0 ? parseFloat(((previousEngagements / previousViews) * 100).toFixed(2)) : 0;
+      previousViews > 0
+        ? parseFloat(((previousEngagements / previousViews) * 100).toFixed(2))
+        : 0;
 
     return {
       timeframe,
@@ -856,15 +1104,24 @@ export class AnalyticsService {
       },
       comments: {
         total: currentComments,
-        growthPercentage: this.calculateGrowth(currentComments, previousComments),
+        growthPercentage: this.calculateGrowth(
+          currentComments,
+          previousComments,
+        ),
       },
       bookmarks: {
         total: currentBookmarks,
-        growthPercentage: this.calculateGrowth(currentBookmarks, previousBookmarks),
+        growthPercentage: this.calculateGrowth(
+          currentBookmarks,
+          previousBookmarks,
+        ),
       },
       engagementRate: {
         rate: currentEngagementRate,
-        growthPercentage: this.calculateGrowth(currentEngagementRate, previousEngagementRate),
+        growthPercentage: this.calculateGrowth(
+          currentEngagementRate,
+          previousEngagementRate,
+        ),
       },
       uniqueViewers,
     };
@@ -881,10 +1138,25 @@ export class AnalyticsService {
     const bucketIntervalMs = (days * 24 * 60 * 60 * 1000) / pointsCount;
     const dataPoints: ChartDataPoint[] = [];
 
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
 
     for (let i = 0; i < pointsCount; i++) {
-      const bucketStart = new Date(currentStart.getTime() + i * bucketIntervalMs);
+      const bucketStart = new Date(
+        currentStart.getTime() + i * bucketIntervalMs,
+      );
       const bucketEnd = new Date(bucketStart.getTime() + bucketIntervalMs);
 
       const label = `${bucketStart.getDate()} ${monthNames[bucketStart.getMonth()]}`;
@@ -892,17 +1164,26 @@ export class AnalyticsService {
 
       const views = await this.viewRepository
         .createQueryBuilder('view')
-        .where('view.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+        .where('view.createdAt BETWEEN :start AND :end', {
+          start: bucketStart,
+          end: bucketEnd,
+        })
         .getCount();
 
       const likes = await this.likeRepository
         .createQueryBuilder('like')
-        .where('like.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+        .where('like.createdAt BETWEEN :start AND :end', {
+          start: bucketStart,
+          end: bucketEnd,
+        })
         .getCount();
 
       const comments = await this.commentRepository
         .createQueryBuilder('comment')
-        .where('comment.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+        .where('comment.createdAt BETWEEN :start AND :end', {
+          start: bucketStart,
+          end: bucketEnd,
+        })
         .getCount();
 
       const newUsers = await this.userRepository.count({
@@ -952,21 +1233,38 @@ export class AnalyticsService {
       const viewsCount = reel.viewsCount || 0;
       const engagementRate =
         viewsCount > 0
-          ? parseFloat((((likesCount + commentsCount + bookmarksCount) / viewsCount) * 100).toFixed(2))
+          ? parseFloat(
+              (
+                ((likesCount + commentsCount + bookmarksCount) / viewsCount) *
+                100
+              ).toFixed(2),
+            )
           : 0;
 
       let thumbnailUrl = '';
       if (reel.media?.thumbnailKey) {
-        thumbnailUrl = this.storageService.getObjectUrl(reel.media.thumbnailKey, requestHost);
+        thumbnailUrl = this.storageService.getObjectUrl(
+          reel.media.thumbnailKey,
+          requestHost,
+        );
       } else if (reel.media?.originalKey) {
-        thumbnailUrl = this.storageService.getObjectUrl(reel.media.originalKey, requestHost);
+        thumbnailUrl = this.storageService.getObjectUrl(
+          reel.media.originalKey,
+          requestHost,
+        );
       }
 
       let videoUrl = '';
       if (reel.media?.hlsKey) {
-        videoUrl = this.storageService.getObjectUrl(reel.media.hlsKey, requestHost);
+        videoUrl = this.storageService.getObjectUrl(
+          reel.media.hlsKey,
+          requestHost,
+        );
       } else if (reel.media?.originalKey) {
-        videoUrl = this.storageService.getObjectUrl(reel.media.originalKey, requestHost);
+        videoUrl = this.storageService.getObjectUrl(
+          reel.media.originalKey,
+          requestHost,
+        );
       }
 
       return {
@@ -992,15 +1290,22 @@ export class AnalyticsService {
 
     formatted.sort((a, b) => {
       if (sortBy === AnalyticsSortBy.LIKES) return b.likesCount - a.likesCount;
-      if (sortBy === AnalyticsSortBy.COMMENTS) return b.commentsCount - a.commentsCount;
-      if (sortBy === AnalyticsSortBy.ENGAGEMENT_RATE) return b.engagementRate - a.engagementRate;
+      if (sortBy === AnalyticsSortBy.COMMENTS)
+        return b.commentsCount - a.commentsCount;
+      if (sortBy === AnalyticsSortBy.ENGAGEMENT_RATE)
+        return b.engagementRate - a.engagementRate;
       return b.viewsCount - a.viewsCount;
     });
 
     const rankedReels = formatted.slice(0, limit).map((r, index) => ({
       ...r,
       rank: index + 1,
-      performanceBadge: index === 0 ? 'Top #1 Platform Hit' : index < 3 ? 'Top Trending' : 'Popular',
+      performanceBadge:
+        index === 0
+          ? 'Top #1 Platform Hit'
+          : index < 3
+            ? 'Top Trending'
+            : 'Popular',
     }));
 
     return {
@@ -1013,19 +1318,28 @@ export class AnalyticsService {
   /**
    * 11. Platform-Wide Categories Breakdown (Admin)
    */
-  async getPlatformCategories(timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS) {
+  async getPlatformCategories(
+    timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS,
+  ) {
     const reels = await this.reelRepository
       .createQueryBuilder('reel')
       .leftJoinAndSelect('reel.likes', 'likes')
       .where('reel.status = :status', { status: ReelStatus.READY })
       .getMany();
 
-    const categoryMap = new Map<string, { views: number; likes: number; reelCount: number }>();
+    const categoryMap = new Map<
+      string,
+      { views: number; likes: number; reelCount: number }
+    >();
     let totalViewsAcrossCategories = 0;
 
     for (const r of reels) {
       const cat = r.category || 'General Vastu';
-      const existing = categoryMap.get(cat) || { views: 0, likes: 0, reelCount: 0 };
+      const existing = categoryMap.get(cat) || {
+        views: 0,
+        likes: 0,
+        reelCount: 0,
+      };
       existing.views += Number(r.viewsCount || 0);
       existing.likes += r.likes?.length || 0;
       existing.reelCount += 1;
@@ -1036,7 +1350,9 @@ export class AnalyticsService {
     const categories = Array.from(categoryMap.entries()).map(([name, data]) => {
       const percentage =
         totalViewsAcrossCategories > 0
-          ? parseFloat(((data.views / totalViewsAcrossCategories) * 100).toFixed(1))
+          ? parseFloat(
+              ((data.views / totalViewsAcrossCategories) * 100).toFixed(1),
+            )
           : parseFloat((100 / (categoryMap.size || 1)).toFixed(1));
 
       return {
@@ -1059,7 +1375,9 @@ export class AnalyticsService {
   /**
    * 12. Platform-Wide Audience & Regional Insights (Admin)
    */
-  async getPlatformAudience(timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS) {
+  async getPlatformAudience(
+    timeframe: AnalyticsTimeframe = AnalyticsTimeframe.TWENTY_EIGHT_DAYS,
+  ) {
     const { currentStart, currentEnd } = this.getDateRanges(timeframe);
 
     const slotCounts = {
@@ -1074,27 +1392,41 @@ export class AnalyticsService {
     const views = await this.viewRepository
       .createQueryBuilder('view')
       .select('view.createdAt', 'createdAt')
-      .where('view.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+      .where('view.createdAt BETWEEN :start AND :end', {
+        start: currentStart,
+        end: currentEnd,
+      })
       .getRawMany();
 
     const likes = await this.likeRepository
       .createQueryBuilder('like')
       .select('like.createdAt', 'createdAt')
-      .where('like.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+      .where('like.createdAt BETWEEN :start AND :end', {
+        start: currentStart,
+        end: currentEnd,
+      })
       .getRawMany();
 
     const comments = await this.commentRepository
       .createQueryBuilder('comment')
       .select('comment.createdAt', 'createdAt')
-      .where('comment.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+      .where('comment.createdAt BETWEEN :start AND :end', {
+        start: currentStart,
+        end: currentEnd,
+      })
       .getRawMany();
 
     const bookmarksCount = await this.bookmarkRepository
       .createQueryBuilder('bookmark')
-      .where('bookmark.createdAt BETWEEN :start AND :end', { start: currentStart, end: currentEnd })
+      .where('bookmark.createdAt BETWEEN :start AND :end', {
+        start: currentStart,
+        end: currentEnd,
+      })
       .getCount();
 
-    const allDates: Date[] = [...views, ...likes, ...comments].map((r) => new Date(r.createdAt));
+    const allDates: Date[] = [...views, ...likes, ...comments].map(
+      (r) => new Date(r.createdAt),
+    );
     const totalRecorded = allDates.length;
 
     for (const d of allDates) {
@@ -1151,12 +1483,45 @@ export class AnalyticsService {
 
     const topGeographicRegions = await this.getDynamicGeographicRegions();
 
-    const totalInteractions = views.length + likes.length + comments.length + bookmarksCount;
+    const totalInteractions =
+      views.length + likes.length + comments.length + bookmarksCount;
     const engagementBreakdown = [
-      { name: 'Video Views', count: views.length, percentage: totalInteractions > 0 ? parseFloat(((views.length / totalInteractions) * 100).toFixed(1)) : 0 },
-      { name: 'Likes & Reactions', count: likes.length, percentage: totalInteractions > 0 ? parseFloat(((likes.length / totalInteractions) * 100).toFixed(1)) : 0 },
-      { name: 'Comments', count: comments.length, percentage: totalInteractions > 0 ? parseFloat(((comments.length / totalInteractions) * 100).toFixed(1)) : 0 },
-      { name: 'Bookmarks & Saves', count: bookmarksCount, percentage: totalInteractions > 0 ? parseFloat(((bookmarksCount / totalInteractions) * 100).toFixed(1)) : 0 },
+      {
+        name: 'Video Views',
+        count: views.length,
+        percentage:
+          totalInteractions > 0
+            ? parseFloat(((views.length / totalInteractions) * 100).toFixed(1))
+            : 0,
+      },
+      {
+        name: 'Likes & Reactions',
+        count: likes.length,
+        percentage:
+          totalInteractions > 0
+            ? parseFloat(((likes.length / totalInteractions) * 100).toFixed(1))
+            : 0,
+      },
+      {
+        name: 'Comments',
+        count: comments.length,
+        percentage:
+          totalInteractions > 0
+            ? parseFloat(
+                ((comments.length / totalInteractions) * 100).toFixed(1),
+              )
+            : 0,
+      },
+      {
+        name: 'Bookmarks & Saves',
+        count: bookmarksCount,
+        percentage:
+          totalInteractions > 0
+            ? parseFloat(
+                ((bookmarksCount / totalInteractions) * 100).toFixed(1),
+              )
+            : 0,
+      },
     ];
 
     return {
@@ -1171,7 +1536,10 @@ export class AnalyticsService {
    * Helper to calculate weekly composite rankings for all creators based on weighted engagement criteria:
    * Formula: (Views * 1) + (Likes * 5) + (Comments * 10) + (Bookmarks * 15) + (Followers * 20) + (NewReels * 25)
    */
-  async computeAllCreatorRankings(requestHost?: string, currentUserId?: string) {
+  async computeAllCreatorRankings(
+    requestHost?: string,
+    currentUserId?: string,
+  ) {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -1213,7 +1581,10 @@ export class AnalyticsService {
     for (const row of weeklyViewsRaw) {
       const uId = reelIdToUserId.get(row.reelId);
       if (uId) {
-        weeklyViewsPerUser.set(uId, (weeklyViewsPerUser.get(uId) || 0) + parseInt(row.viewCount, 10));
+        weeklyViewsPerUser.set(
+          uId,
+          (weeklyViewsPerUser.get(uId) || 0) + parseInt(row.viewCount, 10),
+        );
       }
     }
 
@@ -1230,7 +1601,10 @@ export class AnalyticsService {
     for (const row of weeklyLikesRaw) {
       const uId = reelIdToUserId.get(row.reelId);
       if (uId) {
-        weeklyLikesPerUser.set(uId, (weeklyLikesPerUser.get(uId) || 0) + parseInt(row.likeCount, 10));
+        weeklyLikesPerUser.set(
+          uId,
+          (weeklyLikesPerUser.get(uId) || 0) + parseInt(row.likeCount, 10),
+        );
       }
     }
 
@@ -1247,7 +1621,11 @@ export class AnalyticsService {
     for (const row of weeklyCommentsRaw) {
       const uId = reelIdToUserId.get(row.reelId);
       if (uId) {
-        weeklyCommentsPerUser.set(uId, (weeklyCommentsPerUser.get(uId) || 0) + parseInt(row.commentCount, 10));
+        weeklyCommentsPerUser.set(
+          uId,
+          (weeklyCommentsPerUser.get(uId) || 0) +
+            parseInt(row.commentCount, 10),
+        );
       }
     }
 
@@ -1264,13 +1642,22 @@ export class AnalyticsService {
     for (const row of weeklyBookmarksRaw) {
       const uId = reelIdToUserId.get(row.reelId);
       if (uId) {
-        weeklyBookmarksPerUser.set(uId, (weeklyBookmarksPerUser.get(uId) || 0) + parseInt(row.bookmarkCount, 10));
+        weeklyBookmarksPerUser.set(
+          uId,
+          (weeklyBookmarksPerUser.get(uId) || 0) +
+            parseInt(row.bookmarkCount, 10),
+        );
       }
     }
 
     // 6. Fetch weekly new followers & total followers
     const allFollows = await this.followRepository.find({
-      select: { id: true, followerId: true, followingId: true, createdAt: true },
+      select: {
+        id: true,
+        followerId: true,
+        followingId: true,
+        createdAt: true,
+      },
     });
 
     const totalFollowersPerUser = new Map<string, number>();
@@ -1278,9 +1665,15 @@ export class AnalyticsService {
     const currentUserFollowingSet = new Set<string>();
 
     for (const f of allFollows) {
-      totalFollowersPerUser.set(f.followingId, (totalFollowersPerUser.get(f.followingId) || 0) + 1);
+      totalFollowersPerUser.set(
+        f.followingId,
+        (totalFollowersPerUser.get(f.followingId) || 0) + 1,
+      );
       if (f.createdAt >= sevenDaysAgo) {
-        weeklyFollowersPerUser.set(f.followingId, (weeklyFollowersPerUser.get(f.followingId) || 0) + 1);
+        weeklyFollowersPerUser.set(
+          f.followingId,
+          (weeklyFollowersPerUser.get(f.followingId) || 0) + 1,
+        );
       }
       if (currentUserId && f.followerId === currentUserId) {
         currentUserFollowingSet.add(f.followingId);
@@ -1297,10 +1690,15 @@ export class AnalyticsService {
     const rankedCreators = users.map((user) => {
       const userReels = reelsByUser.get(user.id) || [];
       const totalReelsCount = userReels.length;
-      const allTimeViews = userReels.reduce((sum, r) => sum + Number(r.viewsCount || 0), 0);
+      const allTimeViews = userReels.reduce(
+        (sum, r) => sum + Number(r.viewsCount || 0),
+        0,
+      );
       const totalFollowers = totalFollowersPerUser.get(user.id) || 0;
 
-      const weeklyNewReels = userReels.filter((r) => r.createdAt >= sevenDaysAgo).length;
+      const weeklyNewReels = userReels.filter(
+        (r) => r.createdAt >= sevenDaysAgo,
+      ).length;
 
       let weeklyViews = weeklyViewsPerUser.get(user.id) || 0;
       let weeklyLikes = weeklyLikesPerUser.get(user.id) || 0;
@@ -1321,11 +1719,17 @@ export class AnalyticsService {
         weeklyFollowers * W_FOLLOWER +
         weeklyNewReels * W_REEL;
 
-      const baselineBonus = Math.floor(allTimeViews * 0.05 + totalFollowers * 2 + totalReelsCount * 5);
+      const baselineBonus = Math.floor(
+        allTimeViews * 0.05 + totalFollowers * 2 + totalReelsCount * 5,
+      );
       const finalWeeklyScore = activityScore + baselineBonus;
 
       let avatarUrl = user.avatarUrl || '';
-      if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
+      if (
+        avatarUrl &&
+        !avatarUrl.startsWith('http') &&
+        !avatarUrl.startsWith('data:')
+      ) {
         avatarUrl = this.storageService.getObjectUrl(avatarUrl, requestHost);
       }
 
@@ -1353,7 +1757,8 @@ export class AnalyticsService {
     // Sort descending by weekly score, then followers count, then total reels
     rankedCreators.sort((a, b) => {
       if (b.weeklyScore !== a.weeklyScore) return b.weeklyScore - a.weeklyScore;
-      if (b.followersCount !== a.followersCount) return b.followersCount - a.followersCount;
+      if (b.followersCount !== a.followersCount)
+        return b.followersCount - a.followersCount;
       return b.totalReels - a.totalReels;
     });
 
@@ -1366,7 +1771,7 @@ export class AnalyticsService {
       let badgeColor = '#EAB308'; // Amber
 
       if (rank === 1) {
-        badge = '🥇 #1 Top Vastu Master';
+        badge = '🥇 #1 Top Reelsgate Master';
         tier = 'GOLD';
         badgeColor = '#F59E0B';
       } else if (rank === 2) {
@@ -1402,18 +1807,31 @@ export class AnalyticsService {
   /**
    * Get weekly creator leaderboard
    */
-  async getWeeklyCreatorLeaderboard(limit = 10, currentUserId?: string, requestHost?: string) {
-    const allRanked = await this.computeAllCreatorRankings(requestHost, currentUserId);
+  async getWeeklyCreatorLeaderboard(
+    limit = 13,
+    currentUserId?: string,
+    requestHost?: string,
+  ) {
+    const allRanked = await this.computeAllCreatorRankings(
+      requestHost,
+      currentUserId,
+    );
     const topCreators = allRanked.slice(0, limit);
 
     let currentUserRank: any = null;
     if (currentUserId) {
       const found = allRanked.find((c) => c.id === currentUserId);
       if (found) {
-        const nextRankScore = found.rank > 1 ? allRanked[found.rank - 2].weeklyScore : found.weeklyScore;
+        const nextRankScore =
+          found.rank > 1
+            ? allRanked[found.rank - 2].weeklyScore
+            : found.weeklyScore;
         currentUserRank = {
           ...found,
-          pointsToNextRank: found.rank > 1 ? Math.max(1, nextRankScore - found.weeklyScore + 1) : 0,
+          pointsToNextRank:
+            found.rank > 1
+              ? Math.max(1, nextRankScore - found.weeklyScore + 1)
+              : 0,
         };
       }
     }
@@ -1445,7 +1863,12 @@ export class AnalyticsService {
     if (foundIndex !== -1) {
       const creator = allRanked[foundIndex];
       const pointsToNextRank =
-        creator.rank > 1 ? Math.max(1, allRanked[foundIndex - 1].weeklyScore - creator.weeklyScore + 1) : 0;
+        creator.rank > 1
+          ? Math.max(
+              1,
+              allRanked[foundIndex - 1].weeklyScore - creator.weeklyScore + 1,
+            )
+          : 0;
 
       return {
         userId,
@@ -1488,4 +1911,3 @@ export class AnalyticsService {
     };
   }
 }
-
