@@ -234,7 +234,10 @@ export class UsersService {
       .groupBy('reel.userId')
       .getRawMany();
 
-    const reelStatsMap = new Map<string, { videoCount: number; totalViews: number }>();
+    const reelStatsMap = new Map<
+      string,
+      { videoCount: number; totalViews: number }
+    >();
     for (const r of reelStats) {
       reelStatsMap.set(r.userId, {
         videoCount: parseInt(r.videoCount, 10) || 0,
@@ -288,7 +291,10 @@ export class UsersService {
       where: { userId: id, status: ReelStatus.READY },
       select: { viewsCount: true },
     });
-    const totalViews = reels.reduce((acc, r) => acc + Number(r.viewsCount || 0), 0);
+    const totalViews = reels.reduce(
+      (acc, r) => acc + Number(r.viewsCount || 0),
+      0,
+    );
 
     const followersCount = await this.followRepository.count({
       where: { followingId: id },
@@ -319,9 +325,16 @@ export class UsersService {
       relations: { likes: true, comments: true, bookmarks: true },
     });
 
-    const readyReels = allReels.filter((r) => r.status === ReelStatus.READY).length;
-    const processingReels = allReels.filter((r) => r.status === ReelStatus.PROCESSING || r.status === ReelStatus.UPLOADING).length;
-    const failedReels = allReels.filter((r) => r.status === ReelStatus.FAILED).length;
+    const readyReels = allReels.filter(
+      (r) => r.status === ReelStatus.READY,
+    ).length;
+    const processingReels = allReels.filter(
+      (r) =>
+        r.status === ReelStatus.PROCESSING || r.status === ReelStatus.UPLOADING,
+    ).length;
+    const failedReels = allReels.filter(
+      (r) => r.status === ReelStatus.FAILED,
+    ).length;
     const totalReels = allReels.length;
 
     let totalViews = 0;
@@ -425,9 +438,7 @@ export class UsersService {
       );
     }
 
-    qb.orderBy('reel.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit);
+    qb.orderBy('reel.createdAt', 'DESC').skip(skip).take(limit);
 
     const [reels, total] = await qb.getManyAndCount();
 
@@ -467,7 +478,7 @@ export class UsersService {
         id: reel.id,
         title: reel.title || 'Untitled Reel',
         caption: reel.caption,
-        category: reel.category || 'Vastu',
+        category: reel.category || 'Reelsgate',
         subCategory: reel.subCategory,
         propertyType: reel.propertyType,
         element: reel.element,
@@ -538,8 +549,14 @@ export class UsersService {
       comments: number;
     }[] = [];
 
-    const totalViews = reels.reduce((acc, r) => acc + Number(r.viewsCount || 0), 0);
-    const totalLikes = reels.reduce((acc, r) => acc + (r.likes?.length || 0), 0);
+    const totalViews = reels.reduce(
+      (acc, r) => acc + Number(r.viewsCount || 0),
+      0,
+    );
+    const totalLikes = reels.reduce(
+      (acc, r) => acc + (r.likes?.length || 0),
+      0,
+    );
     const totalComments = reels.reduce(
       (acc, r) => acc + (r.comments?.length || 0),
       0,
@@ -564,19 +581,28 @@ export class UsersService {
         views = await this.viewRepository
           .createQueryBuilder('view')
           .where('view.reelId IN (:...reelIds)', { reelIds })
-          .andWhere('view.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .andWhere('view.createdAt BETWEEN :start AND :end', {
+            start: bucketStart,
+            end: bucketEnd,
+          })
           .getCount();
 
         likes = await this.likeRepository
           .createQueryBuilder('like')
           .where('like.reelId IN (:...reelIds)', { reelIds })
-          .andWhere('like.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .andWhere('like.createdAt BETWEEN :start AND :end', {
+            start: bucketStart,
+            end: bucketEnd,
+          })
           .getCount();
 
         comments = await this.commentRepository
           .createQueryBuilder('comment')
           .where('comment.reelId IN (:...reelIds)', { reelIds })
-          .andWhere('comment.createdAt BETWEEN :start AND :end', { start: bucketStart, end: bucketEnd })
+          .andWhere('comment.createdAt BETWEEN :start AND :end', {
+            start: bucketStart,
+            end: bucketEnd,
+          })
           .getCount();
       }
 
@@ -632,7 +658,11 @@ export class UsersService {
     id: string,
     isActive: boolean,
     reason?: string,
-  ): Promise<{ success: boolean; message: string; user: FormattedUserResponse }> {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    user: FormattedUserResponse;
+  }> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: { roles: true },
@@ -659,7 +689,11 @@ export class UsersService {
   async updateVerification(
     id: string,
     isVerified: boolean,
-  ): Promise<{ success: boolean; message: string; user: FormattedUserResponse }> {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    user: FormattedUserResponse;
+  }> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: { roles: true },
@@ -693,7 +727,8 @@ export class UsersService {
     );
 
     creators.sort((a, b) => {
-      if (sortBy === 'followers') return (b.followersCount || 0) - (a.followersCount || 0);
+      if (sortBy === 'followers')
+        return (b.followersCount || 0) - (a.followersCount || 0);
       if (sortBy === 'videos') return (b.videoCount || 0) - (a.videoCount || 0);
       return (b.totalViews || 0) - (a.totalViews || 0);
     });
@@ -701,7 +736,12 @@ export class UsersService {
     const ranked = creators.slice(0, limit).map((c, index) => ({
       ...c,
       rank: index + 1,
-      performanceBadge: index === 0 ? '🏆 Top Creator' : index < 3 ? '⭐ Star Astrologer' : '🔥 Rising Expert',
+      performanceBadge:
+        index === 0
+          ? '🏆 Top Creator'
+          : index < 3
+            ? '⭐ Star Astrologer'
+            : '🔥 Rising Expert',
     }));
 
     return {
@@ -710,7 +750,6 @@ export class UsersService {
       items: ranked,
     };
   }
-
 
   /**
    * Update user details by ID
@@ -848,7 +887,9 @@ export class UsersService {
     requestHost?: string,
   ): Promise<{ uploadUrl: string; key: string; publicUrl: string }> {
     if (!userId) {
-      throw new BadRequestException('User ID is required for upload URL generation.');
+      throw new BadRequestException(
+        'User ID is required for upload URL generation.',
+      );
     }
 
     const ext = mimeType.split('/')[1] || 'jpg';
@@ -889,7 +930,9 @@ export class UsersService {
       throw new NotFoundException('User not found.');
     }
 
-    const ext = file.originalname ? file.originalname.split('.').pop() || 'jpg' : 'jpg';
+    const ext = file.originalname
+      ? file.originalname.split('.').pop() || 'jpg'
+      : 'jpg';
     const folder = type === 'cover' ? 'covers' : 'avatars';
     const storageKey = `users/${folder}/${userId}/${Date.now()}.${ext}`;
 

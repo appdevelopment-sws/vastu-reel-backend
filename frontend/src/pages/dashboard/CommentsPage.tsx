@@ -205,7 +205,7 @@ export const CommentsPage: React.FC = () => {
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="rounded-xl border border-input bg-card px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
           >
-            <option value="ALL">All Vastu Categories</option>
+            <option value="ALL">All  Categories</option>
             <option value="living_room">Living Room Vastu</option>
             <option value="Home Vastu">Home Vastu</option>
             <option value="Office Vastu">Office Vastu</option>
