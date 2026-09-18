@@ -1413,6 +1413,8 @@ export class ReelsService {
       parentId: c.parentId || null,
       isPinned: c.isPinned || false,
       pinnedAt: c.pinnedAt ? c.pinnedAt.toISOString() : null,
+      isVerified: c.user?.isVerified || false,
+      userIsVerified: c.user?.isVerified || false,
       likesCount,
       isLiked,
       repliesCount,
