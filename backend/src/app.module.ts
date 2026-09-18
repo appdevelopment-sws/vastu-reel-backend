@@ -17,6 +17,7 @@ import { PropertyTypesModule } from './modules/property-types/property-types.mod
 import { LocationModule } from './modules/location/location.module';
 import { FavoriteProfilesModule } from './modules/favorite-profiles/favorite-profiles.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middleware';
 
 @Module({
@@ -69,6 +70,7 @@ import { HTTPLoggerMiddleware } from './modules/common/middleware/logger.middlew
     LocationModule,
     FavoriteProfilesModule,
     ReviewsModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [AppService],

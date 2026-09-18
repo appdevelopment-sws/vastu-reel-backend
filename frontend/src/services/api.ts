@@ -692,4 +692,75 @@ export const reelReportsApi = {
   },
 }
 
+export interface FeedbackItem {
+  id: string
+  userId?: string
+  user?: {
+    id: string
+    name: string
+    email?: string
+    avatarUrl?: string
+    phone?: string
+  }
+  type: 'GENERAL' | 'SUGGESTION' | 'BUG_REPORT' | 'IMPROVEMENT'
+  content: string
+  status: 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'ARCHIVED'
+  deviceInfo?: string
+  contactEmail?: string
+  adminNotes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FeedbackListResponse {
+  items: FeedbackItem[]
+  total: number
+  page: number
+  limit: number
+  stats: {
+    TOTAL: number
+    PENDING: number
+    REVIEWED: number
+    RESOLVED: number
+    ARCHIVED: number
+  }
+}
+
+export const feedbackApi = {
+  getAll: async (params?: {
+    page?: number
+    limit?: number
+    status?: string
+    search?: string
+  }): Promise<FeedbackListResponse> => {
+    const response = await apiClient.get('/feedbacks', {
+      params: {
+        page: params?.page,
+        limit: params?.limit,
+        status: params?.status && params.status !== 'ALL' ? params.status : undefined,
+        search: params?.search || undefined,
+      },
+    })
+    return response.data
+  },
+
+  updateStatus: async (
+    id: string,
+    status: 'PENDING' | 'REVIEWED' | 'RESOLVED' | 'ARCHIVED',
+    adminNotes?: string
+  ): Promise<FeedbackItem> => {
+    const response = await apiClient.patch(`/feedbacks/${id}/status`, {
+      status,
+      adminNotes,
+    })
+    return response.data
+  },
+
+  delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.delete(`/feedbacks/${id}`)
+    return response.data
+  },
+}
+
 export default apiClient
+
