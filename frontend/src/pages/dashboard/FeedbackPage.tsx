@@ -10,13 +10,11 @@ import {
   Mail,
   Smartphone,
   Trash2,
-  Filter,
   Sparkles,
   Check,
   Archive,
   Lightbulb,
   Bug,
-  HelpCircle,
   TrendingUp,
 } from 'lucide-react';
 
