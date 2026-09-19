@@ -805,6 +805,16 @@ export class MessagingService {
   }
 
   /**
+   * Check if a user is blocked by another user.
+   */
+  async isUserBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    const block = await this.blockRepo.findOne({
+      where: { blockerId, blockedId },
+    });
+    return !!block;
+  }
+
+  /**
    * Report a message or user.
    */
   async reportMessage(reporterId: string, dto: ReportMessageDto) {

@@ -167,6 +167,20 @@ export class MessagingController {
     return this.messagingService.unblockUser(userId, dto.targetUserId);
   }
 
+  @Get('users/block/status/:targetUserId')
+  @ApiOperation({ summary: 'Check if a user is blocked by current user' })
+  async getBlockStatus(
+    @Req() req: any,
+    @Param('targetUserId', ParseUUIDPipe) targetUserId: string,
+  ) {
+    const userId = req.user.sub;
+    const isBlocked = await this.messagingService.isUserBlocked(
+      userId,
+      targetUserId,
+    );
+    return { isBlocked };
+  }
+
   @Post('reports')
   @ApiOperation({ summary: 'Report a message or user for moderation' })
   async reportMessage(@Req() req: any, @Body() dto: ReportMessageDto) {
