@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { AppService } from './app.service';
 import { Public } from './modules/auth/decorators/public.decorator';
 import { ReelsService } from './modules/reels/services/reels.service';
+import { UsersService } from './modules/users/users.service';
 
 function escapeHtml(unsafe: string): string {
   if (!unsafe) return '';
@@ -19,6 +20,7 @@ export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly reelsService: ReelsService,
+    private readonly UsersService: UsersService,
   ) {}
 
   @Public()
@@ -246,6 +248,204 @@ export class AppController {
 </html>`;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.status(404).send(errorHtml);
+    }
+  }
+
+  /**
+   * Public Web Landing Page & Open Graph Metadata for Shared Profiles.
+   * Enables rich preview cards in WhatsApp, Telegram, iMessage, Facebook, and Twitter,
+   * and automatically redirects to the Reelsgate mobile app.
+   */
+  @Public()
+  @Get('profile/:handleOrId')
+  async getSharedProfile(
+    @Param('handleOrId') handleOrId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const cleanHandle = (handleOrId || '').replace(/^@/, '').trim();
+      const requestHost = req.headers.host;
+
+      let user: any = null;
+      try {
+        user = await this.UsersService.findByUsernameOrId(cleanHandle);
+      } catch (err) {
+        // Fallback gracefully
+      }
+
+      const name = escapeHtml(user?.name || cleanHandle || 'Reelsgate Creator');
+      const username = escapeHtml(user?.username || cleanHandle || '');
+      const bio = escapeHtml(
+        user?.bio || `Check out @${username} on Reelsgate`,
+      );
+      const avatarUrl = user?.avatarUrl || '';
+      const fullShareUrl = `${req.protocol}://${requestHost}/profile/${cleanHandle}`;
+      const appSchemeUrl = `reelsgate://profile/${cleanHandle}`;
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>${name} (@${username}) | Reelsgate</title>
+  
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="${name} (@${username}) | Reelsgate">
+  <meta name="description" content="${bio}">
+
+  <!-- Open Graph / Facebook / WhatsApp -->
+  <meta property="og:type" content="profile">
+  <meta property="og:site_name" content="Reelsgate">
+  <meta property="og:url" content="${fullShareUrl}">
+  <meta property="og:title" content="${name} (@${username}) on Reelsgate">
+  <meta property="og:description" content="${bio}">
+  ${avatarUrl ? `<meta property="og:image" content="${avatarUrl}">` : ''}
+  ${avatarUrl ? `<meta property="og:image:secure_url" content="${avatarUrl}">` : ''}
+  <meta property="og:image:width" content="400">
+  <meta property="og:image:height" content="400">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${name} (@${username}) on Reelsgate">
+  <meta name="twitter:description" content="${bio}">
+  ${avatarUrl ? `<meta name="twitter:image" content="${avatarUrl}">` : ''}
+
+  <!-- App Links (Android & iOS) -->
+  <meta property="al:android:url" content="${appSchemeUrl}">
+  <meta property="al:android:package" content="com.sws.reelsgate">
+  <meta property="al:android:app_name" content="Reelsgate">
+  <meta property="al:ios:url" content="${appSchemeUrl}">
+  <meta property="al:ios:app_name" content="Reelsgate">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0B0E14;
+      color: #F8FAFC;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #131A29;
+      border: 1px solid #24334C;
+      border-radius: 24px;
+      padding: 36px 24px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin: 0 auto 16px;
+      border: 3px solid #D4AF37;
+      display: block;
+      background: #1E293B;
+    }
+    .avatar-fallback {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      border: 3px solid #D4AF37;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 700;
+      color: #D4AF37;
+      background: rgba(212, 175, 55, 0.15);
+    }
+    .name {
+      font-size: 22px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 4px;
+    }
+    .username {
+      font-size: 14px;
+      color: #D4AF37;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .bio {
+      font-size: 14px;
+      color: #94A3B8;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: opacity 0.2s;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #E5C058 0%, #D4AF37 100%);
+      color: #000000;
+      margin-bottom: 12px;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(212, 175, 55, 0.15);
+      color: #D4AF37;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+  </style>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      // Attempt automated redirection to mobile app via custom URL scheme
+      setTimeout(() => {
+        window.location.href = "${appSchemeUrl}";
+      }, 500);
+    });
+  </script>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">REELSGATE PROFILE</div>
+    ${avatarUrl ? `<img src="${avatarUrl}" alt="${name}" class="avatar">` : `<div class="avatar-fallback">${name[0] ? name[0].toUpperCase() : 'U'}</div>`}
+    <h1 class="name">${name}</h1>
+    <div class="username">@${username}</div>
+    <p class="bio">${bio}</p>
+    <a href="${appSchemeUrl}" class="btn btn-primary">Open in Reelsgate App</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(html);
+    } catch (e) {
+      return res.status(404).json({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Profile not found',
+      });
     }
   }
 }

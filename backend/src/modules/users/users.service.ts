@@ -274,21 +274,19 @@ export class UsersService {
    * Find single user by ID with high-level stats
    */
   async findOne(id: string): Promise<FormattedUserResponse> {
-    const user = await this.userRepository.findOne({
-      where: { id },
-      relations: { roles: true },
-    });
-
+    const user = await this.findByUsernameOrId(id);
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found.`);
+      throw new NotFoundException(`User with identifier ${id} not found.`);
     }
 
+    const userId = user.id;
+
     const videoCount = await this.reelRepository.count({
-      where: { userId: id, status: ReelStatus.READY },
+      where: { userId, status: ReelStatus.READY },
     });
 
     const reels = await this.reelRepository.find({
-      where: { userId: id, status: ReelStatus.READY },
+      where: { userId, status: ReelStatus.READY },
       select: { viewsCount: true },
     });
     const totalViews = reels.reduce(
@@ -297,7 +295,7 @@ export class UsersService {
     );
 
     const followersCount = await this.followRepository.count({
-      where: { followingId: id },
+      where: { followingId: userId },
     });
 
     return this.formatUser(user, {
@@ -308,20 +306,45 @@ export class UsersService {
   }
 
   /**
+   * Find a user entity by username handle or UUID
+   */
+  async findByUsernameOrId(identifier: string): Promise<User | null> {
+    if (!identifier) return null;
+    const clean = identifier.replace(/^@/, '').trim();
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        clean,
+      );
+    if (isUuid) {
+      const userById = await this.userRepository.findOne({
+        where: { id: clean },
+        relations: { roles: true },
+      });
+      if (userById) return userById;
+    }
+    return this.userRepository.findOne({
+      where: [
+        { username: clean },
+        { username: `@${clean}` },
+      ],
+      relations: { roles: true },
+    });
+  }
+
+  /**
    * Get detailed Creator Summary & Performance KPIs
    */
   async getCreatorSummary(userId: string, currentUserId?: string | null) {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: { roles: true },
-    });
+    const user = await this.findByUsernameOrId(userId);
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found.`);
+      throw new NotFoundException(`User with identifier ${userId} not found.`);
     }
 
+    const targetUserId = user.id;
+
     const allReels = await this.reelRepository.find({
-      where: { userId, status: Not(ReelStatus.DELETED) },
+      where: { userId: targetUserId, status: Not(ReelStatus.DELETED) },
       relations: { likes: true, comments: true, bookmarks: true },
     });
 
@@ -350,17 +373,17 @@ export class UsersService {
     }
 
     const followersCount = await this.followRepository.count({
-      where: { followingId: userId },
+      where: { followingId: targetUserId },
     });
     const followingCount = await this.followRepository.count({
-      where: { followerId: userId },
+      where: { followerId: targetUserId },
     });
 
     let isFollowing = false;
-    if (currentUserId && currentUserId !== userId) {
+    if (currentUserId && currentUserId !== targetUserId) {
       isFollowing = await this.followRepository
         .count({
-          where: { followerId: currentUserId, followingId: userId },
+          where: { followerId: currentUserId, followingId: targetUserId },
         })
         .then((c) => c > 0);
     }
@@ -410,6 +433,9 @@ export class UsersService {
     query: { page?: number; limit?: number; status?: string; search?: string },
     requestHost?: string,
   ) {
+    const user = await this.findByUsernameOrId(userId);
+    const targetUserId = user ? user.id : userId;
+
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
     const skip = (page - 1) * limit;
@@ -420,7 +446,7 @@ export class UsersService {
       .leftJoinAndSelect('reel.likes', 'likes')
       .leftJoinAndSelect('reel.comments', 'comments')
       .leftJoinAndSelect('reel.bookmarks', 'bookmarks')
-      .where('reel.userId = :userId', { userId });
+      .where('reel.userId = :userId', { userId: targetUserId });
 
     if (query.status && query.status !== 'ALL') {
       qb.andWhere('reel.status = :status', { status: query.status });

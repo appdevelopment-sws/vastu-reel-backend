@@ -24,6 +24,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -95,6 +96,7 @@ export class UsersController {
     return this.usersService.uploadMedia(userId, file, type || 'avatar', requestHost);
   }
 
+  @Public()
   @Get('leaderboard/creators')
   @ApiOperation({ summary: 'Get top creators leaderboard ranked by views, followers, and reels' })
   @ApiQuery({ name: 'limit', type: Number, required: false })
@@ -121,6 +123,7 @@ export class UsersController {
     return this.usersService.findAll({ search, status, role });
   }
 
+  @Public()
   @Get(':id/creator-summary')
   @ApiOperation({ summary: 'Get creator summary and performance KPIs' })
   getCreatorSummary(@Param('id') id: string, @Req() req?: any) {
@@ -128,6 +131,7 @@ export class UsersController {
     return this.usersService.getCreatorSummary(id, currentUserId);
   }
 
+  @Public()
   @Get(':id/reels')
   @ApiOperation({ summary: 'Get all reels uploaded by a specific creator' })
   @ApiQuery({ name: 'page', type: Number, required: false })
@@ -192,6 +196,7 @@ export class UsersController {
     return this.usersService.updateVerification(id, body.isVerified !== false);
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get user account details by ID' })
   findOne(@Param('id') id: string) {
