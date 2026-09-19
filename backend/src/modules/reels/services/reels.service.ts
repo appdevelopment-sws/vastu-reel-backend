@@ -300,10 +300,10 @@ export class ReelsService {
     } else if (userId) {
       // Exclude posts from creators who blocked the requesting user or are blocked by the requesting user
       qb.andWhere(
-        `reel.userId NOT IN (
-          SELECT ub.blocked_id FROM user_blocks ub WHERE ub.blocker_id = :currentBlockerId
+        `reel.user_id NOT IN (
+          SELECT ub.blocked_id FROM user_blocks ub WHERE ub.blocker_id = :currentBlockerId AND ub.blocked_id IS NOT NULL
           UNION
-          SELECT ub.blocker_id FROM user_blocks ub WHERE ub.blocked_id = :currentBlockerId
+          SELECT ub.blocker_id FROM user_blocks ub WHERE ub.blocked_id = :currentBlockerId AND ub.blocker_id IS NOT NULL
         )`,
         { currentBlockerId: userId },
       );
