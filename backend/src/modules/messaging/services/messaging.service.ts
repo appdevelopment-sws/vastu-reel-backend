@@ -815,6 +815,25 @@ export class MessagingService {
   }
 
   /**
+   * Get all users blocked by the current user.
+   */
+  async getBlockedUsers(userId: string) {
+    const blocks = await this.blockRepo.find({
+      where: { blockerId: userId },
+      relations: { blocked: true },
+      order: { createdAt: 'DESC' },
+    });
+    return blocks.map((b) => ({
+      id: b.blockedId,
+      name: b.blocked?.name || 'User',
+      username: b.blocked?.username || '',
+      avatarUrl: b.blocked?.avatarUrl || '',
+      title: b.blocked?.profession || '',
+      blockedAt: b.createdAt,
+    }));
+  }
+
+  /**
    * Report a message or user.
    */
   async reportMessage(reporterId: string, dto: ReportMessageDto) {

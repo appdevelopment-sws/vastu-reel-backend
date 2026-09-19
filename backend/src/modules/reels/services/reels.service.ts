@@ -297,6 +297,16 @@ export class ReelsService {
     }
     if (query.userId) {
       qb.andWhere('reel.userId = :userId', { userId: query.userId });
+    } else if (userId) {
+      // Exclude posts from creators who blocked the requesting user or are blocked by the requesting user
+      qb.andWhere(
+        `reel.userId NOT IN (
+          SELECT ub.blocked_id FROM user_blocks ub WHERE ub.blocker_id = :currentBlockerId
+          UNION
+          SELECT ub.blocker_id FROM user_blocks ub WHERE ub.blocked_id = :currentBlockerId
+        )`,
+        { currentBlockerId: userId },
+      );
     }
     if (query.liked && userId) {
       qb.innerJoin('reel.likes', 'userLike', 'userLike.userId = :likeUserId', {
