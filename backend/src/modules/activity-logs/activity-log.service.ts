@@ -103,6 +103,9 @@ export class ActivityLogService {
 
     if (type && type !== 'all') {
       qb.andWhere('log.type = :type', { type });
+    } else {
+      // Exclude reel publications from activity feed. Uncomment/remove condition if reel publications should be included in future.
+      qb.andWhere('log.type != :excludedReelPubType', { excludedReelPubType: ActivityLogType.REEL_PUBLISHED });
     }
 
     qb.skip(skip).take(limit);

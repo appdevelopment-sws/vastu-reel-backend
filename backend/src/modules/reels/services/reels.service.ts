@@ -221,15 +221,15 @@ export class ReelsService {
 
     console.log(`Queued video-processing job ${job.id} for Reel ${reel.id}`);
 
-    // Log global activity: new reel published
-    await this.activityLogService.log({
-      type: ActivityLogType.REEL_PUBLISHED,
-      actorId: userId,
-      reelId: reel.id,
-      message: `${reel.user?.name ?? 'A creator'} published a new reel: "${reel.title}"`,
-      isGlobal: true,
-      metadata: { title: reel.title, actorName: reel.user?.name },
-    });
+    // Log global activity: new reel published (commented out to prevent reel posting activity from appearing in Activity section)
+    // await this.activityLogService.log({
+    //   type: ActivityLogType.REEL_PUBLISHED,
+    //   actorId: userId,
+    //   reelId: reel.id,
+    //   message: `${reel.user?.name ?? 'A creator'} published a new reel: "${reel.title}"`,
+    //   isGlobal: true,
+    //   metadata: { title: reel.title, actorName: reel.user?.name },
+    // });
 
     return {
       reelId: reel.id,
