@@ -1,6 +1,40 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+
+export function MaxWords(maxWords: number, validationOptions?: ValidationOptions) {
+  return function (object: Object, propertyName: string) {
+    registerDecorator({
+      name: 'maxWords',
+      target: object.constructor,
+      propertyName: propertyName,
+      constraints: [maxWords],
+      options: validationOptions,
+      validator: {
+        validate(value: any, args: ValidationArguments) {
+          if (typeof value !== 'string') return true;
+          const trimmed = value.trim();
+          if (!trimmed) return true;
+          const words = trimmed.split(/\s+/).length;
+          return words <= args.constraints[0];
+        },
+        defaultMessage(args: ValidationArguments) {
+          return `${args.property} must not exceed ${args.constraints[0]} words`;
+        },
+      },
+    });
+  };
+}
 
 export class InitUploadDto {
   @ApiProperty({ example: 'video.mp4' })
@@ -20,11 +54,13 @@ export class InitUploadDto {
   @ApiProperty({ example: 'Perfect Office Alignment' })
   @IsString()
   @IsNotEmpty()
+  @MaxWords(120)
   title: string;
 
   @ApiProperty({ example: 'Align your desk East/North for wealth... #vastu', required: false })
   @IsString()
   @IsOptional()
+  @MaxWords(400)
   caption?: string;
 
   @ApiProperty({ example: 'office', required: false })
@@ -267,11 +303,13 @@ export class UpdateReelDto {
   @ApiProperty({ example: 'Updated Title', required: false })
   @IsString()
   @IsOptional()
+  @MaxWords(120)
   title?: string;
 
   @ApiProperty({ example: 'Updated caption...', required: false })
   @IsString()
   @IsOptional()
+  @MaxWords(400)
   caption?: string;
 
   @ApiProperty({ example: 'kitchen', required: false })
