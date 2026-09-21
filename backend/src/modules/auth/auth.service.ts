@@ -31,7 +31,9 @@ import { VerifyRegisterOtpDto } from './dto/verify-register-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { EmailOtp, OtpPurpose } from './entities/email-otp.entity';
+import { PhoneOtp } from './entities/phone-otp.entity';
 import { MailService } from '../mail/mail.service';
+import { TwoFactorService } from './two-factor.service';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -47,9 +49,12 @@ export class AuthService implements OnModuleInit {
     private readonly permissionRepository: Repository<Permission>,
     @InjectRepository(EmailOtp)
     private readonly emailOtpRepository: Repository<EmailOtp>,
+    @InjectRepository(PhoneOtp)
+    private readonly phoneOtpRepository: Repository<PhoneOtp>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   async onModuleInit() {
@@ -695,7 +700,7 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Send OTP to mobile phone
+   * Send OTP to mobile phone using 2Factor SMS service & database persistence
    */
   async sendPhoneOtp(dto: SendOtpDto) {
     if (!dto || !dto.phone) {
@@ -709,16 +714,42 @@ export class AuthService implements OnModuleInit {
 
     // Generate 6-digit random OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresInSeconds = 300; // 5 minutes
-    const expiresAt = Date.now() + expiresInSeconds * 1000;
+    const expiresInSeconds = 600; // 10 minutes
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
-    this.otpStore.set(normalizedPhone, { otp, expiresAt });
+    // Invalidate any existing unused OTPs for this phone number in DB
+    await this.phoneOtpRepository.update(
+      { phone: normalizedPhone, isUsed: false },
+      { isUsed: true },
+    );
 
-    console.log(`📲 [AuthService] OTP for ${normalizedPhone}: ${otp} (Valid for 5 mins)`);
+    // Keep in-memory store as backup cache
+    this.otpStore.set(normalizedPhone, { otp, expiresAt: expiresAt.getTime() });
+
+    // Send SMS via 2Factor.in
+    const sendResult = await this.twoFactorService.sendOtp(normalizedPhone, otp);
+
+    // Persist OTP record in database
+    const otpEntity = this.phoneOtpRepository.create({
+      phone: normalizedPhone,
+      otp,
+      sessionId: sendResult.sessionId,
+      isUsed: false,
+      expiresAt,
+    });
+    await this.phoneOtpRepository.save(otpEntity);
+
+    console.log(
+      `📲 [AuthService] 2Factor Phone OTP for ${normalizedPhone}: ${otp} (Expires in 10 mins). SMS Status: ${
+        sendResult.success ? 'Success' : 'Failed: ' + sendResult.message
+      }`,
+    );
 
     return {
       success: true,
-      message: 'OTP sent successfully',
+      message: sendResult.success
+        ? 'OTP sent successfully to your phone'
+        : 'OTP generated (SMS dispatch warning: ' + sendResult.message + ')',
       phone: normalizedPhone,
       expiresInSeconds,
     };
@@ -734,31 +765,60 @@ export class AuthService implements OnModuleInit {
 
     const normalizedPhone = dto.phone.replace(/[\s\-()]/g, '').trim();
     const enteredOtp = dto.otp.trim();
-
-    const record = this.otpStore.get(normalizedPhone);
     const isMasterDemoOtp = enteredOtp === '123456';
 
-    if (!record && !isMasterDemoOtp) {
+    // 1. Verify against database record
+    const otpRecord = await this.phoneOtpRepository.findOne({
+      where: {
+        phone: normalizedPhone,
+        isUsed: false,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    const inMemoryRecord = this.otpStore.get(normalizedPhone);
+
+    let isValid = false;
+
+    if (isMasterDemoOtp) {
+      isValid = true;
+    } else if (otpRecord) {
+      if (new Date() > otpRecord.expiresAt) {
+        throw new UnauthorizedException('OTP has expired. Please request a new OTP.');
+      }
+      if (otpRecord.otp !== enteredOtp) {
+        throw new UnauthorizedException('Invalid OTP entered. Please try again.');
+      }
+      isValid = true;
+      otpRecord.isUsed = true;
+      await this.phoneOtpRepository.save(otpRecord);
+    } else if (inMemoryRecord) {
+      if (Date.now() > inMemoryRecord.expiresAt) {
+        this.otpStore.delete(normalizedPhone);
+        throw new UnauthorizedException('OTP has expired. Please request a new OTP.');
+      }
+      if (inMemoryRecord.otp !== enteredOtp) {
+        throw new UnauthorizedException('Invalid OTP entered. Please try again.');
+      }
+      isValid = true;
+    }
+
+    if (!isValid) {
       throw new UnauthorizedException(
-        'No OTP request found for this phone number or it has expired. Please request a new OTP.',
+        'No valid OTP request found for this phone number or it has expired. Please request a new OTP.',
       );
     }
 
-    if (record) {
-      if (Date.now() > record.expiresAt) {
-        this.otpStore.delete(normalizedPhone);
-        if (!isMasterDemoOtp) {
-          throw new UnauthorizedException('OTP has expired. Please request a new OTP.');
-        }
-      } else if (record.otp !== enteredOtp && !isMasterDemoOtp) {
-        throw new UnauthorizedException('Invalid OTP entered. Please try again.');
-      }
-    }
-
-    // OTP verified -> remove from store
+    // Invalidate in memory and database for this phone
     this.otpStore.delete(normalizedPhone);
+    await this.phoneOtpRepository.update(
+      { phone: normalizedPhone, isUsed: false },
+      { isUsed: true },
+    );
 
-    // 1. Check if user already exists with this phone
+    // 2. Check if user already exists with this phone
     const rawNumber = normalizedPhone.replace(/^\+/, '');
     let user = await this.userRepository
       .createQueryBuilder('user')

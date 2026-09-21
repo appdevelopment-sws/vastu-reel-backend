@@ -8,8 +8,10 @@ import { User } from '../users/entities/user.entity';
 import { Role } from '../roles/entities/role.entity';
 import { Permission } from '../permissions/entities/permission.entity';
 import { EmailOtp } from './entities/email-otp.entity';
+import { PhoneOtp } from './entities/phone-otp.entity';
 import { MailModule } from '../mail/mail.module';
 import { AuthService } from './auth.service';
+import { TwoFactorService } from './two-factor.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -17,7 +19,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Role, Permission, EmailOtp]),
+    TypeOrmModule.forFeature([User, Role, Permission, EmailOtp, PhoneOtp]),
     MailModule,
     JwtModule.registerAsync({
       global: true,
@@ -39,6 +41,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
   controllers: [AuthController],
   providers: [
     AuthService,
+    TwoFactorService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
@@ -52,6 +55,6 @@ import { PermissionsGuard } from './guards/permissions.guard';
       useClass: PermissionsGuard,
     },
   ],
-  exports: [AuthService],
+  exports: [AuthService, TwoFactorService],
 })
 export class AuthModule {}
