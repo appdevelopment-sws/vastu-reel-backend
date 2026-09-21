@@ -849,6 +849,7 @@ export class AuthService implements OnModuleInit {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        gender: user.gender,
         age: user.age,
         address: user.address,
         avatarUrl: user.avatarUrl,
@@ -892,6 +893,7 @@ export class AuthService implements OnModuleInit {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      gender: user.gender,
       age: user.age,
       address: user.address,
       avatarUrl: user.avatarUrl,
@@ -957,6 +959,10 @@ export class AuthService implements OnModuleInit {
 
     if (dto.phone !== undefined) {
       user.phone = dto.phone;
+    }
+
+    if (dto.gender !== undefined) {
+      user.gender = dto.gender;
     }
 
     if (dto.age !== undefined) {

@@ -25,6 +25,7 @@ export interface FormattedUserResponse {
   name: string;
   email?: string;
   phone?: string;
+  gender?: string;
   age?: number;
   address?: string;
   avatarUrl?: string;
@@ -88,6 +89,7 @@ export class UsersService {
       name: user.name,
       email: user.email || undefined,
       phone: user.phone || undefined,
+      gender: user.gender || undefined,
       age: user.age || undefined,
       address: user.address || undefined,
       avatarUrl: user.avatarUrl || undefined,
@@ -158,6 +160,7 @@ export class UsersService {
       name: createUserDto.name.trim(),
       email: emailNormalized,
       phone: createUserDto.phone ? createUserDto.phone.trim() : undefined,
+      gender: createUserDto.gender,
       age: createUserDto.age,
       address: createUserDto.address ? createUserDto.address.trim() : undefined,
       avatarUrl: createUserDto.avatarUrl,
@@ -830,6 +833,9 @@ export class UsersService {
       user.phone = updateUserDto.phone
         ? updateUserDto.phone.trim()
         : (null as any);
+    }
+    if (updateUserDto.gender !== undefined) {
+      user.gender = updateUserDto.gender;
     }
     if (updateUserDto.age !== undefined) {
       user.age = updateUserDto.age;

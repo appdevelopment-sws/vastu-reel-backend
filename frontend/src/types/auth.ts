@@ -19,6 +19,7 @@ export interface User {
   name: string;
   email: string;
   phone?: string | null;
+  gender?: 'MALE' | 'FEMALE' | null;
   age?: number | null;
   address?: string | null;
   avatarUrl?: string | null;
@@ -45,6 +46,7 @@ export interface RegisterData {
   email: string;
   password: string;
   phone?: string;
+  gender?: 'MALE' | 'FEMALE';
   age?: number;
   address?: string;
   roleName?: string;

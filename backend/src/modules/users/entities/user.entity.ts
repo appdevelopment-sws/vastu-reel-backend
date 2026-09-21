@@ -8,6 +8,7 @@ import {
   JoinTable,
 } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
+import { UserGender } from '../enums/user-gender.enum';
 
 @Entity('users')
 export class User {
@@ -25,6 +26,13 @@ export class User {
 
   @Column({ nullable: true })
   phone: string;
+
+  @Column({
+    type: 'enum',
+    enum: UserGender,
+    nullable: true,
+  })
+  gender?: UserGender;
 
   @Column({ nullable: true })
   age: number;
