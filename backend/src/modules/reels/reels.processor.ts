@@ -2,7 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Reel, ReelStatus } from './entities/reel.entity';
+import { Reel, ReelStatus, ReelVisibility } from './entities/reel.entity';
 import { ReelMedia } from './entities/reel-media.entity';
 import { StorageService } from './services/storage.service';
 import * as path from 'path';
@@ -154,10 +154,14 @@ export class ReelsProcessor extends WorkerHost {
 
       await this.mediaRepository.save(media);
 
-      reel.status = ReelStatus.READY;
+      if ((reel.status as ReelStatus) === ReelStatus.DRAFT || reel.visibility === ReelVisibility.PRIVATE) {
+        reel.status = ReelStatus.DRAFT;
+      } else {
+        reel.status = ReelStatus.READY;
+      }
       await this.reelRepository.save(reel);
 
-      console.log(`Reel ${reelId} processed successfully! Status set to READY.`);
+      console.log(`Reel ${reelId} processed successfully! Status set to ${reel.status}.`);
     } catch (err: any) {
       console.error(`Error processing video for Reel ${reelId}:`, err);
       reel.status = ReelStatus.FAILED;

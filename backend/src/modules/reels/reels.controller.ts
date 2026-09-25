@@ -111,6 +111,25 @@ export class ReelsController {
     return this.reelsService.getFeed(userId, query, requestHost);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user draft reels (Saved in DB & R2, not public)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'User draft reels list.' })
+  @Get('drafts')
+  getMyDrafts(@Req() req: any) {
+    const userId = req.user.sub;
+    const requestHost = req.headers.host;
+    return this.reelsService.getUserDrafts(userId, requestHost);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Publish an existing draft reel to public feed' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Reel published to feed.' })
+  @Patch(':id/publish')
+  publishDraft(@Req() req: any, @Param('id') id: string) {
+    const userId = req.user.sub;
+    return this.reelsService.publishDraft(userId, id);
+  }
+
   @Public()
   @ApiOperation({ summary: 'Get dynamic trending tags and trending videos' })
   @ApiResponse({

@@ -129,6 +129,11 @@ export class InitUploadDto {
   @IsNumber()
   @IsOptional()
   longitude?: number;
+
+  @ApiProperty({ example: false, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isDraft?: boolean;
 }
 
 export class CompleteUploadDto {

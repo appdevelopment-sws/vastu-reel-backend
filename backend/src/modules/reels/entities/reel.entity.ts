@@ -23,6 +23,7 @@ export enum ReelStatus {
   READY = 'READY',
   FAILED = 'FAILED',
   DELETED = 'DELETED',
+  DRAFT = 'DRAFT',
 }
 
 export enum ReelVisibility {

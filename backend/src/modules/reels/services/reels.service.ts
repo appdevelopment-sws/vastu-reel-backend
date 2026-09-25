@@ -112,8 +112,8 @@ export class ReelsService {
       pincode: dto.pincode || '',
       latitude: dto.latitude,
       longitude: dto.longitude,
-      status: ReelStatus.UPLOADING,
-      visibility: ReelVisibility.PUBLIC,
+      status: dto.isDraft ? ReelStatus.DRAFT : ReelStatus.UPLOADING,
+      visibility: dto.isDraft ? ReelVisibility.PRIVATE : ReelVisibility.PUBLIC,
     });
     const savedReel = await this.reelRepository.save(reel);
 
@@ -326,19 +326,31 @@ export class ReelsService {
     }
     if (query.history && userId) {
       qb.innerJoin(
-        'reel.views',
+        (subQuery) =>
+          subQuery
+            .select('rv.reel_id', 'history_reel_id')
+            .addSelect('MAX(rv.created_at)', 'max_viewed_at')
+            .from('reel_views', 'rv')
+            .where('rv.user_id = :historyUserId', { historyUserId: userId })
+            .groupBy('rv.reel_id'),
         'userView',
-        'userView.userId = :historyUserId',
-        { historyUserId: userId },
+        'userView.history_reel_id = reel.id',
       );
+      qb.addSelect('userView.max_viewed_at');
     }
     if (query.commented && userId) {
       qb.innerJoin(
-        'reel.comments',
+        (subQuery) =>
+          subQuery
+            .select('rc.reel_id', 'commented_reel_id')
+            .addSelect('MAX(rc.created_at)', 'max_commented_at')
+            .from('comments', 'rc')
+            .where('rc.user_id = :commentUserId', { commentUserId: userId })
+            .groupBy('rc.reel_id'),
         'userComment',
-        'userComment.userId = :commentUserId',
-        { commentUserId: userId },
+        'userComment.commented_reel_id = reel.id',
       );
+      qb.addSelect('userComment.max_commented_at');
     }
     if (query.search && query.search.trim()) {
       const searchTerms = query.search.trim().split(/\s+/).filter(Boolean);
@@ -356,9 +368,9 @@ export class ReelsService {
     }
 
     if (query.history && userId) {
-      qb.orderBy('userView.createdAt', 'DESC');
+      qb.orderBy('userView.max_viewed_at', 'DESC');
     } else if (query.commented && userId) {
-      qb.orderBy('userComment.createdAt', 'DESC');
+      qb.orderBy('userComment.max_commented_at', 'DESC');
     } else if (query.sortBy === FeedSortBy.VIEWS) {
       qb.orderBy('reel.viewsCount', 'DESC').addOrderBy(
         'reel.createdAt',
@@ -614,6 +626,117 @@ export class ReelsService {
         title: reel.user?.profession || 'Certified Consultant',
         isFollowing: isFollowingCreator,
       },
+    };
+  }
+
+  /**
+   * Retrieves all draft / private reels for the authenticated user.
+   */
+  async getUserDrafts(userId: string, requestHost?: string) {
+    const reels = await this.reelRepository.find({
+      where: [
+        { userId, status: ReelStatus.DRAFT },
+        { userId, visibility: ReelVisibility.PRIVATE },
+      ],
+      relations: { user: true, media: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    return reels
+      .filter((r) => r.status !== ReelStatus.DELETED)
+      .map((reel) => {
+        const videoUrl = reel.media?.hlsKey
+          ? this.storageService.getObjectUrl(reel.media.hlsKey, requestHost)
+          : (reel.media?.originalKey
+              ? this.storageService.getObjectUrl(
+                  reel.media.originalKey,
+                  requestHost,
+                )
+              : null);
+        const thumbnailUrl = reel.media?.thumbnailKey
+          ? this.storageService.getObjectUrl(
+              reel.media.thumbnailKey,
+              requestHost,
+            )
+          : null;
+
+        let creatorAvatarUrl = reel.user?.avatarUrl || '';
+        if (
+          creatorAvatarUrl &&
+          !creatorAvatarUrl.startsWith('http') &&
+          !creatorAvatarUrl.startsWith('data:')
+        ) {
+          creatorAvatarUrl = this.storageService.getObjectUrl(
+            creatorAvatarUrl,
+            requestHost,
+          );
+        }
+
+        return {
+          id: reel.id,
+          title: reel.title,
+          caption: reel.caption,
+          category: reel.category,
+          subCategory: reel.subCategory,
+          propertyType: reel.propertyType,
+          minPrice: reel.minPrice != null ? Number(reel.minPrice) : null,
+          maxPrice: reel.maxPrice != null ? Number(reel.maxPrice) : null,
+          element: reel.element,
+          location: reel.location,
+          landmark: reel.landmark,
+          city: reel.city,
+          state: reel.state,
+          pincode: reel.pincode,
+          latitude: reel.latitude != null ? Number(reel.latitude) : null,
+          longitude: reel.longitude != null ? Number(reel.longitude) : null,
+          createdAt: reel.createdAt,
+          lastEdited: reel.updatedAt,
+          likesCount: 0,
+          commentsCount: 0,
+          bookmarksCount: 0,
+          viewsCount: String(reel.viewsCount || 0),
+          videoUrl,
+          thumbnailUrl,
+          isDraft: true,
+          status: reel.status,
+          visibility: reel.visibility,
+          mediaUrls: videoUrl ? [videoUrl] : (thumbnailUrl ? [thumbnailUrl] : []),
+          creator: {
+            id: reel.user?.id || reel.userId || 'c_me',
+            name: reel.user?.name || reel.user?.username || 'Creator',
+            username: reel.user?.username || '',
+            avatarUrl: creatorAvatarUrl,
+            isVerified: reel.user?.isVerified ?? false,
+            title: reel.user?.profession || 'Consultant',
+          },
+        };
+      });
+  }
+
+  /**
+   * Publishes an existing draft reel to public feed.
+   */
+  async publishDraft(userId: string, id: string) {
+    const reel = await this.reelRepository.findOne({
+      where: { id },
+      relations: { media: true },
+    });
+    if (!reel) {
+      throw new NotFoundException('Draft reel not found.');
+    }
+    if (reel.userId !== userId) {
+      throw new ForbiddenException('You do not own this reel.');
+    }
+
+    reel.status = ReelStatus.READY;
+    reel.visibility = ReelVisibility.PUBLIC;
+    reel.createdAt = new Date();
+    await this.reelRepository.save(reel);
+
+    return {
+      success: true,
+      message: 'Reel published successfully.',
+      reelId: reel.id,
     };
   }
 
