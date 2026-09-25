@@ -295,9 +295,9 @@ export class ReelsService {
         minRating: query.minRating,
       });
     }
-    if (query.userId) {
+    if (query.userId && !query.liked) {
       qb.andWhere('reel.userId = :userId', { userId: query.userId });
-    } else if (userId) {
+    } else if (userId && !query.liked) {
       // Exclude posts from creators who blocked the requesting user or are blocked by the requesting user
       qb.andWhere(
         `reel.user_id NOT IN (
@@ -308,10 +308,13 @@ export class ReelsService {
         { currentBlockerId: userId },
       );
     }
-    if (query.liked && userId) {
-      qb.innerJoin('reel.likes', 'userLike', 'userLike.userId = :likeUserId', {
-        likeUserId: userId,
-      });
+    if (query.liked) {
+      const targetUserId = query.userId || userId;
+      if (targetUserId) {
+        qb.innerJoin('reel.likes', 'userLike', 'userLike.userId = :likeUserId', {
+          likeUserId: targetUserId,
+        });
+      }
     }
     if (query.saved && userId) {
       qb.innerJoin(
