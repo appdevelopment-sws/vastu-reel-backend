@@ -1573,7 +1573,9 @@ export class ReelsService {
         return {
           id: user.id,
           name: user.name || user.username || 'Creator',
-          username: user.username || null,
+          username:
+            user.username ||
+            (user.name ? user.name.replace(/\s+/g, '_').toLowerCase() : 'creator'),
           avatarUrl,
           isVerified: user.isVerified || false,
           title:

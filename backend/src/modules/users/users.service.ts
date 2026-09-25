@@ -193,7 +193,8 @@ export class UsersService {
       .leftJoinAndSelect('user.roles', 'roles');
 
     if (params?.search && params.search.trim().length > 0) {
-      const search = `%${params.search.trim().toLowerCase()}%`;
+      const cleanSearch = params.search.trim().replace(/^@+/, '').toLowerCase();
+      const search = `%${cleanSearch}%`;
       qb.andWhere(
         '(LOWER(user.name) LIKE :search OR LOWER(user.username) LIKE :search OR LOWER(user.email) LIKE :search OR user.phone LIKE :search)',
         { search },
