@@ -147,8 +147,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </div>
           <div>
             <div className="flex items-center gap-1.5 font-bold tracking-tight text-foreground">
-              <span>Vastu</span>
-              <span className="font-black text-primary">Reels</span>
+              <span>Reels</span>
+              <span className="font-black text-primary">Gate</span>
             </div>
             <p className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
               Admin Portal
