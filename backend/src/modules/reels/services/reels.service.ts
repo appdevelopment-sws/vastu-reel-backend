@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, Brackets } from 'typeorm';
+import { Repository, IsNull, Brackets, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
@@ -245,6 +245,13 @@ export class ReelsService {
     query: FeedQueryDto,
     requestHost?: string,
   ) {
+    if (query.history && userId) {
+      return this.getHistory(userId, query, requestHost);
+    }
+    if (query.commented && userId) {
+      return this.getCommented(userId, query, requestHost);
+    }
+
     const page = query.page || 1;
     const limit = query.limit || 10;
     const skip = (page - 1) * limit;
@@ -324,34 +331,6 @@ export class ReelsService {
         { bookmarkUserId: userId },
       );
     }
-    if (query.history && userId) {
-      qb.innerJoin(
-        (subQuery) =>
-          subQuery
-            .select('rv.reel_id', 'history_reel_id')
-            .addSelect('MAX(rv.created_at)', 'max_viewed_at')
-            .from('reel_views', 'rv')
-            .where('rv.user_id = :historyUserId', { historyUserId: userId })
-            .groupBy('rv.reel_id'),
-        'userView',
-        'userView.history_reel_id = reel.id',
-      );
-      qb.addSelect('userView.max_viewed_at');
-    }
-    if (query.commented && userId) {
-      qb.innerJoin(
-        (subQuery) =>
-          subQuery
-            .select('rc.reel_id', 'commented_reel_id')
-            .addSelect('MAX(rc.created_at)', 'max_commented_at')
-            .from('comments', 'rc')
-            .where('rc.user_id = :commentUserId', { commentUserId: userId })
-            .groupBy('rc.reel_id'),
-        'userComment',
-        'userComment.commented_reel_id = reel.id',
-      );
-      qb.addSelect('userComment.max_commented_at');
-    }
     if (query.search && query.search.trim()) {
       const searchTerms = query.search.trim().split(/\s+/).filter(Boolean);
       qb.andWhere(
@@ -367,11 +346,7 @@ export class ReelsService {
       );
     }
 
-    if (query.history && userId) {
-      qb.orderBy('userView.max_viewed_at', 'DESC');
-    } else if (query.commented && userId) {
-      qb.orderBy('userComment.max_commented_at', 'DESC');
-    } else if (query.sortBy === FeedSortBy.VIEWS) {
+    if (query.sortBy === FeedSortBy.VIEWS) {
       qb.orderBy('reel.viewsCount', 'DESC').addOrderBy(
         'reel.createdAt',
         'DESC',
@@ -397,8 +372,205 @@ export class ReelsService {
 
     const [reels, total] = await qb.getManyAndCount();
 
-    // Map feeds with stats and user-specific flags
-    const items = await Promise.all(
+    const items = await this.mapReelsToFeedItems(reels, userId, requestHost);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page < Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Dedicated, robust retrieval of recently watched reels for a user.
+   * Avoids TypeORM getManyAndCount alias metadata issues by querying ReelView
+   * with proper GROUP BY and ordering by latest view time.
+   */
+  async getHistory(
+    userId: string,
+    query: FeedQueryDto,
+    requestHost?: string,
+  ) {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const historyQb = this.viewRepository
+      .createQueryBuilder('rv')
+      .select('rv.reelId', 'reelId')
+      .addSelect('MAX(rv.createdAt)', 'lastViewed')
+      .innerJoin('rv.reel', 'reel')
+      .leftJoin('reel.user', 'creator')
+      .where('rv.userId = :userId', { userId })
+      .andWhere('reel.status = :status', { status: ReelStatus.READY })
+      .andWhere('reel.visibility = :visibility', {
+        visibility: ReelVisibility.PUBLIC,
+      });
+
+    if (query.category && query.category.toLowerCase() !== 'all') {
+      historyQb.andWhere('LOWER(reel.category) = LOWER(:category)', {
+        category: query.category,
+      });
+    }
+
+    if (query.search && query.search.trim()) {
+      const searchTerms = query.search.trim().split(/\s+/).filter(Boolean);
+      historyQb.andWhere(
+        new Brackets((subQb) => {
+          searchTerms.forEach((term, idx) => {
+            const paramName = `search_${idx}`;
+            subQb.andWhere(
+              `(LOWER(reel.title) LIKE LOWER(:${paramName}) OR LOWER(reel.caption) LIKE LOWER(:${paramName}) OR LOWER(creator.name) LIKE LOWER(:${paramName}) OR LOWER(creator.username) LIKE LOWER(:${paramName}))`,
+              { [paramName]: `%${term}%` },
+            );
+          });
+        }),
+      );
+    }
+
+    historyQb
+      .groupBy('rv.reelId')
+      .orderBy('lastViewed', 'DESC');
+
+    const rawResults = await historyQb.getRawMany();
+    const total = rawResults.length;
+    const paginatedIds = rawResults
+      .slice(skip, skip + limit)
+      .map((r) => r.reelId as string);
+
+    if (paginatedIds.length === 0) {
+      return {
+        items: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasMore: false,
+      };
+    }
+
+    const reels = await this.reelRepository.find({
+      where: { id: In(paginatedIds) },
+      relations: { user: true, media: true },
+    });
+
+    const reelMap = new Map(reels.map((r) => [r.id, r]));
+    const orderedReels = paginatedIds
+      .map((id) => reelMap.get(id))
+      .filter((r): r is Reel => !!r);
+
+    const items = await this.mapReelsToFeedItems(orderedReels, userId, requestHost);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: skip + items.length < total,
+    };
+  }
+
+  /**
+   * Dedicated, robust retrieval of commented reels for a user.
+   */
+  async getCommented(
+    userId: string,
+    query: FeedQueryDto,
+    requestHost?: string,
+  ) {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const commentQb = this.commentRepository
+      .createQueryBuilder('c')
+      .select('c.reelId', 'reelId')
+      .addSelect('MAX(c.createdAt)', 'lastCommented')
+      .innerJoin('c.reel', 'reel')
+      .leftJoin('reel.user', 'creator')
+      .where('c.userId = :userId', { userId })
+      .andWhere('reel.status = :status', { status: ReelStatus.READY })
+      .andWhere('reel.visibility = :visibility', {
+        visibility: ReelVisibility.PUBLIC,
+      });
+
+    if (query.category && query.category.toLowerCase() !== 'all') {
+      commentQb.andWhere('LOWER(reel.category) = LOWER(:category)', {
+        category: query.category,
+      });
+    }
+
+    if (query.search && query.search.trim()) {
+      const searchTerms = query.search.trim().split(/\s+/).filter(Boolean);
+      commentQb.andWhere(
+        new Brackets((subQb) => {
+          searchTerms.forEach((term, idx) => {
+            const paramName = `search_${idx}`;
+            subQb.andWhere(
+              `(LOWER(reel.title) LIKE LOWER(:${paramName}) OR LOWER(reel.caption) LIKE LOWER(:${paramName}) OR LOWER(creator.name) LIKE LOWER(:${paramName}) OR LOWER(creator.username) LIKE LOWER(:${paramName}))`,
+              { [paramName]: `%${term}%` },
+            );
+          });
+        }),
+      );
+    }
+
+    commentQb
+      .groupBy('c.reelId')
+      .orderBy('lastCommented', 'DESC');
+
+    const rawResults = await commentQb.getRawMany();
+    const total = rawResults.length;
+    const paginatedIds = rawResults
+      .slice(skip, skip + limit)
+      .map((r) => r.reelId as string);
+
+    if (paginatedIds.length === 0) {
+      return {
+        items: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasMore: false,
+      };
+    }
+
+    const reels = await this.reelRepository.find({
+      where: { id: In(paginatedIds) },
+      relations: { user: true, media: true },
+    });
+
+    const reelMap = new Map(reels.map((r) => [r.id, r]));
+    const orderedReels = paginatedIds
+      .map((id) => reelMap.get(id))
+      .filter((r): r is Reel => !!r);
+
+    const items = await this.mapReelsToFeedItems(orderedReels, userId, requestHost);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: skip + items.length < total,
+    };
+  }
+
+  /**
+   * Helper to map entities to rich feed items.
+   */
+  private async mapReelsToFeedItems(
+    reels: Reel[],
+    userId: string | null,
+    requestHost?: string,
+  ) {
+    return Promise.all(
       reels.map(async (reel) => {
         const likesCount = await this.likeRepository.count({
           where: { reelId: reel.id },
@@ -512,15 +684,6 @@ export class ReelsService {
         };
       }),
     );
-
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-      hasMore: page < Math.ceil(total / limit),
-    };
   }
 
   /**

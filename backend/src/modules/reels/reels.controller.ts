@@ -96,8 +96,7 @@ export class ReelsController {
   getHistory(@Req() req: any, @Query() query: FeedQueryDto) {
     const userId = req.user.sub;
     const requestHost = req.headers.host;
-    query.history = true;
-    return this.reelsService.getFeed(userId, query, requestHost);
+    return this.reelsService.getHistory(userId, query, requestHost);
   }
 
   @ApiBearerAuth()
@@ -107,8 +106,7 @@ export class ReelsController {
   getCommented(@Req() req: any, @Query() query: FeedQueryDto) {
     const userId = req.user.sub;
     const requestHost = req.headers.host;
-    query.commented = true;
-    return this.reelsService.getFeed(userId, query, requestHost);
+    return this.reelsService.getCommented(userId, query, requestHost);
   }
 
   @ApiBearerAuth()
