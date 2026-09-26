@@ -28,6 +28,8 @@ export interface FormattedUserResponse {
   gender?: string;
   age?: number;
   address?: string;
+  state?: string;
+  district?: string;
   avatarUrl?: string;
   coverImageUrl?: string;
   profession?: string;
@@ -92,6 +94,8 @@ export class UsersService {
       gender: user.gender || undefined,
       age: user.age || undefined,
       address: user.address || undefined,
+      state: user.state || undefined,
+      district: user.district || undefined,
       avatarUrl: user.avatarUrl || undefined,
       coverImageUrl: user.coverImageUrl || undefined,
       profession: user.profession || undefined,
@@ -163,6 +167,8 @@ export class UsersService {
       gender: createUserDto.gender,
       age: createUserDto.age,
       address: createUserDto.address ? createUserDto.address.trim() : undefined,
+      state: createUserDto.state ? createUserDto.state.trim() : undefined,
+      district: createUserDto.district ? createUserDto.district.trim() : undefined,
       avatarUrl: createUserDto.avatarUrl,
       coverImageUrl: createUserDto.coverImageUrl,
       profession: createUserDto.profession,
@@ -844,6 +850,16 @@ export class UsersService {
     if (updateUserDto.address !== undefined) {
       user.address = updateUserDto.address
         ? updateUserDto.address.trim()
+        : (null as any);
+    }
+    if (updateUserDto.state !== undefined) {
+      user.state = updateUserDto.state
+        ? updateUserDto.state.trim()
+        : (null as any);
+    }
+    if (updateUserDto.district !== undefined) {
+      user.district = updateUserDto.district
+        ? updateUserDto.district.trim()
         : (null as any);
     }
     if (updateUserDto.avatarUrl !== undefined) {

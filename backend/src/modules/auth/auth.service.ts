@@ -956,6 +956,8 @@ export class AuthService implements OnModuleInit {
       gender: user.gender,
       age: user.age,
       address: user.address,
+      state: user.state,
+      district: user.district,
       avatarUrl: user.avatarUrl,
       coverImageUrl: user.coverImageUrl,
       profession: user.profession,
@@ -1031,6 +1033,14 @@ export class AuthService implements OnModuleInit {
 
     if (dto.address !== undefined) {
       user.address = dto.address;
+    }
+
+    if (dto.state !== undefined) {
+      user.state = dto.state;
+    }
+
+    if (dto.district !== undefined) {
+      user.district = dto.district;
     }
 
     if (dto.avatarUrl !== undefined) {

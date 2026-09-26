@@ -41,6 +41,12 @@ export class User {
   address: string;
 
   @Column({ nullable: true })
+  state: string;
+
+  @Column({ nullable: true })
+  district: string;
+
+  @Column({ nullable: true })
   avatarUrl: string;
 
   @Column({ nullable: true })

@@ -74,6 +74,22 @@ export class CreateUserDto {
   @IsString()
   address?: string;
 
+  @ApiPropertyOptional({
+    example: 'Bihar',
+    description: 'State name',
+  })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional({
+    example: 'Patna',
+    description: 'District name',
+  })
+  @IsOptional()
+  @IsString()
+  district?: string;
+
   @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
   @IsOptional()
   @IsString()

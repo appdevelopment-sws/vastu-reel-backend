@@ -60,6 +60,16 @@ export class UpdateProfileDto {
   @IsString()
   address?: string;
 
+  @ApiPropertyOptional({ example: 'Bihar' })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional({ example: 'Patna' })
+  @IsOptional()
+  @IsString()
+  district?: string;
+
   @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
   @IsOptional()
   @IsString()
