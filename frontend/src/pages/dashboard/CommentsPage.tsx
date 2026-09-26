@@ -125,7 +125,7 @@ export const CommentsPage: React.FC = () => {
             </span>
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Monitor user comments, filter by Vastu topics, inspect creator reels, and enforce community standards
+            Monitor user comments, filter by  topics, inspect creator reels, and enforce community standards
           </p>
         </div>
 
@@ -206,7 +206,7 @@ export const CommentsPage: React.FC = () => {
             className="rounded-xl border border-input bg-card px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
           >
             <option value="ALL">All  Categories</option>
-            <option value="living_room">Living Room Vastu</option>
+            <option value="living_room">Living Room </option>
             <option value="Home Vastu">Home Vastu</option>
             <option value="Office Vastu">Office Vastu</option>
             <option value="Remedies">Remedies & Crystals</option>

@@ -220,7 +220,7 @@ export const CreatorDetailPage: React.FC = () => {
     id: r.id,
     title: r.title,
     description: r.caption || '',
-    category: r.category || 'Vastu',
+    category: r.category || '',
     subCategory: r.subCategory,
     propertyType: r.propertyType,
     element: r.element,
@@ -780,7 +780,7 @@ export const CreatorDetailPage: React.FC = () => {
                         <div className="flex flex-col items-center justify-center p-4 text-center">
                           <Film className="h-8 w-8 text-primary/40 mb-1" />
                           <span className="text-[11px] font-medium text-slate-400">
-                            {reel.category || 'Vastu Video'}
+                            {reel.category || ''}
                           </span>
                         </div>
                       )}
@@ -806,7 +806,7 @@ export const CreatorDetailPage: React.FC = () => {
                       {/* Category Tag */}
                       <div className="absolute top-2.5 right-2.5">
                         <span className="rounded-full bg-black/60 backdrop-blur-md px-2 py-0.5 text-[10px] font-medium text-white border border-white/10">
-                          {reel.category || 'Vastu'}
+                          {reel.category || ''}
                         </span>
                       </div>
 

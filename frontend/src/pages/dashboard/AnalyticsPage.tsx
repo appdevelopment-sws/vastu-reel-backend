@@ -481,7 +481,7 @@ export const AnalyticsPage: React.FC = () => {
             <div>
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Film className="h-4 w-4 text-primary" />
-                <span>Top Performing Vastu Reels</span>
+                <span>Top Performing Videos</span>
               </h3>
               <p className="text-xs text-muted-foreground">
                 Ranked by real database metrics and viewer interaction

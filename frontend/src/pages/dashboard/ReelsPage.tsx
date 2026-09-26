@@ -100,7 +100,7 @@ export const ReelsPage: React.FC = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <span>Vastu Video Library</span>
+            <span> Video Library</span>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
               {reels.length} Published Videos
             </span>
@@ -153,7 +153,7 @@ export const ReelsPage: React.FC = () => {
           >
             <option value="ALL">All Categories</option>
             <option value="living_room">Living Room</option>
-            <option value="Home Vastu">Home Vastu</option>
+            <option value="Home Vastu">Home</option>
             <option value="Office Vastu">Office Vastu</option>
             <option value="Directions & Elements">Directions & Elements</option>
             <option value="Remedies">Remedies</option>
@@ -212,7 +212,7 @@ export const ReelsPage: React.FC = () => {
                     <div className="flex h-full w-full flex-col items-center justify-between bg-gradient-to-br from-zinc-900 via-zinc-950 to-primary/20 p-6 text-center">
                       <div className="flex w-full justify-start">
                         <span className="rounded-lg bg-primary/20 px-2 py-1 text-[10px] font-bold text-primary backdrop-blur-md">
-                          {reel.category || "Vastu Tip"}
+                          {reel.category || "Reelsgate Tip"}
                         </span>
                       </div>
 
@@ -221,7 +221,7 @@ export const ReelsPage: React.FC = () => {
                           <Film className="h-7 w-7" />
                         </div>
                         <h4 className="line-clamp-2 text-xs font-bold text-white/90">
-                          {reel.title || "Vastu Video"}
+                          {reel.title || "Reelsgate Video"}
                         </h4>
                         <span className="mt-1 text-[10px] text-white/50">
                           Click to stream HLS video

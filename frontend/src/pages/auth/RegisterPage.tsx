@@ -112,11 +112,11 @@ export const RegisterPage: React.FC = () => {
             </div>
           </div>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground">
-            Join Vastu Platform
+            Join Platform
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             Create an Admin or Creator account to start publishing & managing
-            Vastu content
+            Reels content
           </p>
         </div>
 
@@ -223,7 +223,7 @@ export const RegisterPage: React.FC = () => {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="acharya@vastu.com"
+                    placeholder="email address"
                     className="w-full rounded-xl border border-input bg-background/50 py-2.5 pr-4 pl-10 text-sm text-foreground transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/20 focus:outline-none"
                   />
                 </div>

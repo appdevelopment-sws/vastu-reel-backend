@@ -80,10 +80,10 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground">
-            Vastu Video Admin
+            ReelsGate Admin
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Manage your Vastu short-video platform & creator ecosystem
+            Manage your short-video platform & creator ecosystem
           </p>
         </div>
 

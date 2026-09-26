@@ -545,7 +545,7 @@ export class AnalyticsService {
         id: reel.id,
         title: reel.title || 'Untitled Reel',
         caption: reel.caption,
-        category: reel.category || 'General Vastu',
+        category: reel.category || 'General',
         thumbnailUrl,
         videoUrl,
         viewsCount,
@@ -605,7 +605,7 @@ export class AnalyticsService {
     let totalViewsAcrossCategories = 0;
 
     for (const r of reels) {
-      const cat = r.category || 'General Vastu';
+      const cat = r.category || 'General';
       const existing = categoryMap.get(cat) || {
         views: 0,
         likes: 0,
@@ -859,10 +859,10 @@ export class AnalyticsService {
     const items = comments.map((c) => ({
       id: c.id,
       text: c.text,
-      userName: c.user?.name || c.user?.username || 'Vastu Enthusiast',
+      userName: c.user?.name || c.user?.username || 'Enthusiast',
       userAvatar: '',
       reelId: c.reelId,
-      reelTitle: c.reel?.title || 'Vastu Reel',
+      reelTitle: c.reel?.title || 'ReelsGate',
       likesCount: c.likes?.length || 0,
       createdAt: c.createdAt,
     }));
@@ -893,7 +893,7 @@ export class AnalyticsService {
       {
         id: 'm1',
         title: 'First 1,000 Views',
-        description: 'Your Vastu reels crossed the 1K milestone!',
+        description: 'Your videos crossed the 1K milestone!',
         isUnlocked: totalViews >= 1000,
         progressPercentage: Math.min(
           100,
@@ -903,8 +903,8 @@ export class AnalyticsService {
       },
       {
         id: 'm2',
-        title: 'Rising Vastu Expert',
-        description: 'Gain 50 loyal followers seeking Vedic consultation',
+        title: 'Rising Reelsgate Expert',
+        description: 'Gain 50 followers',
         isUnlocked: totalFollowers >= 50,
         progressPercentage: Math.min(
           100,
@@ -915,7 +915,7 @@ export class AnalyticsService {
       {
         id: 'm3',
         title: 'Consistent Creator',
-        description: 'Upload 5 insightful Vastu remedies',
+        description: 'Upload 5 insightful Reelsgate videos',
         isUnlocked: creatorReels.length >= 5,
         progressPercentage: Math.min(
           100,
@@ -926,7 +926,7 @@ export class AnalyticsService {
       {
         id: 'm4',
         title: '10K Mega Reach',
-        description: 'Amass over 10,000 collective video views',
+        description: 'Gain over 10,000 video views',
         isUnlocked: totalViews >= 10000,
         progressPercentage: Math.min(
           100,
@@ -945,7 +945,7 @@ export class AnalyticsService {
       {
         title: 'Top Category Engagement',
         description:
-          'Focus on high-demand Vastu remedies to increase saves and bookmark frequency.',
+          'Focus on high-demand videos to increase saves and bookmark frequency.',
       },
       {
         title: 'Audience Interaction',
@@ -1271,7 +1271,7 @@ export class AnalyticsService {
         id: reel.id,
         title: reel.title || 'Untitled Reel',
         caption: reel.caption,
-        category: reel.category || 'General Vastu',
+        category: reel.category || 'General ',
         thumbnailUrl,
         videoUrl,
         viewsCount,
@@ -1334,7 +1334,7 @@ export class AnalyticsService {
     let totalViewsAcrossCategories = 0;
 
     for (const r of reels) {
-      const cat = r.category || 'General Vastu';
+      const cat = r.category || 'General ';
       const existing = categoryMap.get(cat) || {
         views: 0,
         likes: 0,
@@ -1735,11 +1735,11 @@ export class AnalyticsService {
 
       return {
         id: user.id,
-        name: user.name || user.username || 'Vastu Creator',
+        name: user.name || user.username || 'Reelsgate Expert',
         username: user.username || null,
         avatarUrl,
         isVerified: user.isVerified ?? false,
-        profession: user.profession || 'Certified Vastu Consultant',
+        profession: user.profession || 'Certified  Consultant',
         location: user.address || 'India',
         totalReels: totalReelsCount,
         followersCount: totalFollowers,

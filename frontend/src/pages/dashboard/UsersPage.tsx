@@ -339,7 +339,7 @@ export const UsersPage: React.FC = () => {
                             <div className="font-bold text-foreground group-hover:text-primary transition flex items-center gap-1.5">
                               <span>{u.name}</span>
                               {u.isVerified && (
-                                <span title="Verified Vastu Expert">
+                                <span title="Verified  Expert">
                                   <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
                                 </span>
                               )}

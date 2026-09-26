@@ -150,13 +150,13 @@ export const DashboardOverviewPage: React.FC = () => {
     {
       title: "Active Creators",
       value: stats.totalCreators,
-      change: "Vastu Masters",
+      change: "Masters",
       icon: Shield,
       color: "from-emerald-500/20 to-teal-500/20",
       iconColor: "text-emerald-500",
     },
     {
-      title: "Vastu Video",
+      title: "Vidoes",
       value: stats.totalReels,
       change: "Published Videos",
       icon: Film,
@@ -184,7 +184,7 @@ export const DashboardOverviewPage: React.FC = () => {
                 {user?.roles?.[0] || "ADMINISTRATOR"}
               </span>
               <span className="text-xs text-muted-foreground">
-                • Vastu Video Ecosystem
+                •  Ecosystem
               </span>
             </div>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
@@ -334,7 +334,7 @@ export const DashboardOverviewPage: React.FC = () => {
                   Latest Reels Uploads
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Vastu short videos published by creators
+                   short videos published by creators
                 </p>
               </div>
               <Link
@@ -364,7 +364,7 @@ export const DashboardOverviewPage: React.FC = () => {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <h4 className="line-clamp-1 text-xs font-bold text-foreground transition-colors group-hover:text-primary">
-                        {reel.title || "Untitled Vastu Reel"}
+                        {reel.title || "Untitled Reel"}
                       </h4>
                       <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                         {reel.category || "General"}
