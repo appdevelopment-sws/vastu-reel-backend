@@ -187,13 +187,13 @@ export const LoginPage: React.FC = () => {
                 <span>Remember this device</span>
               </label>
 
-              <button
+              {/* <button
                 type="button"
                 onClick={handleFillAdmin}
                 className="text-xs font-medium text-primary transition hover:text-primary/80 hover:underline"
               >
                 Fill Demo Admin
-              </button>
+              </button> */}
             </div>
 
             {/* Submit Button */}
